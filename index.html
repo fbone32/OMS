@@ -32,20 +32,23 @@
     .oba-nav { scrollbar-color: #2A4A73 transparent; }
     .oba-sk { background: linear-gradient(90deg,#E7EBF0 25%,#F2F5F8 37%,#E7EBF0 63%); background-size: 400% 100%; animation: obaShimmer 1.25s ease-in-out infinite; border-radius: 10px; }
     @keyframes obaShimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+    /* ===== Mobile bottom tab bar + "More" drawer (phone only, see @media max-width:640px below) ===== */
+    .oba-bottombar { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 120; background: #0D2B4E; border-top: 2px solid #C8960C; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)) 4px; justify-content: space-around; align-items: stretch; gap: 2px; box-shadow: 0 -6px 20px rgba(0,0,0,0.18); }
+    .oba-bottombar-tab { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: transparent; border: none; padding: 6px 2px; cursor: pointer; min-height: 52px; }
+    .oba-bottombar-badge { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; flex-shrink: 0; }
+    .oba-bottombar-label { font-size: 9.5px; font-weight: 700; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .oba-drawer-overlay { position: fixed; inset: 0; z-index: 250; background: rgba(13,43,78,0.5); display: flex; align-items: flex-end; justify-content: center; }
+    .oba-drawer-panel { width: 100%; max-width: 100%; max-height: 85vh; background: #FFFFFF; border-radius: 16px 16px 0 0; display: flex; flex-direction: column; overflow: hidden; }
+    .oba-drawer-header { padding: 16px 18px; border-bottom: 1px solid #EEF1F4; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 800; color: #0D2B4E; flex-shrink: 0; }
+    .oba-drawer-close { background: #F5F7FA; border: none; color: #6B7684; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+    .oba-drawer-body { overflow-y: auto; padding: 10px 10px 6px 10px; flex: 1; }
+    .oba-drawer-heading { color: #9AA4B0; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em; padding: 12px 10px 6px 10px; }
+    .oba-drawer-item { display: block; width: 100%; text-align: left; background: transparent; border: none; border-left: 3px solid transparent; color: #1F2A37; font-size: 13.5px; font-weight: 600; padding: 12px 13px; border-radius: 0 8px 8px 0; cursor: pointer; min-height: 44px; box-sizing: border-box; }
+    .oba-drawer-footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)) 16px; border-top: 1px solid #EEF1F4; flex-shrink: 0; }
+    .oba-drawer-signout { width: 100%; background: #F5F7FA; border: 1px solid #E3E7EC; color: #9B2C2C; font-size: 13px; font-weight: 700; padding: 12px; border-radius: 8px; cursor: pointer; min-height: 44px; box-sizing: border-box; }
+
+    /* ===== Shared rules for tablet portrait + phone (≤900px) ===== */
     @media (max-width: 900px) {
-      .oba-shell { flex-direction: column !important; height: auto !important; min-height: 100vh; overflow: visible !important; }
-      .oba-sidebar { width: 100% !important; height: auto !important; flex-direction: row !important; align-items: center !important; gap: 10px; padding: 9px 14px !important; box-sizing: border-box; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid #C8960C; }
-      .oba-sidebar > div:first-child { padding: 0 !important; border: none !important; flex-shrink: 0; }
-      .oba-sidebar > div:first-child img { width: 116px !important; }
-      .oba-sidebar > div:first-child > div { display: none !important; }
-      .oba-nav { flex-direction: row !important; overflow-x: auto; overflow-y: hidden; gap: 6px !important; padding: 0 2px !important; flex: 1 1 auto !important; align-items: center; }
-      .oba-nav > div { display: contents !important; }
-      .oba-nav > div > div:first-child { display: none !important; }
-      .oba-nav > div > div:last-child { display: flex !important; flex-direction: row !important; gap: 6px !important; }
-      .oba-nav button { border-left: none !important; border-radius: 999px !important; padding: 8px 15px !important; white-space: nowrap; }
-      .oba-sidebar > div:last-child { padding: 0 !important; border: none !important; flex-shrink: 0; }
-      .oba-sidebar > div:last-child > div:first-child { display: none !important; }
-      .oba-sidebar > div:last-child button { margin-top: 0 !important; padding: 8px 13px !important; white-space: nowrap; }
       .oba-main { height: auto !important; }
       .oba-content { overflow: visible !important; overflow-x: hidden !important; padding: 16px !important; }
       .oba-content [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
@@ -55,10 +58,63 @@
       .oba-topbar > div:last-child { width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 12px !important; }
       .oba-topbar [style*="width:230px"] { width: 100% !important; flex: 1 1 100%; }
     }
-    @media (max-width: 560px) {
-      .oba-nav button { padding: 7px 13px !important; font-size: 12px !important; }
-      .oba-content { padding: 12px !important; }
+
+    /* ===== Tablet portrait (641–900px): sidebar collapses to a horizontal pill bar under the logo ===== */
+    @media (min-width: 641px) and (max-width: 900px) {
+      .oba-shell { flex-direction: column !important; height: auto !important; min-height: 100vh; overflow: visible !important; }
+      .oba-sidebar { width: 100% !important; height: auto !important; flex-direction: row !important; align-items: center !important; gap: 10px; padding: 9px 14px !important; box-sizing: border-box; position: sticky; top: 0; z-index: 100; border-bottom: 2px solid #C8960C; }
+      .oba-sidebar > div:first-child { padding: 0 !important; border: none !important; flex-shrink: 0; }
+      .oba-sidebar > div:first-child img { width: 116px !important; }
+      .oba-sidebar > div:first-child > div { display: none !important; }
+      .oba-nav { flex-direction: row !important; overflow-x: auto; overflow-y: hidden; gap: 6px !important; padding: 0 2px !important; flex: 1 1 auto !important; align-items: center; }
+      .oba-nav > div { display: contents !important; }
+      .oba-nav > div > div:first-child { display: none !important; }
+      .oba-nav > div > div:last-child { display: flex !important; flex-direction: row !important; gap: 6px !important; }
+      .oba-nav button { border-left: none !important; border-radius: 999px !important; padding: 8px 15px !important; white-space: nowrap; min-height: 40px; }
+      .oba-sidebar > div:last-child { padding: 0 !important; border: none !important; flex-shrink: 0; }
+      .oba-sidebar > div:last-child > div:first-child { display: none !important; }
+      .oba-sidebar > div:last-child button { margin-top: 0 !important; padding: 8px 13px !important; white-space: nowrap; }
     }
+
+    /* ===== Phone (≤640px): sidebar hidden entirely; fixed bottom tab bar + "More" drawer take over navigation ===== */
+    @media (max-width: 640px) {
+      .oba-shell { flex-direction: column !important; height: auto !important; min-height: 100vh; overflow: visible !important; }
+      .oba-sidebar { display: none !important; }
+      .oba-content { padding: 12px !important; padding-bottom: 88px !important; }
+      .oba-bottombar { display: flex !important; }
+
+      /* modals become full-screen bottom sheets */
+      .oba-modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+      .oba-modal-panel { width: 100% !important; max-width: 100% !important; max-height: 92vh !important; border-radius: 16px 16px 0 0 !important; overflow-y: auto !important; }
+
+      /* search / notification popovers become full-width bottom sheets instead of small dropdowns */
+      .oba-popover-sheet { position: fixed !important; top: auto !important; bottom: 0 !important; left: 0 !important; right: 0 !important; width: 100% !important; max-width: 100% !important; max-height: 75vh !important; border-radius: 16px 16px 0 0 !important; box-shadow: 0 -10px 30px rgba(13,43,78,0.25) !important; }
+
+      /* dense record tables become stacked cards (Employees directory, Attendance timesheet, Shift check-in board) */
+      .oba-content .oba-card-table-wrap { background: transparent !important; border: none !important; overflow: visible !important; }
+      .oba-content .oba-card-table thead { display: none !important; }
+      .oba-content .oba-card-table, .oba-content .oba-card-table tbody { display: block !important; width: 100% !important; }
+      .oba-content .oba-card-table tr.oba-row { display: block !important; position: relative; background: #FFFFFF; border: 1px solid #E3E7EC; border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; white-space: normal !important; }
+      .oba-content .oba-card-table tr.oba-row-empty { display: block !important; border: none !important; background: transparent !important; padding: 0 !important; }
+      .oba-content .oba-card-table tr.oba-row-empty td { padding: 34px 18px !important; text-align: center !important; border-bottom: none !important; white-space: normal !important; }
+      .oba-content .oba-card-table td { display: block !important; border-bottom: none !important; padding: 0 !important; text-align: left !important; white-space: normal !important; }
+      .oba-content .oba-card-table td.oba-cell-name { padding-right: 84px !important; margin-bottom: 8px !important; }
+      .oba-content .oba-card-table td.oba-cell-badge { position: absolute !important; top: 14px; right: 16px; }
+      .oba-content .oba-card-table td[data-label] { display: flex !important; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0 !important; border-top: 1px solid #F2F4F7 !important; }
+      .oba-content .oba-card-table td[data-label]:first-of-type { border-top: none !important; }
+      .oba-content .oba-card-table td[data-label]::before { content: attr(data-label); font-size: 10.5px; font-weight: 800; color: #9AA4B0; letter-spacing: 0.05em; flex-shrink: 0; }
+      .oba-content .oba-card-table td.oba-cell-action { margin-top: 10px !important; }
+      .oba-content .oba-card-table td.oba-cell-action button { width: 100%; }
+
+      /* dark hero band: ring/greeting stacks above stats, stats stay 2-col (not 1-col) */
+      .oba-hero-stats { grid-template-columns: repeat(2, 1fr) !important; }
+
+      /* 44px minimum tap targets on phone */
+      .oba-content button, .oba-modal-panel button { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+      .oba-content input, .oba-content select, .oba-content textarea,
+      .oba-modal-panel input, .oba-modal-panel select, .oba-modal-panel textarea { min-height: 44px; }
+    }
+
     @media (min-width: 901px) and (max-width: 1280px) {
       .oba-content [style*="grid-template-columns:repeat(5"],
       .oba-content [style*="grid-template-columns:repeat(6"] { grid-template-columns: repeat(3, 1fr) !important; }
@@ -174,7 +230,7 @@
           <input value="{{ searchQ }}" onInput="{{ onSearch }}" onFocus="{{ openSearch }}" onBlur="{{ closeSearch }}" placeholder="Search people, invoices, modules…" style="width:100%;box-sizing:border-box;border:1px solid #E3E7EC;border-radius:9px;padding:9px 12px 9px 32px;font-size:12.5px;outline-color:#C8960C;">
           <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12px;color:#9AA4B0;pointer-events:none;">⌕</span>
           <sc-if value="{{ searchOpen }}" hint-placeholder-val="{{ false }}">
-            <div style="position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:70;background:#FFFFFF;border:1px solid #E3E7EC;border-radius:11px;box-shadow:0 16px 44px rgba(13,43,78,0.2);overflow:hidden;max-height:340px;overflow-y:auto;">
+            <div class="oba-popover-sheet" style="position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:70;background:#FFFFFF;border:1px solid #E3E7EC;border-radius:11px;box-shadow:0 16px 44px rgba(13,43,78,0.2);overflow:hidden;max-height:340px;overflow-y:auto;">
               <sc-for list="{{ searchResults }}" as="r" hint-placeholder-count="5">
                 <div onMouseDown="{{ r.go }}" onClick="{{ r.go }}" role="button" tabindex="0" aria-label="{{ r.label }}" style="padding:10px 14px;border-bottom:1px solid #F2F4F7;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;" style-hover="background:#F8FAFC;">
                   <div style="min-width:0;"><div style="font-size:12.5px;font-weight:700;color:#0D2B4E;">{{ r.label }}</div><div style="font-size:11px;color:#9AA4B0;font-weight:500;">{{ r.sub }}</div></div>
@@ -194,7 +250,7 @@
             </sc-if>
           </button>
           <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
-            <div style="position:absolute;top:calc(100% + 8px);right:0;z-index:60;width:340px;background:#FFFFFF;border:1px solid #E3E7EC;border-radius:12px;box-shadow:0 16px 44px rgba(13,43,78,0.2);overflow:hidden;">
+            <div class="oba-popover-sheet" style="position:absolute;top:calc(100% + 8px);right:0;z-index:60;width:340px;background:#FFFFFF;border:1px solid #E3E7EC;border-radius:12px;box-shadow:0 16px 44px rgba(13,43,78,0.2);overflow:hidden;">
               <div style="padding:12px 16px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;">
                 <span style="font-size:13px;font-weight:800;color:#0D2B4E;">Notifications</span>
                 <button onClick="{{ markAllRead }}" style="background:none;border:none;color:#C8960C;font-size:11px;font-weight:700;cursor:pointer;">Mark all read</button>
@@ -283,7 +339,7 @@
                   </div>
                 </div>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
+              <div class="oba-hero-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
                 <sc-for list="{{ cmdHero.stats }}" as="s" hint-placeholder-count="4">
                   <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:13px 15px;">
                     <div style="font-size:9.5px;font-weight:800;letter-spacing:0.06em;color:#7E92AC;">{{ s.label }}</div>
@@ -802,8 +858,8 @@
             </div>
           </div>
           <sc-if value="{{ payOpen }}" hint-placeholder-val="{{ false }}">
-            <div onClick="{{ closePay }}" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
-              <div onClick="{{ stop }}" style="width:420px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div onClick="{{ closePay }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
+              <div onClick="{{ stop }}" class="oba-modal-panel" style="width:420px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
                 <div style="background:#0D2B4E;padding:18px 22px;"><div style="font-size:15px;font-weight:800;color:#FFFFFF;">Pay invoice {{ payInvId }}</div><div style="font-size:12px;color:#9FB0C4;font-weight:500;margin-top:2px;">Amount due {{ payInvAmt }} · secure card payment</div></div>
                 <div style="padding:20px 22px;">
                   <label style="display:block;font-size:11px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">CARD NUMBER</label>
@@ -850,7 +906,7 @@
 
           <div style="display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start;">
             <!-- Live check-in board -->
-            <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
+            <div class="oba-card-table-wrap" style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
               <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;">
                 <span style="font-size:13.5px;font-weight:700;color:#0D2B4E;">Day shift · live check-in board</span>
                 <div style="display:flex;gap:12px;font-size:11px;font-weight:700;">
@@ -859,7 +915,7 @@
                   <span style="color:#9B2C2C;">● Missing {{ missCount }}</span>
                 </div>
               </div>
-              <table style="width:100%;border-collapse:collapse;font-size:13px;">
+              <table class="oba-card-table" style="width:100%;border-collapse:collapse;font-size:13px;">
                 <thead><tr>
                   <th scope="col" style="text-align:left;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">EMPLOYEE</th>
                   <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">BRANCH</th>
@@ -868,11 +924,11 @@
                 </tr></thead>
                 <tbody>
                   <sc-for list="{{ boardRows }}" as="b" hint-placeholder-count="9">
-                    <tr>
-                      <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;font-weight:700;color:#0D2B4E;">{{ b.name }}<div style="font-size:11px;color:#9AA4B0;font-weight:500;">{{ b.role }}</div></td>
-                      <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ b.branch }}</td>
-                      <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:600;">{{ b.time }}</td>
-                      <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:{{ b.stBg }};color:{{ b.stColor }};font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ b.status }}</span><sc-if value="{{ b.canNotify }}" hint-placeholder-val="{{ false }}"><button onClick="{{ b.notify }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:10px;font-weight:700;padding:5px 11px;border-radius:6px;cursor:pointer;" style-hover="background:#123A69;">Notify</button></sc-if></div></td>
+                    <tr class="oba-row">
+                      <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;font-weight:700;color:#0D2B4E;margin-bottom:8px;">{{ b.name }}<div style="font-size:11px;color:#9AA4B0;font-weight:500;">{{ b.role }}</div></td>
+                      <td data-label="Branch" style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ b.branch }}</td>
+                      <td data-label="Check-in" style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:600;">{{ b.time }}</td>
+                      <td data-label="Status" style="padding:10px 18px;border-bottom:1px solid #EEF1F4;"><div style="display:flex;align-items:center;gap:8px;"><span style="background:{{ b.stBg }};color:{{ b.stColor }};font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ b.status }}</span><sc-if value="{{ b.canNotify }}" hint-placeholder-val="{{ false }}"><button onClick="{{ b.notify }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:10px;font-weight:700;padding:5px 11px;border-radius:6px;cursor:pointer;" style-hover="background:#123A69;">Notify</button></sc-if></div></td>
                     </tr>
                   </sc-for>
                 </tbody>
@@ -1257,7 +1313,7 @@
                   </sc-for>
                 </div>
               </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
+              <div class="oba-hero-stats" style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
                 <sc-for list="{{ an.heroStats }}" as="s" hint-placeholder-count="4">
                   <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.09);border-radius:11px;padding:14px 15px;">
                     <div style="font-size:9.5px;font-weight:800;letter-spacing:0.06em;color:#7E92AC;">{{ s.label }}</div>
@@ -1370,12 +1426,12 @@
       <sc-if value="{{ isEmployees }}" hint-placeholder-val="{{ false }}">
         <div>
         <div style="background:#EAF0F7;border:1px solid #D3E0EF;border-radius:8px;padding:11px 16px;margin-bottom:14px;font-size:12.5px;color:#0D2B4E;font-weight:500;"><strong>Employees</strong> is the full staff directory - every person, their branch, tenure, performance and document status. Open a record to see the live profile in Workforce.</div>
-        <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
+        <div class="oba-card-table-wrap" style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
           <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;">
             <span style="font-size:13.5px;font-weight:700;color:#0D2B4E;">Staff directory</span>
             <span style="font-size:12px;color:#9AA4B0;font-weight:600;">{{ empDirCount }} employees</span>
           </div>
-          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <table class="oba-card-table" style="width:100%;border-collapse:collapse;font-size:13px;">
             <thead><tr>
               <th scope="col" style="text-align:left;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">NAME</th>
               <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">ROLE</th>
@@ -1385,12 +1441,12 @@
             </tr></thead>
             <tbody>
               <sc-for list="{{ empDir }}" as="e" hint-placeholder-count="10">
-                <tr>
-                  <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;"><div style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:50%;background:#EAF0F7;color:#0D2B4E;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ e.initials }}</span><span><span style="display:block;font-weight:700;color:#0D2B4E;">{{ e.name }}</span><span style="font-size:11px;color:#9AA4B0;font-weight:500;">since {{ e.since }}</span></span></div></td>
-                  <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:500;">{{ e.role }}</td>
-                  <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ e.branch }}</td>
-                  <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;"><span style="background:{{ e.docBg }};color:{{ e.docColor }};font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ e.docBadge }}</span></td>
-                  <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;text-align:right;"><button onClick="{{ e.open }}" style="background:#FFFFFF;color:#0D2B4E;border:1px solid #D8DFE7;font-size:11.5px;font-weight:700;padding:7px 13px;border-radius:6px;cursor:pointer;white-space:nowrap;" style-hover="border-color:#0D2B4E;">Open record</button></td>
+                <tr class="oba-row">
+                  <td class="oba-cell-name" style="padding:10px 18px;border-bottom:1px solid #EEF1F4;"><div style="display:flex;align-items:center;gap:10px;"><span style="width:30px;height:30px;border-radius:50%;background:#EAF0F7;color:#0D2B4E;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ e.initials }}</span><span><span style="display:block;font-weight:700;color:#0D2B4E;">{{ e.name }}</span><span style="font-size:11px;color:#9AA4B0;font-weight:500;">since {{ e.since }}</span></span></div></td>
+                  <td data-label="Role" style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:500;">{{ e.role }}</td>
+                  <td data-label="Branch" style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ e.branch }}</td>
+                  <td class="oba-cell-badge" style="padding:10px 10px;border-bottom:1px solid #EEF1F4;"><span style="background:{{ e.docBg }};color:{{ e.docColor }};font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ e.docBadge }}</span></td>
+                  <td class="oba-cell-action" style="padding:10px 18px;border-bottom:1px solid #EEF1F4;text-align:right;"><button onClick="{{ e.open }}" style="background:#FFFFFF;color:#0D2B4E;border:1px solid #D8DFE7;font-size:11.5px;font-weight:700;padding:7px 13px;border-radius:6px;cursor:pointer;white-space:nowrap;" style-hover="border-color:#0D2B4E;">Open record</button></td>
                 </tr>
               </sc-for>
             </tbody>
@@ -1498,9 +1554,9 @@
               </div>
             </div>
           </div>
-          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
+          <div class="oba-card-table-wrap" style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
             <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Timesheet · today (from clock-ins)</div>
-            <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <table class="oba-card-table" style="width:100%;border-collapse:collapse;font-size:13px;">
               <thead><tr>
                 <th scope="col" style="text-align:left;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">EMPLOYEE</th>
                 <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">BRANCH</th>
@@ -1511,17 +1567,17 @@
               </tr></thead>
               <tbody>
                 <sc-for list="{{ attRows }}" as="a" hint-placeholder-count="8">
-                  <tr>
-                    <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;font-weight:700;color:#0D2B4E;">{{ a.name }}<div style="font-size:11px;color:#9AA4B0;font-weight:500;">{{ a.role }}</div></td>
-                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ a.branch }}</td>
-                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:600;">{{ a.inTime }}</td>
-                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:600;">{{ a.outTime }}</td>
-                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;text-align:right;font-weight:800;color:#0D2B4E;">{{ a.hours }}</td>
-                    <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;"><span style="background:{{ a.stBg }};color:{{ a.stColor }};font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;">{{ a.statusLabel }}</span></td>
+                  <tr class="oba-row">
+                    <td class="oba-cell-name" style="padding:10px 18px;border-bottom:1px solid #EEF1F4;font-weight:700;color:#0D2B4E;">{{ a.name }}<div style="font-size:11px;color:#9AA4B0;font-weight:500;">{{ a.role }}</div></td>
+                    <td data-label="Branch" style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ a.branch }}</td>
+                    <td data-label="In" style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:600;">{{ a.inTime }}</td>
+                    <td data-label="Out" style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:600;">{{ a.outTime }}</td>
+                    <td data-label="Hours" style="padding:10px 10px;border-bottom:1px solid #EEF1F4;text-align:right;font-weight:800;color:#0D2B4E;">{{ a.hours }}</td>
+                    <td class="oba-cell-badge" style="padding:10px 18px;border-bottom:1px solid #EEF1F4;"><span style="background:{{ a.stBg }};color:{{ a.stColor }};font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;">{{ a.statusLabel }}</span></td>
                   </tr>
                 </sc-for>
                 <sc-if value="{{ attEmpty }}" hint-placeholder-val="{{ false }}">
-                  <tr><td colspan="6" style="padding:34px 18px;text-align:center;">
+                  <tr class="oba-row-empty"><td colspan="6" style="padding:34px 18px;text-align:center;">
                     <div style="width:46px;height:46px;border-radius:13px;background:#F5F7FA;display:flex;align-items:center;justify-content:center;font-size:20px;color:#9AA4B0;margin:0 auto 11px auto;">◷</div>
                     <div style="font-size:13px;font-weight:700;color:#0D2B4E;">No clock-ins for this client yet</div>
                     <div style="font-size:11.5px;color:#9AA4B0;font-weight:500;margin:4px auto 0 auto;max-width:320px;line-height:1.55;">Timesheets appear here once staff are assigned and shifts go live. Try switching the client filter above.</div>
@@ -1685,8 +1741,8 @@
           </table>
         </div>
           <sc-if value="{{ twofaOpen }}" hint-placeholder-val="{{ false }}">
-            <div onClick="{{ closeTwofa }}" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
-              <div onClick="{{ stop }}" style="width:440px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div onClick="{{ closeTwofa }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
+              <div onClick="{{ stop }}" class="oba-modal-panel" style="width:440px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
                 <div style="background:#0D2B4E;padding:18px 22px;"><div style="font-size:15px;font-weight:800;color:#FFFFFF;">Two-factor authentication</div><div style="font-size:12px;color:#9FB0C4;font-weight:500;margin-top:2px;">A second step at sign-in with an authenticator app</div></div>
                 <sc-if value="{{ twofaNotDone }}" hint-placeholder-val="{{ true }}">
                   <div style="padding:20px 22px;">
@@ -1792,8 +1848,8 @@
 
       <!-- ======== BRANDED INVOICE VIEWER ======== -->
       <sc-if value="{{ invoiceOpen }}" hint-placeholder-val="{{ false }}">
-        <div onClick="{{ closeInvoice }}" style="position:fixed;inset:0;z-index:220;background:rgba(13,43,78,0.5);display:flex;align-items:flex-start;justify-content:center;padding:34px 20px;overflow-y:auto;">
-          <div onClick="{{ stop }}" style="width:600px;max-width:100%;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,0.35);">
+        <div onClick="{{ closeInvoice }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:220;background:rgba(13,43,78,0.5);display:flex;align-items:flex-start;justify-content:center;padding:34px 20px;overflow-y:auto;">
+          <div onClick="{{ stop }}" class="oba-modal-panel" style="width:600px;max-width:100%;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,0.35);">
             <div style="padding:28px 34px 0 34px;display:flex;justify-content:space-between;align-items:flex-start;gap:20px;">
               <img src="assets/oba-logo-rec.png" alt="Open Base Africa" style="height:40px;width:auto;display:block;">
               <div style="text-align:right;">
@@ -1958,8 +2014,8 @@
             </table>
           </div>
           <sc-if value="{{ empSelOpen }}" hint-placeholder-val="{{ false }}">
-            <div onClick="{{ closeEmpSel }}" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
-              <div style="width:480px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div onClick="{{ closeEmpSel }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
+              <div class="oba-modal-panel" style="width:480px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
                 <div style="background:#0D2B4E;padding:20px 22px;display:flex;align-items:center;gap:14px;">
                   <div style="width:46px;height:46px;border-radius:50%;background:#C8960C;color:#FFFFFF;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;">{{ empSel.initials }}</div>
                   <div style="flex:1;min-width:0;"><div style="font-size:16px;font-weight:800;color:#FFFFFF;">{{ empSel.name }}</div><div style="font-size:12px;color:#9FB0C4;font-weight:500;">{{ empSel.role }} · {{ empSel.branch }}</div></div>
@@ -1987,8 +2043,8 @@
             </div>
           </sc-if>
           <sc-if value="{{ kpiSelOpen }}" hint-placeholder-val="{{ false }}">
-            <div onClick="{{ closeKpiSel }}" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
-              <div style="width:460px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div onClick="{{ closeKpiSel }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
+              <div class="oba-modal-panel" style="width:460px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
                 <div style="background:#0D2B4E;padding:20px 22px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
                   <div><div style="font-size:11px;font-weight:700;color:#9FB0C4;letter-spacing:0.06em;">{{ kpiSel.group }}</div><div style="font-size:17px;font-weight:800;color:#FFFFFF;margin-top:3px;">{{ kpiSel.name }}</div></div>
                   <span style="background:{{ kpiSel.ragBg }};color:{{ kpiSel.c }};font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;white-space:nowrap;">{{ kpiSel.rag }}</span>
@@ -2069,8 +2125,8 @@
 
       <!-- ======== DOCUMENT VIEWER (view-only) ======== -->
       <sc-if value="{{ docViewerOpen }}" hint-placeholder-val="{{ false }}">
-        <div onClick="{{ closeDocView }}" style="position:fixed;inset:0;z-index:220;background:rgba(13,43,78,0.5);display:flex;align-items:flex-start;justify-content:center;padding:34px 20px;overflow-y:auto;">
-          <div onClick="{{ stop }}" style="width:620px;max-width:100%;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,0.35);">
+        <div onClick="{{ closeDocView }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:220;background:rgba(13,43,78,0.5);display:flex;align-items:flex-start;justify-content:center;padding:34px 20px;overflow-y:auto;">
+          <div onClick="{{ stop }}" class="oba-modal-panel" style="width:620px;max-width:100%;background:#FFFFFF;border-radius:12px;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,0.35);">
             <div style="background:#0D2B4E;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;gap:14px;">
               <div style="min-width:0;">
                 <div style="font-size:14px;font-weight:800;color:#FFFFFF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ docView.name }}</div>
@@ -2475,8 +2531,8 @@
             <div style="padding:12px 18px;background:#F8FAFC;font-size:12px;font-weight:600;color:#6B7684;">Showing 9 of 132 · click any row for the full payslip · SSNIT employer contribution (13%) accrued separately · Rule deductions are enforced automatically from shift-board data: lateness over 15 min costs 1% of daily pay per incident, unapproved absence is a full unpaid day</div>
           </div>
           <sc-if value="{{ paySlipOpen }}" hint-placeholder-val="{{ false }}">
-            <div onClick="{{ closePaySlip }}" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
-              <div style="width:460px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div onClick="{{ closePaySlip }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
+              <div class="oba-modal-panel" style="width:460px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
                 <div style="background:#0D2B4E;padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:14px;">
                   <div style="display:flex;align-items:center;gap:14px;">
                     <div style="width:44px;height:44px;border-radius:50%;background:#C8960C;color:#FFFFFF;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;">{{ paySlip.initials }}</div>
@@ -2550,8 +2606,8 @@
             </sc-for>
           </div>
           <sc-if value="{{ candOpen }}" hint-placeholder-val="{{ false }}">
-            <div onClick="{{ closeCand }}" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
-              <div style="width:520px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div onClick="{{ closeCand }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
+              <div class="oba-modal-panel" style="width:520px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
                 <div style="background:#0D2B4E;padding:20px 22px;display:flex;align-items:center;gap:14px;">
                   <div style="width:48px;height:48px;border-radius:50%;background:#C8960C;color:#FFFFFF;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ candDetail.initials }}</div>
                   <div style="flex:1;min-width:0;">
@@ -2822,6 +2878,45 @@
     </div>
   </div>
 </div>
+
+<!-- ===== Mobile bottom tab bar (phone ≤640px only) ===== -->
+<div class="oba-bottombar">
+  <sc-for list="{{ mobileTabs }}" as="t" hint-placeholder-count="4">
+    <button onClick="{{ t.select }}" class="oba-bottombar-tab" aria-label="{{ t.label }}">
+      <span class="oba-bottombar-badge" style="background:{{ t.badgeBg }};color:{{ t.badgeColor }};">{{ t.initials }}</span>
+      <span class="oba-bottombar-label" style="color:{{ t.labelColor }};">{{ t.label }}</span>
+    </button>
+  </sc-for>
+  <button onClick="{{ toggleMobileDrawer }}" class="oba-bottombar-tab" aria-label="More modules">
+    <span class="oba-bottombar-badge" style="background:{{ moreBadgeBg }};color:{{ moreBadgeColor }};">☰</span>
+    <span class="oba-bottombar-label" style="color:{{ moreLabelColor }};">More</span>
+  </button>
+</div>
+
+<!-- ===== Mobile "More" drawer: full module list, same navGroups as desktop sidebar ===== -->
+<sc-if value="{{ mobileDrawerOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeMobileDrawer }}" class="oba-drawer-overlay">
+    <div onClick="{{ stop }}" class="oba-drawer-panel">
+      <div class="oba-drawer-header">
+        <span>Modules</span>
+        <button onClick="{{ closeMobileDrawer }}" class="oba-drawer-close" aria-label="Close menu">✕</button>
+      </div>
+      <div class="oba-drawer-body">
+        <sc-for list="{{ navGroups }}" as="g" hint-placeholder-count="2">
+          <div>
+            <div class="oba-drawer-heading">{{ g.heading }}</div>
+            <sc-for list="{{ g.items }}" as="item" hint-placeholder-count="3">
+              <button onClick="{{ item.select }}" class="oba-drawer-item" style="background:{{ item.drawerBg }};color:{{ item.drawerColor }};border-left-color:{{ item.accent }};">{{ item.label }}</button>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+      <div class="oba-drawer-footer">
+        <button onClick="{{ signOut }}" class="oba-drawer-signout">Sign out</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
 </sc-if>
 
 <script data-dc-script data-props="{}" type="text/plain">
@@ -2832,6 +2927,13 @@ class Component extends StreamableLogic {
     // ---------- small helpers ----------
     const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
     this.initials = initials;
+    // two-letter deterministic abbreviation for a nav item label, used as the bottom-tab badge
+    this.tabInitials = (label) => {
+      const words = (label || '').split(/\s+/).map(w => w.replace(/[^A-Za-z0-9]/g, '')).filter(Boolean);
+      if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+      if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+      return '·';
+    };
     this.fmt = (n) => Math.round(n).toLocaleString('en-US');
     this.ring = (r, frac) => {
       const C = 2 * Math.PI * r;
@@ -2998,6 +3100,7 @@ class Component extends StreamableLogic {
       activeScreen: 'command',
       showToast: false,
       toastMsg: '',
+      mobileDrawerOpen: false,
 
       // ---- topbar ----
       searchQ: '',
@@ -3242,8 +3345,12 @@ class Component extends StreamableLogic {
   }
 
   setScreen(key) {
-    this.setState({ activeScreen: key });
+    this.setState({ activeScreen: key, mobileDrawerOpen: false });
   }
+
+  // ---- mobile bottom-bar / "More" drawer (phone ≤640px) ----
+  toggleMobileDrawer() { this.setState(s => ({ mobileDrawerOpen: !s.mobileDrawerOpen })); }
+  closeMobileDrawer() { this.setState({ mobileDrawerOpen: false }); }
 
   // ---- login ----
   chooseRole(id) { this.setState({ pendingRoleId: id, roleMenuOpen: false, loginErr: false }); }
@@ -3518,6 +3625,8 @@ class Component extends StreamableLogic {
 
     // ---- nav ----
     let navGroups = [];
+    let mobileTabs = [];
+    let moreActive = false;
     if (role) {
       navGroups = role.nav.map(g => ({
         heading: g.heading,
@@ -3529,10 +3638,30 @@ class Component extends StreamableLogic {
             bg: active ? '#123A69' : 'transparent',
             accent: active ? '#C8960C' : 'transparent',
             color: active ? '#FFFFFF' : '#C7D3E2',
+            drawerBg: active ? '#EAF0F7' : 'transparent',
+            drawerColor: active ? '#0D2B4E' : '#1F2A37',
             select: () => this.setScreen(key)
           };
         })
       }));
+
+      // bottom tab bar: first 4 nav items across all groups, in existing order
+      const flatKeys = [];
+      role.nav.forEach(g => g.items.forEach(k => flatKeys.push(k)));
+      const tabKeys = flatKeys.slice(0, 4);
+      moreActive = tabKeys.indexOf(s.activeScreen) === -1;
+      mobileTabs = tabKeys.map(key => {
+        const item = this.NAV_ITEMS[key];
+        const active = s.activeScreen === key;
+        return {
+          label: item.label,
+          initials: this.tabInitials(item.label),
+          badgeBg: active ? '#C8960C' : 'rgba(255,255,255,0.1)',
+          badgeColor: active ? '#FFFFFF' : '#C7D3E2',
+          labelColor: active ? '#FFFFFF' : '#8A97A8',
+          select: () => this.setScreen(key)
+        };
+      });
     }
 
     // ---- flags: all is* screens ----
@@ -4285,6 +4414,15 @@ class Component extends StreamableLogic {
       showToast: s.showToast, toastMsg: s.toastMsg,
       navGroups, userInitials: role ? this.initials(role.userName) : '', userName: role ? role.userName : '', userSub: role ? role.userSub : '',
       signOut: () => this.signOut(),
+
+      // mobile bottom tab bar + "More" drawer
+      mobileTabs,
+      moreLabelColor: moreActive ? '#FFFFFF' : '#8A97A8',
+      moreBadgeBg: moreActive ? '#C8960C' : 'rgba(255,255,255,0.1)',
+      moreBadgeColor: moreActive ? '#FFFFFF' : '#C7D3E2',
+      toggleMobileDrawer: () => this.toggleMobileDrawer(),
+      closeMobileDrawer: () => this.closeMobileDrawer(),
+      mobileDrawerOpen: s.mobileDrawerOpen,
       pageTitle: meta[0], pageSub: meta[1],
       showClientPicker, activeClient: s.activeClient, onActiveClient: (e) => this.onActiveClient(e), clientPickerOpts,
       searchQ: s.searchQ, onSearch: (e) => this.onSearch(e), openSearch: () => this.openSearch(), closeSearch: () => this.closeSearch(),
