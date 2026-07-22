@@ -2808,4 +2808,1649 @@
                         <div style="margin-top:8px;"><span style="background:{{ c.srcBg }};color:{{ c.srcColor }};font-size:9.5px;font-weight:800;padding:3px 9px;border-radius:99px;">{{ c.src }}</span></div>
                       </div>
                       <sc-if value="{{ c.canConvert }}" hint-placeholder-val="{{ false }}">
-                        <button onClick="{{ c.convert }}" style="width:100%;margin-top:9px;background:#2E6B4F;color:#FFFFFF;border
+                        <button onClick="{{ c.convert }}" style="width:100%;margin-top:9px;background:#2E6B4F;color:#FFFFFF;border:none;font-size:10.5px;font-weight:700;padding:6px 4px;border-radius:5px;cursor:pointer;" style-hover="background:#245740;">Convert to client &#8594;</button>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<script data-dc-script data-props="{}" type="text/plain">
+class Component extends StreamableLogic {
+  constructor(props) {
+    super(props);
+
+    // ---------- small helpers ----------
+    const initials = (name) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+    this.initials = initials;
+    this.fmt = (n) => Math.round(n).toLocaleString('en-US');
+    this.ring = (r, frac) => {
+      const C = 2 * Math.PI * r;
+      const len = C * Math.max(0, Math.min(1, frac));
+      return { dash: len.toFixed(1) + ' ' + (C - len).toFixed(1), offset: '0' };
+    };
+    this.ringSegs = (r, parts) => {
+      const C = 2 * Math.PI * r;
+      let acc = 0;
+      return parts.map(p => {
+        const len = C * p.frac;
+        const seg = { ...p, dash: len.toFixed(1) + ' ' + (C - len).toFixed(1), offset: (-acc).toFixed(1) };
+        acc += len;
+        return seg;
+      });
+    };
+    this.spark = (values, w, h, pad) => {
+      pad = pad == null ? 3 : pad;
+      const max = Math.max(...values), min = Math.min(...values);
+      const range = (max - min) || 1;
+      const step = (w - 2 * pad) / (values.length - 1 || 1);
+      const pts = values.map((v, i) => [pad + i * step, h - pad - ((v - min) / range) * (h - 2 * pad)]);
+      const d = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+      return { d, x: pts[pts.length - 1][0], y: pts[pts.length - 1][1], pts };
+    };
+    this.smoothArea = (values, w, h, pad) => {
+      const s = this.spark(values, w, h, pad);
+      const first = s.pts[0], last = s.pts[s.pts.length - 1];
+      return s.d + ' L ' + last[0].toFixed(1) + ' ' + (h - (pad || 3)).toFixed(1) + ' L ' + first[0].toFixed(1) + ' ' + (h - (pad || 3)).toFixed(1) + ' Z';
+    };
+
+    // ---------- catalogue of nav items -> screen flags ----------
+    this.NAV_ITEMS = {
+      command:    { label: 'Command Center',        flag: 'isCommand' },
+      advisor:    { label: 'Board Dashboard',        flag: 'isAdvisor' },
+      portal:     { label: 'Client Portal',          flag: 'isPortal' },
+      shifts:     { label: 'Shift Operations',       flag: 'isShifts' },
+      workforce:  { label: 'Workforce',               flag: 'isWorkforce' },
+      employees:  { label: 'Employees',               flag: 'isEmployees' },
+      scheduling: { label: 'Scheduling',              flag: 'isScheduling' },
+      attendance: { label: 'Attendance',              flag: 'isAttendance' },
+      leave:      { label: 'Leave',                   flag: 'isLeave' },
+      incidents:  { label: 'Incidents',                flag: 'isIncidents' },
+      facilities: { label: 'IT & Facilities',         flag: 'isFacilities' },
+      security:   { label: 'Security & Compliance',   flag: 'isSecurity' },
+      invoices:   { label: 'Invoices',                 flag: 'isInvoices' },
+      payroll:    { label: 'Payroll',                  flag: 'isPayroll' },
+      kpi:        { label: 'KPI Scorecard',            flag: 'isKpi' },
+      analytics:  { label: 'Analytics',                flag: 'isAnalytics' },
+      docs:       { label: 'Document Library',         flag: 'isDocs' },
+      vault:      { label: 'Credentials Vault',        flag: 'isVault' },
+      training:   { label: 'Training',                 flag: 'isTraining' },
+      qa:         { label: 'Quality (QA)',             flag: 'isQa' },
+      calendar:   { label: 'Calendar',                 flag: 'isCalendar' },
+      recruit:    { label: 'Recruitment',              flag: 'isRecruit' },
+      sales:      { label: 'Sales & CRM',              flag: 'isSales' },
+      myspace:    { label: 'My Space',                 flag: 'isMySpace' }
+    };
+    const N = this.NAV_ITEMS;
+
+    // ---------- roles (login picker), per the OBA OMS developer brief v2.1 section 8B ----------
+    this.ROLES = [
+      {
+        id: 'director', email: 'ama.owusu@openbaseafrica.com', role: 'Director',
+        userName: 'Ama Owusu', userSub: 'Director · Full access', greeting: 'Good day',
+        landing: 'command', canCreateAccounts: true, canRequestProc: true, procApprover: true,
+        nav: [
+          { heading: 'OVERVIEW', items: ['command', 'portal', 'analytics'] },
+          { heading: 'OPERATIONS', items: ['shifts', 'workforce', 'employees', 'scheduling', 'attendance', 'leave', 'incidents', 'facilities'] },
+          { heading: 'FINANCE', items: ['invoices', 'payroll', 'kpi'] },
+          { heading: 'PEOPLE & QUALITY', items: ['recruit', 'training', 'qa', 'calendar'] },
+          { heading: 'SALES', items: ['sales'] },
+          { heading: 'SECURITY & DOCS', items: ['security', 'vault', 'docs'] },
+          { heading: 'ME', items: ['myspace'] }
+        ]
+      },
+      {
+        id: 'hr', email: 'efua.mensah@openbaseafrica.com', role: 'HR Officer',
+        userName: 'Efua Mensah', userSub: 'HR Officer · People & documents', greeting: 'Good day',
+        landing: 'employees', canCreateAccounts: true, canRequestProc: false, procApprover: false,
+        nav: [
+          { heading: 'PEOPLE', items: ['employees', 'recruit', 'leave', 'training'] },
+          { heading: 'FINANCE', items: ['invoices'] },
+          { heading: 'DOCS', items: ['docs'] },
+          { heading: 'ME', items: ['myspace'] }
+        ]
+      },
+      {
+        id: 'bd', email: 'yaw.boateng@openbaseafrica.com', role: 'Business Development',
+        userName: 'Yaw Boateng', userSub: 'Business Development · Sales & CRM', greeting: 'Good day',
+        landing: 'sales', canCreateAccounts: false, canRequestProc: false, procApprover: false,
+        nav: [
+          { heading: 'SALES', items: ['sales'] },
+          { heading: 'CLIENTS', items: ['portal'] },
+          { heading: 'ME', items: ['myspace'] }
+        ]
+      },
+      {
+        id: 'ops', email: 'kwabena.owusu@openbaseafrica.com', role: 'Ops Manager',
+        userName: 'Kwabena Owusu', userSub: 'Ops Manager · Day-to-day operations', greeting: 'Good day',
+        landing: 'shifts', canCreateAccounts: false, canRequestProc: false, procApprover: false,
+        nav: [
+          { heading: 'OPERATIONS', items: ['shifts', 'scheduling', 'attendance', 'incidents', 'workforce'] },
+          { heading: 'QUALITY', items: ['qa'] },
+          { heading: 'ME', items: ['myspace'] }
+        ]
+      },
+      {
+        id: 'accountant', email: 'abena.darko@openbaseafrica.com', role: 'Accountant',
+        userName: 'Abena Darko', userSub: 'Accountant · Finance & payroll', greeting: 'Good day',
+        landing: 'payroll', canCreateAccounts: false, canRequestProc: false, procApprover: false,
+        nav: [
+          { heading: 'FINANCE', items: ['payroll', 'invoices', 'kpi'] },
+          { heading: 'ME', items: ['myspace'] }
+        ]
+      },
+      {
+        id: 'it', email: 'nana.adjei@openbaseafrica.com', role: 'IT & Facilities',
+        userName: 'Nana Adjei', userSub: 'IT & Facilities Lead', greeting: 'Good day',
+        landing: 'facilities', canCreateAccounts: false, canRequestProc: true, procApprover: false,
+        nav: [
+          { heading: 'IT', items: ['facilities'] },
+          { heading: 'SECURITY', items: ['security', 'vault', 'docs'] },
+          { heading: 'ME', items: ['myspace'] }
+        ]
+      },
+      {
+        id: 'advisor', email: 'kwesi.amankwah@openbaseafrica.com', role: 'Board Advisor',
+        userName: 'Kwesi Amankwah', userSub: 'Board Advisor · Read-only', greeting: 'Good day',
+        landing: 'advisor', canCreateAccounts: false, canRequestProc: false, procApprover: false,
+        nav: [
+          { heading: 'BOARD', items: ['advisor'] },
+          { heading: 'PORTFOLIO', items: ['portal', 'analytics'] },
+          { heading: 'ME', items: ['myspace'] }
+        ]
+      },
+      {
+        id: 'employee', email: 'kojo.bediako@openbaseafrica.com', role: 'Employee',
+        userName: 'Kojo Bediako', userSub: 'Support Agent · Branch A', greeting: 'Good day',
+        landing: 'myspace', canCreateAccounts: false, canRequestProc: false, procApprover: false,
+        nav: [
+          { heading: 'ME', items: ['myspace', 'calendar'] }
+        ]
+      }
+    ];
+
+    this.buildStaticData();
+
+    const firstClient = this.data.clients[0];
+
+    this.state = {
+      // ---- login ----
+      isLogin: true,
+      isApp: false,
+      pendingRoleId: 'director',
+      roleMenuOpen: false,
+      loginPw: '',
+      loginErr: false,
+      showForgotOms: false,
+      omsResetSent: false,
+
+      // ---- session ----
+      currentRoleId: null,
+      activeScreen: 'command',
+      showToast: false,
+      toastMsg: '',
+
+      // ---- topbar ----
+      searchQ: '',
+      searchOpen: false,
+      notifOpen: false,
+      notifUnreadCount: 3,
+      loading: false,
+      activeClient: firstClient.id,
+
+      // ---- data that can mutate at runtime ----
+      clients: this.data.clients,
+      newClientList: [],
+      ncName: '', ncRegion: '', ncIndustry: '', ncCur: 'GH₵', ncSla: '', ncStaff: '',
+
+      advSuggestions: [],
+      advSuggName: '', advSuggRegion: '', advSuggNote: '',
+
+      pendingAccounts: this.data.pendingAccounts,
+      naName: '', naRole: 'Support Agent', naBranch: 'Accra HQ', naGhCard: '',
+      selEmployeeId: this.data.employees[0].id,
+
+      itProcure: this.data.itProcure,
+      pcItem: '', pcCost: '', pcReason: '',
+
+      empShowCount: 10,
+      docShowCount: 6,
+      auditShowCount: 5,
+
+      docQuery: '',
+      docCatSelected: 'All',
+      docViewerOpen: false, docViewId: null,
+
+      vaultCatSelected: 'All',
+      vaultRevealed: {},
+      vsSystem: '', vsUser: '', vsPass: '',
+      vaultList: this.data.vaultList,
+
+      twofaOpen: false, twofaDone: false, twofaCode: '',
+
+      invoicesList: this.data.invoices,
+      invDesc: '', invAmount: '', invDue: '',
+      invoiceOpen: false, invoiceViewId: null,
+
+      kpiPeriodIdx: 0,
+      kpiFilterIdx: 0,
+      empSelOpen: false, empSelId: null,
+      kpiSelOpen: false, kpiSelKey: null,
+
+      payRows: this.data.payRows,
+      paySlipOpen: false, paySlipId: null,
+
+      candidates: this.data.candidates,
+      candOpen: false, candId: null,
+
+      schBranchIdx: 0,
+      schGaps: this.data.schGaps,
+
+      leaveRows: this.data.leaveRows,
+
+      clockedIn: true, onBreak: false,
+      drTickets: '', drEsc: '', drText: '',
+      lvType: 'Annual', lvFrom: '', lvTo: '',
+      repType: 'Equipment', repText: '',
+      reqDraft: '',
+      requests: this.data.requests,
+      empPrivacyMsg: '',
+      dailyReportsExtra: [],
+
+      salesCols: this.data.salesCols,
+
+      payOpen: false,
+
+      docCanUpload: false
+    };
+  }
+
+  componentWillUnmount() {}
+
+  // ================= static demo data =================
+  buildStaticData() {
+    const initials = this.initials;
+    const BRANCHES = ['Accra HQ', 'Kumasi', 'Takoradi', 'Tema', 'Tamale'];
+    const ROLES_LIST = ['Support Agent', 'QA Analyst', 'Team Lead', 'Supervisor', 'Trainer', 'Ops Manager'];
+
+    const EMP_SRC = [
+      ['Kojo Bediako', 'Support Agent', 'Accra HQ', '2025-03-10'],
+      ['Ama Serwaa', 'QA Analyst', 'Accra HQ', '2024-01-15'],
+      ['Kwame Owusu', 'Team Lead', 'Kumasi', '2023-06-01'],
+      ['Efua Mensah-Bonsu', 'Support Agent', 'Takoradi', '2025-09-02'],
+      ['Yaw Asante', 'Supervisor', 'Accra HQ', '2022-02-14'],
+      ['Abena Boateng', 'Support Agent', 'Tema', '2024-11-11'],
+      ['Kwabena Darko', 'Trainer', 'Kumasi', '2023-04-20'],
+      ['Akosua Frimpong', 'Support Agent', 'Accra HQ', '2025-07-07'],
+      ['Kofi Antwi', 'Ops Manager', 'Accra HQ', '2021-01-11'],
+      ['Adjoa Nyarko', 'QA Analyst', 'Tamale', '2024-08-19'],
+      ['Kwesi Appiah', 'Support Agent', 'Takoradi', '2025-03-25'],
+      ['Yaa Asantewaa', 'Team Lead', 'Tema', '2022-10-05'],
+      ['Kobby Ansah', 'Support Agent', 'Kumasi', '2024-12-02'],
+      ['Esi Owusu', 'Support Agent', 'Accra HQ', '2025-05-18'],
+      ['Nana Yeboah', 'Supervisor', 'Kumasi', '2022-06-09'],
+      ['Abigail Sarpong', 'Support Agent', 'Tema', '2025-02-23'],
+      ['Emmanuel Osei', 'Support Agent', 'Tamale', '2024-07-14'],
+      ['Gifty Amoah', 'QA Analyst', 'Accra HQ', '2023-09-29'],
+      ['Isaac Adjei', 'Support Agent', 'Takoradi', '2025-01-08'],
+      ['Comfort Aidoo', 'Support Agent', 'Accra HQ', '2024-04-16'],
+      ['Samuel Tetteh', 'Team Lead', 'Takoradi', '2022-03-03'],
+      ['Priscilla Kufuor', 'Support Agent', 'Kumasi', '2025-10-01'],
+      ['Daniel Quaye', 'Support Agent', 'Tema', '2025-06-06'],
+      ['Linda Opoku', 'Trainer', 'Accra HQ', '2023-11-27']
+    ];
+    const employees = EMP_SRC.map((e, i) => ({
+      id: 'e' + i, name: e[0], role: e[1], branch: e[2], since: e[3], initials: initials(e[0])
+    }));
+
+    const clients = [
+      { id: 'zanzu', name: 'Zanzu Telecom', region: 'Accra', industry: 'Telecom Helpdesk', team: 42, cur: 'GH₵', sla: '96%', health: 'Excellent', status: 'Active' },
+      { id: 'primecare', name: 'PrimeCare Health', region: 'Kumasi', industry: 'Healthcare Support', team: 28, cur: 'GH₵', sla: '92%', health: 'Good', status: 'Active' },
+      { id: 'nova', name: 'Nova Logistics', region: 'Takoradi', industry: 'Logistics Dispatch', team: 18, cur: '$', sla: '87%', health: 'Attention', status: 'Active' },
+      { id: 'baobab', name: 'Baobab Retail', region: 'Tema', industry: 'Retail CX', team: 34, cur: 'GH₵', sla: '94%', health: 'Good', status: 'Active' }
+    ];
+
+    const healthColor = (h) => h === 'Excellent' ? { bg: '#E6F0EB', color: '#2E6B4F' } : h === 'Good' ? { bg: '#EAF0F7', color: '#0D2B4E' } : { bg: '#FBF3DF', color: '#8A6508' };
+    const statusColor = (s) => s === 'Active' ? { bg: '#E6F0EB', color: '#2E6B4F' } : s === 'Onboarding' ? { bg: '#FBF3DF', color: '#8A6508' } : { bg: '#FBECEC', color: '#B23B3B' };
+
+    this.data = {
+      employees,
+      clients,
+      healthColor,
+      statusColor,
+
+      branches: BRANCHES.map((name, i) => {
+        const cov = [96, 88, 79, 91, 84][i];
+        return {
+          name, dot: cov > 90 ? '#2E6B4F' : cov > 82 ? '#C8960C' : '#9B2C2C',
+          supervisor: employees.find(e => e.branch === name && e.role === 'Supervisor' || e.role === 'Team Lead' && e.branch === name)?.name.split(' ')[0] || employees.find(e => e.branch === name)?.name.split(' ')[0] || 'TBD',
+          coverage: cov + '%', onShift: Math.round(cov / 100 * 26),
+          stBg: cov > 90 ? '#E6F0EB' : cov > 82 ? '#FBF3DF' : '#FBECEC',
+          stColor: cov > 90 ? '#2E6B4F' : cov > 82 ? '#8A6508' : '#9B2C2C',
+          status: cov > 90 ? 'Fully staffed' : cov > 82 ? 'Minor gap' : 'Understaffed'
+        };
+      }),
+
+      pendingAccounts: [
+        { name: 'Efua Owusu-Boateng', role: 'Support Agent', branch: 'Kumasi', status: 'AWAITING GHANA CARD' }
+      ],
+
+      itProcure: [
+        { id: 'pc1', item: '5 × monitors', cost: 'GH₵ 6,200', reason: 'New Accra HQ desks', canDecide: true, showBadge: false, status: 'Pending', stBg: '#FBF3DF', stColor: '#8A6508' },
+        { id: 'pc2', item: 'UPS backup unit', cost: 'GH₵ 4,800', reason: 'Kumasi power outages', canDecide: false, showBadge: true, status: 'Approved', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+        { id: 'pc3', item: '10 × headsets', cost: 'GH₵ 3,100', reason: 'Onboarding cohort', canDecide: false, showBadge: true, status: 'Ordered', stBg: '#EAF0F7', stColor: '#0D2B4E' }
+      ],
+
+      vaultList: [
+        { id: 'v1', system: 'Company bank portal', cat: 'Banking', user: 'finance.ops', pass: 'B4nk!Kv92Xz', owner: 'Abena Darko', rotated: '3 Jun 2026', strength: 'Strong', stBg: '#E6F0EB', stColor: '#2E6B4F', revealed: false },
+        { id: 'v2', system: 'GRA e-filing', cat: 'Government', user: 'oba-taxadmin', pass: 'Gr@Ghana#25', owner: 'Abena Darko', rotated: '18 May 2026', strength: 'Strong', stBg: '#E6F0EB', stColor: '#2E6B4F', revealed: false },
+        { id: 'v3', system: 'SSNIT employer portal', cat: 'Government', user: 'oba-ssnit', pass: 'Ssn1t-Emp88', owner: 'Ama Owusu', rotated: '2 Jan 2026', strength: 'Medium', stBg: '#FBF3DF', stColor: '#8A6508', revealed: false },
+        { id: 'v4', system: 'Job board admin', cat: 'Software', user: 'oba.recruit', pass: 'J0bb0ard!2', owner: 'Efua Mensah-Bonsu', rotated: '11 Apr 2026', strength: 'Strong', stBg: '#E6F0EB', stColor: '#2E6B4F', revealed: false },
+        { id: 'v5', system: 'Company LinkedIn', cat: 'Social', user: 'oba.social', pass: 'link3d1nOBA', owner: 'Yaw Boateng', rotated: '29 Jun 2026', strength: 'Weak', stBg: '#FBECEC', stColor: '#B23B3B', revealed: false },
+        { id: 'v6', system: 'AWS console', cat: 'Software', user: 'root-oba-it', pass: 'Aw$0perations1', owner: 'Nana Adjei', rotated: '9 Feb 2026', strength: 'Strong', stBg: '#E6F0EB', stColor: '#2E6B4F', revealed: false }
+      ],
+
+      invoices: [
+        { id: 'INV-2026-041', clientId: 'zanzu', amount: '$28,400', due: 'Due 25 Aug 2026', status: 'Sent', stBg: '#FBF3DF', stColor: '#8A6508', canAct: true },
+        { id: 'INV-2026-040', clientId: 'primecare', amount: '$16,900', due: 'Due 18 Aug 2026', status: 'Overdue', stBg: '#FBECEC', stColor: '#B23B3B', canAct: true },
+        { id: 'INV-2026-039', clientId: 'nova', amount: '$9,750', due: 'Paid 2 Aug 2026', status: 'Paid', stBg: '#E6F0EB', stColor: '#2E6B4F', canAct: false },
+        { id: 'INV-2026-038', clientId: 'baobab', amount: '$21,300', due: 'Due 30 Aug 2026', status: 'Sent', stBg: '#FBF3DF', stColor: '#8A6508', canAct: true }
+      ],
+
+      payRows: employees.slice(0, 9).map((e, i) => {
+        const gross = 2400 + (i % 5) * 350;
+        const ssnit = Math.round(gross * 0.055);
+        const paye = Math.round(gross * 0.08);
+        const hasDed = i % 4 === 0;
+        const ded = hasDed ? 45 : 0;
+        const net = gross - ssnit - paye - ded;
+        return {
+          id: e.id, name: e.name, role: e.role, gross: this.fmt(gross), ssnit: this.fmt(ssnit), paye: this.fmt(paye),
+          ded: this.fmt(ded), dedNote: hasDed ? 'lateness' : '—', dedColor: hasDed ? '#9B2C2C' : '#9AA4B0', net: this.fmt(net),
+          grossN: gross, ssnitN: ssnit, payeN: paye, dedN: ded, netN: net, employerSsnit: Math.round(gross * 0.13)
+        };
+      }),
+
+      candidates: [
+        { id: 'c1', name: 'Priscilla Amoah', roleTitle: 'Support Agent · Night shift', stage: 'applied', email: 'priscilla.amoah@example.com', phone: '024 555 0192', exp: '2 yrs customer support', edu: 'BA, University of Ghana', applied: '3 Jul 2026', notes: 'Strong phone manner, referred by Kwame Owusu.' },
+        { id: 'c2', name: 'Richmond Boateng', roleTitle: 'Support Agent · Night shift', stage: 'applied', email: 'richmond.b@example.com', phone: '020 444 8871', exp: '1 yr call centre', edu: 'HND, Accra Technical', applied: '5 Jul 2026', notes: 'Applied via job board, awaiting screening call.' },
+        { id: 'c3', name: 'Sandra Owusu', roleTitle: 'QA Analyst', stage: 'screening', email: 'sandra.owusu@example.com', phone: '027 112 3345', exp: '3 yrs QA in BPO', edu: 'BSc, KNUST', applied: '28 Jun 2026', notes: 'Screening call booked for 24 Jul.' },
+        { id: 'c4', name: 'Michael Asare', roleTitle: 'Support Agent · Night shift', stage: 'interview', email: 'michael.asare@example.com', phone: '055 998 2211', exp: '4 yrs support', edu: 'BA, UCC', applied: '20 Jun 2026', notes: 'Panel interview scheduled 26 Jul with Yaw Asante.' },
+        { id: 'c5', name: 'Grace Adjei', roleTitle: 'Team Lead', stage: 'offer', email: 'grace.adjei@example.com', phone: '024 776 6600', exp: '6 yrs, 2 as lead', edu: 'BSc, GIMPA', applied: '2 Jun 2026', notes: 'Offer sent 18 Jul, awaiting response.' },
+        { id: 'c6', name: 'Bernard Owusu', roleTitle: 'Support Agent · Day shift', stage: 'hired', email: 'bernard.owusu@example.com', phone: '020 333 9981', exp: '2 yrs support', edu: 'HND, Takoradi Technical', applied: '10 May 2026', notes: 'Start date confirmed 1 Aug at Takoradi branch.' }
+      ],
+
+      schGaps: { 'Accra HQ': { 2: true, 9: true }, 'Kumasi': { 5: true }, 'Takoradi': {}, 'Tema': { 12: true }, 'Tamale': {} },
+
+      leaveRows: [
+        { id: 'l1', name: 'Abena Boateng', type: 'Annual', dates: '04–06 Aug', days: 3, branch: 'Tema', balanceNote: '8 days left', pending: true },
+        { id: 'l2', name: 'Kobby Ansah', type: 'Sick', dates: '22 Jul', days: 1, branch: 'Kumasi', balanceNote: '11 days left', pending: true },
+        { id: 'l3', name: 'Esi Owusu', type: 'Compassionate', dates: '15–16 Jul', days: 2, branch: 'Accra HQ', balanceNote: '4 days left', pending: false, decision: 'APPROVED', decBg: '#E6F0EB', decColor: '#2E6B4F' },
+        { id: 'l4', name: 'Isaac Adjei', type: 'Annual', dates: '01–03 Jul', days: 3, branch: 'Takoradi', balanceNote: '6 days left', pending: false, decision: 'REJECTED', decBg: '#FBECEC', decColor: '#B23B3B' }
+      ],
+
+      requests: [
+        {
+          id: 'r1', title: 'Add two more agents for the holiday surge', status: 'OPEN', stBg: '#FBF3DF', stColor: '#8A6508', date: '18 Jul', open: false, replyDraft: '',
+          thread: [
+            { who: 'ZANZU TELECOM', text: "We're expecting a 30% call volume increase for the August promo — can we get 2 extra agents?", align: 'flex-start', bg: '#F0F2F5', color: '#1F2A37', border: '#E3E7EC' },
+            { who: 'OBA OPS', text: "On it — reviewing headcount, will confirm coverage by Friday.", align: 'flex-end', bg: '#0D2B4E', color: '#FFFFFF', border: '#0D2B4E' }
+          ]
+        },
+        {
+          id: 'r2', title: 'Update SOP for refund escalations', status: 'RESOLVED', stBg: '#E6F0EB', stColor: '#2E6B4F', date: '11 Jul', open: false, replyDraft: '',
+          thread: [
+            { who: 'ZANZU TELECOM', text: 'Please update the refund SOP to include the new threshold.', align: 'flex-start', bg: '#F0F2F5', color: '#1F2A37', border: '#E3E7EC' },
+            { who: 'OBA OPS', text: 'Done — new SOP is live in your Documents tab.', align: 'flex-end', bg: '#0D2B4E', color: '#FFFFFF', border: '#0D2B4E' }
+          ]
+        }
+      ],
+
+      salesCols: [
+        { key: 'new', label: 'NEW ENQUIRY', tint: '#EAF0F7', tintColor: '#0D2B4E', cards: [
+          { id: 's1', co: 'Coastline Insurance', svc: 'Claims support, 24/7, 12 agents', val: '$7,200/mo', src: 'Website', srcBg: '#EAF0F7', srcColor: '#0D2B4E', canConvert: false }
+        ]},
+        { key: 'qualified', label: 'QUALIFIED', tint: '#F0F2F5', tintColor: '#4A5563', cards: [
+          { id: 's2', co: 'Savannah Microfinance', svc: 'Collections desk, 6 agents', val: '$3,600/mo', src: 'Referral', srcBg: '#F0F2F5', srcColor: '#4A5563', canConvert: false }
+        ]},
+        { key: 'proposal', label: 'PROPOSAL SENT', tint: '#FBF3DF', tintColor: '#8A6508', cards: [
+          { id: 's3', co: 'Gulf Freight Gh', svc: 'Dispatch & tracking, 8 agents', val: '$5,100/mo', src: 'Website', srcBg: '#EAF0F7', srcColor: '#0D2B4E', canConvert: false }
+        ]},
+        { key: 'negotiation', label: 'NEGOTIATION', tint: '#FBF3DF', tintColor: '#8A6508', cards: [
+          { id: 's4', co: 'Kente Retail Group', svc: 'Customer care, 10 agents', val: '$6,400/mo', src: 'Outbound', srcBg: '#F0F2F5', srcColor: '#4A5563', canConvert: false }
+        ]},
+        { key: 'won', label: 'WON', tint: '#E6F0EB', tintColor: '#2E6B4F', cards: [
+          { id: 's5', co: 'Accra Metro Utilities', svc: 'Billing helpdesk, 14 agents', val: '$8,900/mo', src: 'Website', srcBg: '#EAF0F7', srcColor: '#0D2B4E', canConvert: true }
+        ]}
+      ]
+    };
+  }
+
+  // ================= handlers =================
+  toast(msg) {
+    this.setState({ showToast: true, toastMsg: msg });
+    setTimeout(() => this.setState({ showToast: false }), 2600);
+  }
+
+  setScreen(key) {
+    this.setState({ activeScreen: key });
+  }
+
+  // ---- login ----
+  chooseRole(id) { this.setState({ pendingRoleId: id, roleMenuOpen: false, loginErr: false }); }
+  toggleRoleMenu() { this.setState(s => ({ roleMenuOpen: !s.roleMenuOpen })); }
+  onLoginPw(v) { this.setState({ loginPw: (v && v.target) ? v.target.value : v, loginErr: false }); }
+  toggleForgot() { this.setState(s => ({ showForgotOms: !s.showForgotOms, omsResetSent: false })); }
+  sendOmsReset() { this.setState({ omsResetSent: true }); }
+  doLogin() {
+    const pw = this.state.loginPw || '';
+    if (!pw) { this.setState({ loginErr: true }); return; }
+    const role = this.ROLES.find(r => r.id === this.state.pendingRoleId) || this.ROLES[0];
+    this.setState({
+      isLogin: false, isApp: true, currentRoleId: role.id, activeScreen: role.landing,
+      loginPw: '', loginErr: false, roleMenuOpen: false
+    });
+  }
+  signOut() {
+    this.setState({
+      isLogin: true, isApp: false, currentRoleId: null, loginPw: '', loginErr: false,
+      pendingRoleId: this.state.pendingRoleId || 'director'
+    });
+  }
+  goPortal() { this.setScreen('portal'); }
+
+  // ---- topbar ----
+  toggleNotif() { this.setState(s => ({ notifOpen: !s.notifOpen, searchOpen: false })); }
+  markAllRead() { this.setState({ notifUnreadCount: 0, notifOpen: false }); }
+  onSearch(e) { this.setState({ searchQ: (e && e.target) ? e.target.value : e, searchOpen: true }); }
+  openSearch() { this.setState({ searchOpen: true, notifOpen: false }); }
+  closeSearch() { this.setState({ searchOpen: false }); }
+  onActiveClient(e) { this.setState({ activeClient: (e && e.target) ? e.target.value : e }); }
+  searchGo(label) { this.setState({ searchOpen: false, searchQ: '' }); this.toast('Opening ' + label + '…'); }
+
+  // ---- command center ----
+  onNcName(e) { this.setState({ ncName: e.target ? e.target.value : e }); }
+  onNcRegion(e) { this.setState({ ncRegion: e.target ? e.target.value : e }); }
+  onNcIndustry(e) { this.setState({ ncIndustry: e.target ? e.target.value : e }); }
+  onNcCur(e) { this.setState({ ncCur: e.target ? e.target.value : e }); }
+  onNcSla(e) { this.setState({ ncSla: e.target ? e.target.value : e }); }
+  onNcStaff(e) { this.setState({ ncStaff: e.target ? e.target.value : e }); }
+  createClient() {
+    if (!this.state.ncName) { this.toast('Enter a client name first'); return; }
+    const id = 'new' + Date.now();
+    const item = { id, name: this.state.ncName, region: this.state.ncRegion || 'Ghana', cur: this.state.ncCur || 'GH₵', staff: Number(this.state.ncStaff) || 0 };
+    this.setState(s => ({
+      newClientList: [...s.newClientList, item],
+      clients: [...s.clients, { id, name: item.name, region: item.region, industry: s.ncIndustry || 'General', team: item.staff, cur: item.cur, sla: (s.ncSla || '90') + '%', health: 'Good', status: 'Onboarding' }],
+      ncName: '', ncRegion: '', ncIndustry: '', ncSla: '', ncStaff: ''
+    }));
+    this.toast('Client created · onboarding started');
+  }
+  clientAddOne(id) { this.setState(s => ({ newClientList: s.newClientList.map(c => c.id === id ? { ...c, staff: c.staff + 1 } : c), clients: s.clients.map(c => c.id === id ? { ...c, team: c.team + 1 } : c) })); }
+  clientRemoveOne(id) { this.setState(s => ({ newClientList: s.newClientList.map(c => c.id === id && c.staff > 0 ? { ...c, staff: c.staff - 1 } : c), clients: s.clients.map(c => c.id === id && c.team > 0 ? { ...c, team: c.team - 1 } : c) })); }
+  clientOpenWorkforce() { this.setScreen('workforce'); }
+  clientRename(id) { this.toast('Rename saved'); }
+  clientTogglePause(id) { this.setState(s => ({ clients: s.clients.map(c => c.id === id ? { ...c, status: c.status === 'Paused' ? 'Active' : 'Paused' } : c) })); }
+  clientOffboard(id) { this.setState(s => ({ clients: s.clients.map(c => c.id === id ? { ...c, status: 'Offboarded' } : c) })); this.toast('Client offboarding started'); }
+
+  // ---- advisor ----
+  onAdvSuggName(e) { this.setState({ advSuggName: e.target ? e.target.value : e }); }
+  onAdvSuggRegion(e) { this.setState({ advSuggRegion: e.target ? e.target.value : e }); }
+  onAdvSuggNote(e) { this.setState({ advSuggNote: e.target ? e.target.value : e }); }
+  submitAdvSuggestion() {
+    if (!this.state.advSuggName) { this.toast('Enter a company name'); return; }
+    this.setState(s => ({ advSuggestions: [...s.advSuggestions, { name: s.advSuggName, region: s.advSuggRegion || 'Ghana', note: s.advSuggNote || 'No note added.' }], advSuggName: '', advSuggRegion: '', advSuggNote: '' }));
+    this.toast('Suggestion sent to management');
+  }
+  advAccept(name) { this.toast('Approved · added to client pipeline'); }
+  advDismiss(name) { this.toast('Suggestion dismissed'); }
+
+  // ---- workforce ----
+  onNaName(e) { this.setState({ naName: e.target ? e.target.value : e }); }
+  onNaRole(e) { this.setState({ naRole: e.target ? e.target.value : e }); }
+  onNaBranch(e) { this.setState({ naBranch: e.target ? e.target.value : e }); }
+  onNaGhCard(e) { this.setState({ naGhCard: e.target ? e.target.value : e }); }
+  submitAccount() {
+    if (!this.state.naName) { this.toast('Enter a full name'); return; }
+    this.setState(s => ({ pendingAccounts: [...s.pendingAccounts, { name: s.naName, role: s.naRole, branch: s.naBranch, status: 'CREATING ACCOUNT' }], naName: '', naGhCard: '' }));
+    this.toast('Account creation submitted');
+  }
+  selectEmployee(id) { this.setState({ selEmployeeId: id }); }
+
+  // ---- facilities / procurement ----
+  onPcItem(e) { this.setState({ pcItem: e.target ? e.target.value : e }); }
+  onPcCost(e) { this.setState({ pcCost: e.target ? e.target.value : e }); }
+  onPcReason(e) { this.setState({ pcReason: e.target ? e.target.value : e }); }
+  submitProc() {
+    if (!this.state.pcItem) { this.toast('Describe the item first'); return; }
+    this.setState(s => ({ itProcure: [{ id: 'pc' + Date.now(), item: s.pcItem, cost: s.pcCost || 'GH₵ 0', reason: s.pcReason || '—', canDecide: true, showBadge: false, status: 'Pending', stBg: '#FBF3DF', stColor: '#8A6508' }, ...s.itProcure], pcItem: '', pcCost: '', pcReason: '' }));
+    this.toast('Request sent to the Director');
+  }
+  procApprove(id) { this.setState(s => ({ itProcure: s.itProcure.map(p => p.id === id ? { ...p, canDecide: false, showBadge: true, status: 'Approved', stBg: '#E6F0EB', stColor: '#2E6B4F' } : p) })); }
+  procDeny(id) { this.setState(s => ({ itProcure: s.itProcure.map(p => p.id === id ? { ...p, canDecide: false, showBadge: true, status: 'Denied', stBg: '#FBECEC', stColor: '#9B2C2C' } : p) })); }
+  itStart(id) { this.toast('Ticket in progress'); }
+  itClose(id) { this.toast('Ticket marked fixed'); }
+
+  // ---- analytics ----
+  anExport() { this.toast('CSV exported'); }
+  selectPeriod(idx) { this.toast('Period updated'); }
+
+  // ---- employees / kpi ----
+  loadMoreEmp() { this.setState(s => ({ empShowCount: Math.min(s.empShowCount + 10, this.data.employees.length) })); }
+  kpiSelectPeriod(idx) { this.setState({ kpiPeriodIdx: idx }); }
+  kpiSelectFilter(idx) { this.setState({ kpiFilterIdx: idx }); }
+  kpiExport() { this.toast('KPI data exported'); }
+  openEmpSel(id) { this.setState({ empSelOpen: true, empSelId: id }); }
+  closeEmpSel() { this.setState({ empSelOpen: false }); }
+  openKpiSel(key) { this.setState({ kpiSelOpen: true, kpiSelKey: key }); }
+  closeKpiSel() { this.setState({ kpiSelOpen: false }); }
+
+  // ---- scheduling ----
+  onSchBranch(e) { this.setSchBranchByName(e && e.target ? e.target.value : e); }
+  setSchBranchByName(name) { const idx = ['Accra HQ', 'Kumasi', 'Takoradi', 'Tema', 'Tamale'].indexOf(name); this.setState({ schBranchIdx: idx < 0 ? 0 : idx }); }
+  publishRoster() { this.toast('Roster published · staff notified'); }
+  schAssign(branch, day) { this.setState(s => { const g = { ...s.schGaps }; g[branch] = { ...(g[branch] || {}) }; delete g[branch][day]; return { schGaps: g }; }); this.toast('Staff assigned to shift'); }
+  schTap() {}
+
+  // ---- attendance / incidents ----
+  onIncName(e) { this.setState({ incName: e.target ? e.target.value : e }); }
+  onIncType(e) { this.setState({ incType: e.target ? e.target.value : e }); }
+  onIncDetail(e) { this.setState({ incDetail: e.target ? e.target.value : e }); }
+  logIncident() { this.toast('Incident logged'); this.setState({ incDetail: '' }); }
+  incidentClose(id) { this.setState(s => ({ incidentsClosed: { ...(s.incidentsClosed || {}), [id]: true } })); }
+  issueAssign(id) { this.setState(s => ({ issuesAssigned: { ...(s.issuesAssigned || {}), [id]: true } })); }
+  issueResolve(id) { this.setState(s => ({ issuesResolved: { ...(s.issuesResolved || {}), [id]: true } })); }
+  reportAck(id) { this.setState(s => ({ reportsAcked: { ...(s.reportsAcked || {}), [id]: true } })); }
+
+  // ---- security ----
+  openTwofa() { this.setState({ twofaOpen: true, twofaDone: false, twofaCode: '' }); }
+  closeTwofa() { this.setState({ twofaOpen: false }); }
+  onTwofaCode(e) { this.setState({ twofaCode: e.target ? e.target.value : e }); }
+  verifyTwofa() { this.setState({ twofaDone: true }); }
+  loadMoreAudit() { this.setState(s => ({ auditShowCount: s.auditShowCount + 5 })); }
+
+  // ---- invoices ----
+  onInvDesc(e) { this.setState({ invDesc: e.target ? e.target.value : e }); }
+  onInvAmount(e) { this.setState({ invAmount: e.target ? e.target.value : e }); }
+  onInvDue(e) { this.setState({ invDue: e.target ? e.target.value : e }); }
+  sendInvoice() {
+    if (!this.state.invDesc || !this.state.invAmount) { this.toast('Fill in description and amount'); return; }
+    const id = 'INV-2026-' + (40 + this.state.invoicesList.length + 1);
+    this.setState(s => ({ invoicesList: [{ id, clientId: s.activeClient, amount: '$' + s.invAmount, due: 'Due ' + (s.invDue || 'TBD'), status: 'Sent', stBg: '#FBF3DF', stColor: '#8A6508', canAct: true }, ...s.invoicesList], invDesc: '', invAmount: '', invDue: '' }));
+    this.toast('Invoice sent to client portal');
+  }
+  openInvoice(id) { this.setState({ invoiceOpen: true, invoiceViewId: id }); }
+  closeInvoice() { this.setState({ invoiceOpen: false }); }
+  invRemind(id) { this.toast('Reminder sent'); }
+  invMarkPaid(id) { this.setState(s => ({ invoicesList: s.invoicesList.map(i => i.id === id ? { ...i, status: 'Paid', stBg: '#E6F0EB', stColor: '#2E6B4F', canAct: false } : i) })); }
+  payInvoice(id) { this.setState({ payOpen: true, payInvoiceId: id }); }
+  closePay() { this.setState({ payOpen: false }); }
+  confirmPay() { this.setState({ payOpen: false }); this.toast('Payment received (demo)'); this.invMarkPaid(this.state.payInvoiceId); }
+  onPayCardNo() {} onPayCvc() {} onPayExp() {}
+
+  // ---- payroll ----
+  exportBankFile() { this.toast('Bank file exported'); }
+  openPaySlip(id) { this.setState({ paySlipOpen: true, paySlipId: id }); }
+  closePaySlip() { this.setState({ paySlipOpen: false }); }
+  downloadPayslip() { this.toast('Payslip downloaded'); }
+
+  // ---- documents / vault ----
+  onDocQuery(e) { this.setState({ docQuery: e.target ? e.target.value : e }); }
+  selectDocCat(cat) { this.setState({ docCatSelected: cat }); }
+  docUpload() { this.toast('Document uploaded'); }
+  loadMoreDocs() { this.setState(s => ({ docShowCount: s.docShowCount + 6 })); }
+  openDocView(id) { this.setState({ docViewerOpen: true, docViewId: id }); }
+  closeDocView() { this.setState({ docViewerOpen: false }); }
+  selectVaultCat(cat) { this.setState({ vaultCatSelected: cat }); }
+  vaultToggle(id) { this.setState(s => ({ vaultRevealed: { ...s.vaultRevealed, [id]: !s.vaultRevealed[id] } })); }
+  vaultCopy(id) { this.toast('Copied to clipboard · logged'); }
+  onVsSystem(e) { this.setState({ vsSystem: e.target ? e.target.value : e }); }
+  onVsUser(e) { this.setState({ vsUser: e.target ? e.target.value : e }); }
+  onVsPass(e) { this.setState({ vsPass: e.target ? e.target.value : e }); }
+  addCredential() {
+    if (!this.state.vsSystem) { this.toast('Enter a system name'); return; }
+    this.setState(s => ({ vaultList: [{ id: 'v' + Date.now(), system: s.vsSystem, cat: 'Software', user: s.vsUser || '—', pass: s.vsPass || '—', owner: 'You', rotated: 'today', strength: 'Medium', stBg: '#FBF3DF', stColor: '#8A6508', revealed: false }, ...s.vaultList], vsSystem: '', vsUser: '', vsPass: '' }));
+    this.toast('Credential saved');
+  }
+
+  // ---- recruitment ----
+  openCand(id) { this.setState({ candOpen: true, candId: id }); }
+  closeCand() { this.setState({ candOpen: false }); }
+  candAdvance(id) {
+    const order = ['applied', 'screening', 'interview', 'offer', 'hired'];
+    this.setState(s => {
+      const list = s.candidates.map(c => {
+        if (c.id !== id) return c;
+        const idx = order.indexOf(c.stage);
+        const next = order[Math.min(idx + 1, order.length - 1)];
+        return { ...c, stage: next };
+      });
+      return { candidates: list };
+    });
+    const c = this.state.candidates.find(c => c.id === id);
+    if (c && c.stage === 'offer') this.toast('Hired · added to Employee Directory');
+    else this.toast('Candidate advanced');
+  }
+  candReject(id) { this.setState(s => ({ candidates: s.candidates.filter(c => c.id !== id) })); this.toast('Candidate rejected'); }
+
+  // ---- leave ----
+  leaveApprove(id) { this.setState(s => ({ leaveRows: s.leaveRows.map(l => l.id === id ? { ...l, pending: false, decision: 'APPROVED', decBg: '#E6F0EB', decColor: '#2E6B4F' } : l) })); }
+  leaveReject(id) { this.setState(s => ({ leaveRows: s.leaveRows.map(l => l.id === id ? { ...l, pending: false, decision: 'REJECTED', decBg: '#FBECEC', decColor: '#B23B3B' } : l) })); }
+
+  // ---- my space ----
+  toggleClock() { this.setState(s => ({ clockedIn: !s.clockedIn })); this.toast(this.state.clockedIn ? 'Clocked out' : 'Clocked in'); }
+  toggleBreak() { this.setState(s => ({ onBreak: !s.onBreak })); }
+  onDrTickets(e) { this.setState({ drTickets: e.target ? e.target.value : e }); }
+  onDrEsc(e) { this.setState({ drEsc: e.target ? e.target.value : e }); }
+  onDrText(e) { this.setState({ drText: e.target ? e.target.value : e }); }
+  submitDaily() {
+    this.setState(s => ({ dailyReportsExtra: [{ day: 'Today', tickets: s.drTickets || '0', esc: s.drEsc || '0', hours: '8', noteSuffix: s.drText ? ' · ' + s.drText : '' }, ...s.dailyReportsExtra], drTickets: '', drEsc: '', drText: '' }));
+    this.toast('Daily report submitted');
+  }
+  onLvType(e) { this.setState({ lvType: e.target ? e.target.value : e }); }
+  onLvFrom(e) { this.setState({ lvFrom: e.target ? e.target.value : e }); }
+  onLvTo(e) { this.setState({ lvTo: e.target ? e.target.value : e }); }
+  submitLeave() { this.toast('Leave request submitted'); this.setState({ lvFrom: '', lvTo: '' }); }
+  onRepType(e) { this.setState({ repType: e.target ? e.target.value : e }); }
+  onRepText(e) { this.setState({ repText: e.target ? e.target.value : e }); }
+  submitReport() { if (!this.state.repText) { this.toast('Describe the issue first'); return; } this.toast('Issue sent to your supervisor'); this.setState({ repText: '' }); }
+  empDataExport() { this.setState({ empPrivacyMsg: 'Your data export request was submitted · you will receive it by email within 30 days.' }); }
+  empDataDelete() { this.setState({ empPrivacyMsg: 'Deletion request received · HR will contact you to confirm.' }); }
+
+  // ---- client portal (support requests) ----
+  onReqDraft(e) { this.setState({ reqDraft: e.target ? e.target.value : e }); }
+  raiseRequest() {
+    if (!this.state.reqDraft) return;
+    this.setState(s => ({ requests: [{ id: 'r' + Date.now(), title: s.reqDraft, status: 'OPEN', stBg: '#FBF3DF', stColor: '#8A6508', date: 'Today', open: false, replyDraft: '', thread: [] }, ...s.requests], reqDraft: '' }));
+    this.toast('Request sent to your OBA team');
+  }
+  toggleRequest(id) { this.setState(s => ({ requests: s.requests.map(r => r.id === id ? { ...r, open: !r.open } : r) })); }
+  onReplyDraft(id, e) { const v = e.target ? e.target.value : e; this.setState(s => ({ requests: s.requests.map(r => r.id === id ? { ...r, replyDraft: v } : r) })); }
+  sendReply(id) {
+    this.setState(s => ({
+      requests: s.requests.map(r => r.id === id ? {
+        ...r, replyDraft: '',
+        thread: [...r.thread, { who: 'YOU', text: r.replyDraft, align: 'flex-start', bg: '#F0F2F5', color: '#1F2A37', border: '#E3E7EC' }]
+      } : r)
+    }));
+  }
+
+  // ---- sales ----
+  openDeal(id) { this.toast('Opening deal…'); }
+  convertDeal(colKey, id) {
+    this.setState(s => {
+      const cols = s.salesCols.map(col => col.key === colKey ? { ...col, cards: col.cards.filter(c => c.id !== id) } : col);
+      const card = s.salesCols.find(c => c.key === colKey).cards.find(c => c.id === id);
+      const newClientList = card ? [...s.newClientList, { id: 'client' + Date.now(), name: card.co, region: 'Ghana', cur: '$', staff: 0 }] : s.newClientList;
+      const clients = card ? [...s.clients, { id: 'client' + Date.now(), name: card.co, region: 'Ghana', industry: card.svc, team: 0, cur: '$', sla: '—', health: 'Good', status: 'Onboarding' }] : s.clients;
+      return { salesCols: cols, newClientList, clients };
+    });
+    this.toast('Converted to client · recruitment brief opened');
+  }
+
+  // ================= computed vals for render =================
+  renderVals() {
+    const s = this.state;
+    const d = this.data;
+    const role = this.ROLES.find(r => r.id === s.currentRoleId) || null;
+    const now = new Date();
+    const hh = now.getHours();
+    const greeting = hh < 12 ? 'Good morning' : hh < 17 ? 'Good afternoon' : 'Good evening';
+    const todayStr = 'Wednesday, 22 July 2026';
+
+    // ---- role picker ----
+    const roleOptions = this.ROLES.map(r => ({
+      email: r.email, role: r.role,
+      bg: r.id === s.pendingRoleId ? '#F5F7FA' : '#FFFFFF',
+      emailColor: '#0D2B4E', roleColor: '#0D2B4E', pillBg: '#EAF0F7',
+      select: () => this.chooseRole(r.id)
+    }));
+    const pendingRole = this.ROLES.find(r => r.id === s.pendingRoleId) || this.ROLES[0];
+
+    // ---- nav ----
+    let navGroups = [];
+    if (role) {
+      navGroups = role.nav.map(g => ({
+        heading: g.heading,
+        items: g.items.map(key => {
+          const item = this.NAV_ITEMS[key];
+          const active = s.activeScreen === key;
+          return {
+            label: item.label,
+            bg: active ? '#123A69' : 'transparent',
+            accent: active ? '#C8960C' : 'transparent',
+            color: active ? '#FFFFFF' : '#C7D3E2',
+            select: () => this.setScreen(key)
+          };
+        })
+      }));
+    }
+
+    // ---- flags: all is* screens ----
+    const flags = {};
+    Object.keys(this.NAV_ITEMS).forEach(key => { flags[this.NAV_ITEMS[key].flag] = s.activeScreen === key; });
+
+    const NO_HERO = new Set(['command', 'advisor', 'portal', 'myspace', 'analytics']);
+    const screenHeroShow = s.isApp !== false && role && !NO_HERO.has(s.activeScreen);
+    const screenHero = {
+      show: screenHeroShow,
+      stats: [
+        { label: 'ACTIVE CLIENTS', value: String(s.clients.filter(c => c.status !== 'Offboarded').length), delta: '▲ steady', dColor: '#7FD1A2' },
+        { label: 'STAFF LIVE NOW', value: '96', delta: '▲ 4%', dColor: '#7FD1A2' },
+        { label: 'SLA TODAY', value: '93%', delta: '▲ 1.2%', dColor: '#7FD1A2' },
+        { label: 'OPEN TICKETS', value: '18', delta: '▼ 3', dColor: '#7FD1A2' }
+      ]
+    };
+
+    const SCREEN_META = {
+      command: ['Command Center', 'Company-wide overview'],
+      advisor: ['Board Dashboard', 'Read-only company snapshot'],
+      portal: ['Client Portal', 'Live view for your operation'],
+      shifts: ['Shift Operations Center', '24/7 coverage, live check-ins'],
+      workforce: ['Workforce', 'Live status of every employee'],
+      employees: ['Employees', 'Full staff directory'],
+      scheduling: ['Scheduling', 'Weekly rosters by branch'],
+      attendance: ['Attendance', 'Clock-ins and timesheets'],
+      leave: ['Leave', 'Requests, balances and cover'],
+      incidents: ['Incidents', 'Disciplinary and incident log'],
+      facilities: ['IT & Facilities', 'Assets, tickets, procurement'],
+      security: ['Security & Compliance', 'Audit log and access control'],
+      invoices: ['Invoices', 'Billing and collections'],
+      payroll: ['Payroll', 'Monthly payroll runs'],
+      kpi: ['KPI Scorecard', 'Targets vs actuals by team'],
+      analytics: ['Analytics', 'Company performance trends'],
+      docs: ['Document Library', 'Contracts, SOPs and policies'],
+      vault: ['Credentials Vault', 'Shared company logins'],
+      training: ['Training', 'Onboarding and upskilling'],
+      qa: ['Quality (QA)', 'Scorecards and audits'],
+      calendar: ['Calendar', 'Company-wide schedule'],
+      recruit: ['Recruitment', 'Hiring funnel and pipeline'],
+      sales: ['Sales & CRM', 'Deal pipeline'],
+      myspace: ['My Space', 'Your profile and self-service']
+    };
+    const meta = SCREEN_META[s.activeScreen] || ['OBA Platform', ''];
+
+    const showClientPicker = s.activeScreen === 'portal';
+    const clientPickerOpts = d.clients.map(c => ({ value: c.id, label: c.name }));
+    const activeClientObj = d.clients.find(c => c.id === s.activeClient) || d.clients[0];
+
+    // ---- search ----
+    const SEARCHABLE = [
+      { label: 'Command Center', sub: 'Module', go: 'command' },
+      { label: 'Payroll', sub: 'Module', go: 'payroll' },
+      { label: 'Invoices', sub: 'Module', go: 'invoices' },
+      ...d.employees.slice(0, 8).map(e => ({ label: e.name, sub: e.role + ' · ' + e.branch, go: 'employees' })),
+      ...d.clients.map(c => ({ label: c.name, sub: 'Client · ' + c.region, go: 'portal' }))
+    ];
+    const q = (s.searchQ || '').toLowerCase();
+    const searchResults = q ? SEARCHABLE.filter(r => r.label.toLowerCase().includes(q)).slice(0, 6).map(r => ({ label: r.label, sub: r.sub, go: () => this.searchGo(r.label) })) : [];
+
+    // ---- notifications ----
+    const notifSrc = [
+      { t: 'Leave request from Abena Boateng', sub: 'Awaiting your approval', icon: '🗓️', c: '#C8960C' },
+      { t: 'Invoice INV-2026-040 overdue', sub: 'PrimeCare Health · $16,900', icon: '💰', c: '#9B2C2C' },
+      { t: 'New candidate applied', sub: 'Richmond Boateng · Support Agent', icon: '👤', c: '#0D2B4E' }
+    ];
+    const notifList = notifSrc.map(n => ({ ...n, dotOpacity: s.notifUnreadCount > 0 ? '1' : '0', go: () => this.setState({ notifOpen: false }) }));
+
+    // ---- command center ----
+    const cmdRev = [420, 455, 470, 460, 505, 540];
+    const cmdSpark = this.spark(cmdRev, 130, 36, 3);
+    const cmdRing = this.ring(52, 0.92);
+    const clientHealth = d.clients.map(c => { const hc = d.healthColor(c.health); return { name: c.name, region: c.region, team: c.team, sla: c.sla, health: c.health, hBg: hc.bg, hColor: hc.color }; });
+    const manageClients = d.clients.map(c => { const sc = d.statusColor(c.status); return { name: c.name, region: c.region, industry: c.industry, team: c.team, cur: c.cur, statusBg: sc.bg, statusColor: sc.color, statusLabel: c.status.toUpperCase(), rename: () => this.clientRename(c.id), togglePause: () => this.clientTogglePause(c.id), offboard: () => this.clientOffboard(c.id) }; });
+    const newClientList = s.newClientList.map(c => ({ name: c.name, region: c.region, cur: c.cur, staff: c.staff, addOne: () => this.clientAddOne(c.id), removeOne: () => this.clientRemoveOne(c.id), openClient: () => this.clientOpenWorkforce() }));
+
+    const heroTiles = [
+      { label: 'MONTHLY REVENUE', value: '$66.0k', valueColor: '#0D2B4E', sub: '▲ 6.2% vs last month', subColor: '#2E6B4F' },
+      { label: 'CASH COLLECTED', value: '$58.2k', valueColor: '#0D2B4E', sub: '88% of billed', subColor: '#6B7684' },
+      { label: 'NET MARGIN', value: '31%', valueColor: '#0D2B4E', sub: '▲ 1.4pt vs target', subColor: '#2E6B4F' }
+    ];
+    const statTiles = [
+      { label: 'STAFF ON SHIFT', value: '96 / 130', sub: 'across 5 branches' },
+      { label: 'SLA TODAY', value: '93%', sub: 'target 90%' },
+      { label: 'OPEN TICKETS', value: '18', sub: '5 high priority' },
+      { label: 'ATTENDANCE', value: '94%', sub: 'company-wide' },
+      { label: 'QA AVG SCORE', value: '93.1', sub: 'target 90' }
+    ];
+    const wfSnapshot = [
+      { dot: '#2E6B4F', value: '78', label: 'Online' },
+      { dot: '#C8960C', value: '9', label: 'On break' },
+      { dot: '#0D2B4E', value: '5', label: 'Overtime' },
+      { dot: '#9AA4B0', value: '3', label: 'Idle' },
+      { dot: '#9B2C2C', value: '6', label: 'Absent' },
+      { dot: '#6B7684', value: '29', label: 'Off today' }
+    ];
+    const attentionItems = [
+      { text: 'PrimeCare Health invoice is 4 days overdue', action: 'Review', go: () => this.setScreen('invoices') },
+      { text: '2 leave requests awaiting your approval', action: 'Review', go: () => this.setScreen('leave') },
+      { text: 'Kumasi branch is short-staffed for the evening shift', action: 'Fix', go: () => this.setScreen('scheduling') }
+    ];
+    const hasAdvSuggMgmt = false;
+    const advSuggMgmt = [];
+
+    // ---- advisor ----
+    const advKpis = [
+      { label: 'REVENUE YTD', value: '$396k', trend: '▲ 8%', tColor: '#2E6B4F' },
+      { label: 'AVG SLA', value: '93%', trend: '▲ 1%', tColor: '#2E6B4F' },
+      { label: 'ATTENDANCE', value: '94%', trend: '▲ 0.5%', tColor: '#2E6B4F' },
+      { label: 'QA SCORE', value: '93.1', trend: '▲ 0.6', tColor: '#2E6B4F' },
+      { label: 'ACTIVE CLIENTS', value: String(d.clients.length), trend: '● steady', tColor: '#6B7684' },
+      { label: 'HEADCOUNT', value: '132', trend: '▲ 6', tColor: '#2E6B4F' }
+    ];
+    const advBoardPapers = [
+      { title: 'Q2 2026 board pack', meta: 'Uploaded 5 Jul 2026', tag: 'BOARD', tagBg: '#EAF0F7', tagColor: '#0D2B4E', download: () => this.toast('Downloading PDF…') },
+      { title: 'June management accounts', meta: 'Uploaded 3 Jul 2026', tag: 'FINANCE', tagBg: '#FBF3DF', tagColor: '#8A6508', download: () => this.toast('Downloading PDF…') },
+      { title: 'Client health summary', meta: 'Uploaded 1 Jul 2026', tag: 'OPS', tagBg: '#E6F0EB', tagColor: '#2E6B4F', download: () => this.toast('Downloading PDF…') }
+    ];
+    const hasAdvSuggestions = s.advSuggestions.length > 0;
+    const advSuggestionsVals = s.advSuggestions;
+
+    // ---- portal ----
+    const portalRoster = d.employees.filter(e => e.branch === activeClientObj.region || true).slice(0, 8).map((e, i) => ({
+      name: e.name, role: e.role, shift: i % 2 === 0 ? 'Day 08:00–17:00' : 'Night 20:00–05:00',
+      attend: (90 + (i % 8)) + '%', qa: (86 + (i % 10)),
+      stBg: '#E6F0EB', stColor: '#2E6B4F', status: 'Active'
+    }));
+    const slaRows = [
+      { name: 'First response time', value: '92%', target: '90%', pct: '92%', color: '#2E6B4F' },
+      { name: 'Resolution within SLA', value: '89%', target: '90%', pct: '89%', color: '#C8960C' },
+      { name: 'CSAT', value: '4.6/5', target: '4.5/5', pct: '92%', color: '#2E6B4F' },
+      { name: 'Abandon rate', value: '3.1%', target: '<5%', pct: '95%', color: '#2E6B4F' }
+    ];
+    const qaReports = [
+      { name: 'Week 28 scorecard', score: '93.4', audits: 22 },
+      { name: 'Week 27 scorecard', score: '91.8', audits: 20 },
+      { name: 'Week 26 scorecard', score: '92.5', audits: 19 }
+    ];
+    const portalInvoices = s.invoicesList.filter(i => i.clientId === activeClientObj.id).map(i => ({
+      id: i.id, due: i.due, amount: i.amount, stBg: i.stBg, stColor: i.stColor, status: i.status,
+      view: () => this.openInvoice(i.id), download: () => this.toast('Downloading invoice…'),
+      canPay: i.status !== 'Paid', pay: () => this.payInvoice(i.id)
+    }));
+    const portalDocs = [
+      { name: 'Master Service Agreement', date: 'Signed 2 Feb 2026' },
+      { name: 'SLA Schedule A', date: 'Updated 4 Jun 2026' },
+      { name: 'Data Protection Addendum', date: 'Signed 2 Feb 2026' },
+      { name: 'SOP · Escalations', date: 'Updated 11 Jul 2026' }
+    ];
+    const pipeline = [
+      { flex: 3, bg: '#F0F2F5', color: '#4A5563', count: 12, label: 'APPLIED' },
+      { flex: 2, bg: '#EAF0F7', color: '#0D2B4E', count: 5, label: 'INTERVIEW' },
+      { flex: 1, bg: '#FBF3DF', color: '#8A6508', count: 2, label: 'OFFER' },
+      { flex: 1, bg: '#E6F0EB', color: '#2E6B4F', count: 1, label: 'HIRED' }
+    ];
+    const training = [
+      { name: 'Onboarding · Week 1', pct: '100%' },
+      { name: 'Product refresher', pct: '72%' },
+      { name: 'QA calibration', pct: '58%' }
+    ];
+    const requestsVals = s.requests.map(r => ({
+      title: r.title, status: r.status, stBg: r.stBg, stColor: r.stColor, date: r.date, msgCount: r.thread.length,
+      toggleLabel: r.open ? 'hide thread' : 'view thread', open: r.open, toggle: () => this.toggleRequest(r.id),
+      replyDraft: r.replyDraft, onReply: (e) => this.onReplyDraft(r.id, e), sendReply: () => this.sendReply(r.id),
+      thread: r.thread
+    }));
+
+    // ---- shifts ----
+    const ringify = (r, frac) => { const rr = this.ring(r, frac); return { ringDash: rr.dash, ringOffset: rr.offset }; };
+    const shiftCards = [
+      { name: 'Day shift', hours: '08:00–17:00', staffed: 46, planned: 50, gap: '4', template: '9h · 5 days', accent: '#2E6B4F', covColor: '#2E6B4F', coverage: '92%', live: true, ...ringify(34, 0.92) },
+      { name: 'Evening shift', hours: '17:00–00:00', staffed: 28, planned: 32, gap: '4', template: '7h · rotating', accent: '#C8960C', covColor: '#C8960C', coverage: '88%', live: true, ...ringify(34, 0.88) },
+      { name: 'Night shift', hours: '00:00–08:00', staffed: 20, planned: 26, gap: '6', template: '8h · rotating', accent: '#9B2C2C', covColor: '#9B2C2C', coverage: '77%', live: false, ...ringify(34, 0.77) }
+    ];
+    const boardRows = d.employees.slice(0, 9).map((e, i) => {
+      const late = i === 2, missing = i === 7;
+      return {
+        name: e.name, role: e.role, branch: e.branch,
+        time: missing ? '—' : (late ? '08:19' : '07:5' + (i % 5)),
+        stBg: missing ? '#FBECEC' : late ? '#FBF3DF' : '#E6F0EB',
+        stColor: missing ? '#9B2C2C' : late ? '#8A6508' : '#2E6B4F',
+        status: missing ? 'MISSING' : late ? 'LATE' : 'ON TIME',
+        canNotify: missing, notify: () => this.toast('Notification sent to ' + e.name)
+      };
+    });
+    const supervisors = d.employees.filter(e => e.role === 'Supervisor' || e.role === 'Team Lead').slice(0, 3).map(e => ({ initials: e.initials, name: e.name, branch: e.branch }));
+    const reportsAcked = s.reportsAcked || {};
+    const teamReports = d.employees.slice(0, 3).map((e, i) => ({
+      name: e.name, summary: i === 0 ? '48 tickets closed · 1 escalation' : i === 1 ? 'Awaiting submission' : '52 tickets closed · 0 escalations',
+      pending: i === 0 && !reportsAcked[e.id], acked: i === 2 || (i === 0 && !!reportsAcked[e.id]), missing: i === 1,
+      ack: () => this.reportAck(e.id)
+    }));
+    const issuesAssigned = s.issuesAssigned || {};
+    const issuesResolved = s.issuesResolved || {};
+    const teamIssues = [
+      { name: 'Kwesi Appiah', type: 'Headset fault', text: 'Headset mic not working, needs replacement.',
+        open: !issuesResolved.i1, closed: !!issuesResolved.i1,
+        unassigned: !issuesAssigned.i1 && !issuesResolved.i1, assigned: !!issuesAssigned.i1 && !issuesResolved.i1,
+        suggested: 'IT', owner: 'IT & Facilities', assign: () => this.issueAssign('i1'), resolve: () => this.issueResolve('i1') },
+      { name: 'Comfort Aidoo', type: 'Schedule clash', text: 'Double-booked for Saturday shift.',
+        open: !issuesResolved.i2, closed: !!issuesResolved.i2,
+        unassigned: false, assigned: !issuesResolved.i2,
+        suggested: 'Ops', owner: 'Yaw Asante', assign: () => this.issueAssign('i2'), resolve: () => this.issueResolve('i2') }
+    ];
+    const templates = [
+      { name: 'Standard 9-5', detail: '5 days · 9h shifts' },
+      { name: '24/7 rotation', detail: '4-on 4-off · 12h shifts' },
+      { name: 'Weekend cover', detail: 'Sat–Sun · 8h shifts' }
+    ];
+
+    // ---- workforce ----
+    const wfSegs = this.ringSegs(52, [
+      { frac: 0.60, color: '#2E6B4F', label: 'Online', count: 78 },
+      { frac: 0.07, color: '#C8960C', label: 'On break', count: 9 },
+      { frac: 0.04, color: '#0D2B4E', label: 'Overtime', count: 5 },
+      { frac: 0.24, color: '#9AA4B0', label: 'Off today', count: 29 },
+      { frac: 0.05, color: '#9B2C2C', label: 'Absent', count: 6 }
+    ]);
+    const wfDonut = { segs: wfSegs, total: '132' };
+    const people = d.employees.map((e, i) => {
+      const st = i % 9 === 0 ? 'break' : i % 11 === 0 ? 'overtime' : i % 13 === 0 ? 'absent' : 'online';
+      const dot = st === 'online' ? '#2E6B4F' : st === 'break' ? '#C8960C' : st === 'overtime' ? '#0D2B4E' : '#9B2C2C';
+      const label = st === 'online' ? 'Online' : st === 'break' ? 'On break' : st === 'overtime' ? 'Overtime' : 'Absent';
+      return { name: e.name, branch: e.branch, dot, statusLabel: label, cardBg: '#FFFFFF', cardBorder: '#E3E7EC', select: () => this.selectEmployee(e.id) };
+    });
+    const selEmp = d.employees.find(e => e.id === s.selEmployeeId) || d.employees[0];
+    const selStats = [
+      { label: 'ATTENDANCE', value: '96%', color: '#2E6B4F' },
+      { label: 'QA SCORE', value: '94', color: '#2E6B4F' },
+      { label: 'TENURE', value: '1.4 yrs', color: '#0D2B4E' },
+      { label: 'INCIDENTS', value: '0', color: '#0D2B4E' }
+    ];
+    const selPath = [
+      { label: 'Support Agent', bg: '#E6F0EB', color: '#2E6B4F', border: '#BFD8CC' },
+      { label: 'Team Lead', bg: '#EAF0F7', color: '#0D2B4E', border: '#D3E0EF' },
+      { label: 'Supervisor', bg: '#F0F2F5', color: '#6B7684', border: '#D8DFE7' }
+    ];
+    const selRecord = [
+      { label: 'Ghana Card', value: 'Verified', color: '#2E6B4F' },
+      { label: 'Bank / MoMo', value: 'On file', color: '#0D2B4E' },
+      { label: 'Emergency contact', value: 'On file', color: '#0D2B4E' },
+      { label: 'Contract', value: 'Signed', color: '#2E6B4F' }
+    ];
+
+    // ---- employees directory ----
+    const empDirAll = d.employees.map(e => ({
+      name: e.name, role: e.role, branch: e.branch, since: e.since.slice(0, 7), initials: e.initials,
+      docBg: '#E6F0EB', docColor: '#2E6B4F', docBadge: 'COMPLETE',
+      open: () => this.selectEmployee(e.id)
+    }));
+    const empDir = empDirAll.slice(0, s.empShowCount);
+
+    // ---- scheduling ----
+    const BRANCH_NAMES = ['Accra HQ', 'Kumasi', 'Takoradi', 'Tema', 'Tamale'];
+    const schBranchName = BRANCH_NAMES[s.schBranchIdx] || BRANCH_NAMES[0];
+    const schRing = { ...this.ring(34, 0.9), pct: '90%', color: '#2E6B4F' };
+    const schTiles = [
+      { label: 'ASSIGNED', value: '48', color: '#0D2B4E', sub: 'this week' },
+      { label: 'UNFILLED', value: String(Object.keys(d.schGaps[schBranchName] || {}).length), color: '#9B2C2C', sub: 'shifts open' },
+      { label: 'SWAP REQUESTS', value: '2', color: '#C8960C', sub: 'pending' },
+      { label: 'OVERTIME', value: '3', color: '#0D2B4E', sub: 'flagged' }
+    ];
+    const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    const schDays = DAYS.map((day, di) => {
+      const gaps = d.schGaps[schBranchName] || {};
+      const rows = [0, 1, 2].map(ri => {
+        const cellId = di * 3 + ri;
+        const isGap = !!gaps[cellId];
+        const shiftName = ri === 0 ? 'Day' : ri === 1 ? 'Evening' : 'Night';
+        return {
+          shift: shiftName + ' · ' + (ri === 0 ? '08–17' : ri === 1 ? '17–00' : '00–08'),
+          bg: isGap ? '#FBECEC' : '#F5F7FA', accent: isGap ? '#9B2C2C' : '#0D2B4E',
+          cursor: 'pointer', outline: 'none', gap: isGap, who: isGap ? '' : d.employees[(di + ri) % d.employees.length].name.split(' ')[0],
+          tap: () => this.schTap(), assign: () => this.schAssign(schBranchName, cellId)
+        };
+      });
+      return { day, rows };
+    });
+
+    // ---- attendance ----
+    const attSegs = this.ringSegs(52, [
+      { frac: 0.94, color: '#2E6B4F', label: 'Present', count: 122 },
+      { frac: 0.04, color: '#C8960C', label: 'Late', count: 5 },
+      { frac: 0.02, color: '#9B2C2C', label: 'Absent', count: 5 }
+    ]);
+    const attDonut = attSegs;
+    const attTrendVals = [92, 93, 91, 95, 94, 96, 94];
+    const attTrend = DAYS.map((label, i) => ({ label, value: attTrendVals[i] + '%', height: (attTrendVals[i] - 70) + 'px' }));
+    const attRows = d.employees.slice(0, 10).map((e, i) => {
+      const late = i === 3;
+      return {
+        name: e.name, role: e.role, branch: e.branch,
+        inTime: late ? '08:19' : '07:5' + (i % 5), outTime: '17:0' + (i % 5), hours: '8.5',
+        stBg: late ? '#FBF3DF' : '#E6F0EB', stColor: late ? '#8A6508' : '#2E6B4F', statusLabel: late ? 'LATE' : 'ON TIME'
+      };
+    });
+
+    // ---- incidents ----
+    const incSegs = this.ringSegs(52, [
+      { frac: 0.43, color: '#C8960C', label: 'Lateness', count: 3 },
+      { frac: 0.28, color: '#0D2B4E', label: 'QA breach', count: 2 },
+      { frac: 0.14, color: '#9B2C2C', label: 'Conduct', count: 1 },
+      { frac: 0.15, color: '#6B7684', label: 'Other', count: 1 }
+    ]);
+    const incDonut = incSegs;
+    const incNames = d.employees.slice(0, 6).map(e => e.name);
+    const incidentsClosed = s.incidentsClosed || {};
+    const incidents = [
+      { id: 'inc1', name: 'Kwesi Appiah', type: 'LATENESS', sevBg: '#FBF3DF', sevColor: '#8A6508', date: '18 Jul', detail: 'Third lateness this month, over 15 minutes.', action: 'Verbal warning issued', status: incidentsClosed.inc1 ? 'CLOSED' : 'OPEN', stBg: incidentsClosed.inc1 ? '#E6F0EB' : '#FBF3DF', stColor: incidentsClosed.inc1 ? '#2E6B4F' : '#8A6508', canClose: !incidentsClosed.inc1, close: () => this.incidentClose('inc1') },
+      { id: 'inc2', name: 'Isaac Adjei', type: 'QA BREACH', sevBg: '#EAF0F7', sevColor: '#0D2B4E', date: '15 Jul', detail: 'Did not follow refund verification script.', action: 'Coaching session booked', status: incidentsClosed.inc2 ? 'CLOSED' : 'OPEN', stBg: incidentsClosed.inc2 ? '#E6F0EB' : '#FBF3DF', stColor: incidentsClosed.inc2 ? '#2E6B4F' : '#8A6508', canClose: !incidentsClosed.inc2, close: () => this.incidentClose('inc2') },
+      { id: 'inc3', name: 'Daniel Quaye', type: 'CONDUCT', sevBg: '#FBECEC', sevColor: '#9B2C2C', date: '9 Jul', detail: 'Reported for unprofessional conduct on a call.', action: 'Case closed, written warning', status: 'CLOSED', stBg: '#E6F0EB', stColor: '#2E6B4F', canClose: false, close: () => {} }
+    ];
+
+    // ---- security ----
+    const secAuditAll = [
+      { who: 'Ama Owusu', act: 'Approved payroll run · July 2026', time: '09:14', ip: '41.203.x.x' },
+      { who: 'Nana Adjei', act: 'Revealed AWS console credential', time: '08:52', ip: '154.160.x.x' },
+      { who: 'Abena Darko', act: 'Exported bank file', time: '08:30', ip: '41.203.x.x' },
+      { who: 'Efua Mensah-Bonsu', act: 'Uploaded SOP · Escalations', time: '08:05', ip: '154.160.x.x' },
+      { who: 'Kwabena Owusu', act: 'Published Accra HQ roster', time: '07:48', ip: '41.203.x.x' },
+      { who: 'System', act: 'Blocked 2 failed sign-in attempts', time: '07:20', ip: '102.176.x.x' },
+      { who: 'Yaw Boateng', act: 'Converted deal to client · Accra Metro Utilities', time: '06:55', ip: '41.203.x.x' }
+    ];
+    const secAudit = secAuditAll.slice(0, s.auditShowCount);
+    const secControls = [
+      { name: 'Two-factor authentication', stBg: '#E6F0EB', stColor: '#2E6B4F', stLabel: s.twofaDone ? 'ENABLED' : 'RECOMMENDED' },
+      { name: 'Session timeout (30 min)', stBg: '#E6F0EB', stColor: '#2E6B4F', stLabel: 'ON' },
+      { name: 'IP allow-list · Finance', stBg: '#E6F0EB', stColor: '#2E6B4F', stLabel: 'ON' },
+      { name: 'Password rotation (90 days)', stBg: '#FBF3DF', stColor: '#8A6508', stLabel: 'DUE SOON' },
+      { name: 'Device approval', stBg: '#E6F0EB', stColor: '#2E6B4F', stLabel: 'ON' }
+    ];
+    const secMatrix = this.ROLES.map(r => ({ role: r.role, scope: r.nav.map(g => g.heading).join(' · ') }));
+    const secCompliance = [
+      { name: 'Signed employment contracts', pct: '98%', color: '#2E6B4F', note: '2 pending signature' },
+      { name: 'Ghana Card on file', pct: '100%', color: '#2E6B4F', note: 'All staff verified' },
+      { name: 'Data protection training', pct: '86%', color: '#C8960C', note: '18 staff to complete' },
+      { name: 'NDA · client-facing staff', pct: '94%', color: '#2E6B4F', note: '8 staff to complete' }
+    ];
+    const secDataReqs = [
+      { who: 'Kojo Bediako', kind: 'Data copy request', date: '20 Jul', status: 'IN PROGRESS', stBg: '#FBF3DF', stColor: '#8A6508' },
+      { who: 'Former employee · S. Owusu', kind: 'Deletion request', date: '14 Jul', status: 'COMPLETED', stBg: '#E6F0EB', stColor: '#2E6B4F' }
+    ];
+    const secLogins = [
+      { who: 'Ama Owusu', device: 'MacBook Pro · Chrome', loc: 'Accra, GH', time: '09:14', result: 'SUCCESS', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { who: 'Unknown', device: 'Windows · Firefox', loc: 'Lagos, NG', time: '07:20', result: 'BLOCKED', stBg: '#FBECEC', stColor: '#9B2C2C' },
+      { who: 'Nana Adjei', device: 'ThinkPad · Edge', loc: 'Accra, GH', time: '07:02', result: 'SUCCESS', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { who: 'Abena Darko', device: 'iPhone · Safari', loc: 'Tema, GH', time: '06:58', result: 'SUCCESS', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { who: 'Unknown', device: 'Android · Chrome', loc: 'Accra, GH', time: '06:40', result: 'BLOCKED', stBg: '#FBECEC', stColor: '#9B2C2C' }
+    ];
+
+    // ---- invoices module ----
+    const invSegs = this.ringSegs(52, [
+      { frac: 0.55, color: '#C8960C', label: 'Sent', amt: '$49.7k' },
+      { frac: 0.25, color: '#9B2C2C', label: 'Overdue', amt: '$16.9k' },
+      { frac: 0.20, color: '#2E6B4F', label: 'Paid', amt: '$9.75k' }
+    ]);
+    const invDonut = invSegs;
+    const invList = s.invoicesList.map(i => {
+      const c = d.clients.find(cl => cl.id === i.clientId);
+      return { id: i.id, amount: i.amount, lines: (c ? c.name : 'Client') + ' · retainer', due: i.due, stBg: i.stBg, stColor: i.stColor, status: i.status, view: () => this.openInvoice(i.id), canAct: i.canAct, remind: () => this.invRemind(i.id), markPaid: () => this.invMarkPaid(i.id) };
+    });
+    const invViewSrc = s.invoicesList.find(i => i.id === s.invoiceViewId) || s.invoicesList[0];
+    const invClient = d.clients.find(c => c.id === (invViewSrc ? invViewSrc.clientId : '')) || d.clients[0];
+    const invoiceView = {
+      id: invViewSrc ? invViewSrc.id : '', client: invClient.name, clientAddr: invClient.region + ', Ghana',
+      issued: 'Issued 1 Aug 2026', due: invViewSrc ? invViewSrc.due : '', stBg: invViewSrc ? invViewSrc.stBg : '#EAF0F7', stColor: invViewSrc ? invViewSrc.stColor : '#0D2B4E',
+      status: invViewSrc ? invViewSrc.status : '', bank: 'Ecobank Ghana', account: '1441 2200 8890', swift: 'ECOCGHAC',
+      lines: [{ desc: 'Support team · monthly retainer', note: '24/7 coverage, ' + invClient.team + ' agents', qty: 1, rate: invViewSrc ? invViewSrc.amount : '$0', amount: invViewSrc ? invViewSrc.amount : '$0' }],
+      subtotal: invViewSrc ? invViewSrc.amount : '$0', vat: '$0', total: invViewSrc ? invViewSrc.amount : '$0',
+      download: () => this.toast('Downloading invoice…')
+    };
+
+    // ---- KPI scorecard ----
+    const kpiPeriods = ['This month', 'This quarter', 'YTD'].map((label, i) => ({ label, select: () => this.kpiSelectPeriod(i), bg: s.kpiPeriodIdx === i ? '#0D2B4E' : 'transparent', color: s.kpiPeriodIdx === i ? '#FFFFFF' : '#6B7684' }));
+    const kpiFilters = ['All branches', 'Accra HQ', 'Kumasi', 'Takoradi', 'Tema'].map((label, i) => ({ label, select: () => this.kpiSelectFilter(i), bg: s.kpiFilterIdx === i ? '#EAF0F7' : '#FFFFFF', color: s.kpiFilterIdx === i ? '#0D2B4E' : '#6B7684', border: s.kpiFilterIdx === i ? '#0D2B4E' : '#D8DFE7' }));
+    const kpiTiles = [
+      { label: 'AVG SLA', value: '93%', color: '#0D2B4E', sub: 'target 90%' },
+      { label: 'AVG QA', value: '93.1', color: '#0D2B4E', sub: 'target 90' },
+      { label: 'ATTENDANCE', value: '94%', color: '#0D2B4E', sub: 'target 95%' },
+      { label: 'TICKETS/AGENT', value: '41', color: '#0D2B4E', sub: 'target 45' }
+    ];
+    const kpiGroupSrc = [
+      { group: 'Client SLA', rows: [
+        { name: 'Zanzu Telecom · SLA', owner: 'Ops', target: '95%', actual: '96%', trend: '▲', c: '#2E6B4F', rag: 'ON TRACK', ragBg: '#E6F0EB', pct: '96%', spark: [88, 90, 92, 94, 96] },
+        { name: 'PrimeCare Health · SLA', owner: 'Ops', target: '90%', actual: '92%', trend: '▲', c: '#2E6B4F', rag: 'ON TRACK', ragBg: '#E6F0EB', pct: '92%', spark: [86, 87, 89, 91, 92] },
+        { name: 'Nova Logistics · SLA', owner: 'Ops', target: '90%', actual: '87%', trend: '▼', c: '#C8960C', rag: 'AT RISK', ragBg: '#FBF3DF', pct: '87%', spark: [92, 90, 89, 88, 87] }
+      ]},
+      { group: 'Finance', rows: [
+        { name: 'Days sales outstanding', owner: 'Finance', target: '30d', actual: '34d', trend: '▲', c: '#C8960C', rag: 'AT RISK', ragBg: '#FBF3DF', pct: '76%', spark: [28, 30, 31, 33, 34] },
+        { name: 'Collection rate', owner: 'Finance', target: '95%', actual: '88%', trend: '▼', c: '#9B2C2C', rag: 'BEHIND', ragBg: '#FBECEC', pct: '88%', spark: [94, 92, 90, 89, 88] }
+      ]},
+      { group: 'People', rows: [
+        { name: 'Attrition (monthly)', owner: 'HR', target: '<5%', actual: '3.2%', trend: '▼', c: '#2E6B4F', rag: 'ON TRACK', ragBg: '#E6F0EB', pct: '90%', spark: [5, 4.4, 3.9, 3.5, 3.2] },
+        { name: 'Training completion', owner: 'HR', target: '80%', actual: '71%', trend: '▲', c: '#C8960C', rag: 'AT RISK', ragBg: '#FBF3DF', pct: '71%', spark: [60, 64, 67, 69, 71] }
+      ]}
+    ];
+    const kpiGroups = kpiGroupSrc.map(g => ({
+      group: g.group,
+      rows: g.rows.map((r, ri) => ({
+        ...r, spark: r.spark.map(v => ({ h: Math.max(4, Math.round((v / Math.max(...r.spark)) * 20)) + 'px' })),
+        open: () => this.openKpiSel(g.group + '-' + ri)
+      }))
+    }));
+    const kpiSelSrc = (() => {
+      for (const g of kpiGroupSrc) { const idx = g.rows.findIndex((r, ri) => (g.group + '-' + ri) === s.kpiSelKey); if (idx >= 0) return { group: g.group, ...g.rows[idx] }; }
+      return { group: kpiGroupSrc[0].group, ...kpiGroupSrc[0].rows[0] };
+    })();
+    const kpiSel = { group: kpiSelSrc.group, name: kpiSelSrc.name, ragBg: kpiSelSrc.ragBg, c: kpiSelSrc.c, rag: kpiSelSrc.rag, target: kpiSelSrc.target, actual: kpiSelSrc.actual, owner: kpiSelSrc.owner, detail: 'Tracking ' + kpiSelSrc.rag.toLowerCase() + ' against target, owned by ' + kpiSelSrc.owner + '.' };
+    const kpiWeights = [
+      { label: 'QA', w: '40%', c: '#0D2B4E' },
+      { label: 'Attendance', w: '30%', c: '#2E6B4F' },
+      { label: 'Punctuality', w: '20%', c: '#C8960C' },
+      { label: 'Conduct', w: '10%', c: '#9AA4B0' }
+    ];
+    const empScores = d.employees.slice(0, 8).map((e, i) => {
+      const score = 78 + ((i * 7) % 20);
+      const band = score >= 90 ? 'TOP' : score >= 80 ? 'STRONG' : 'STEADY';
+      const c = score >= 90 ? '#2E6B4F' : score >= 80 ? '#0D2B4E' : '#C8960C';
+      return { name: e.name, role: e.role, branch: e.branch, initials: e.initials, score: String(score), pct: score + '%', c, bandBg: score >= 90 ? '#E6F0EB' : score >= 80 ? '#EAF0F7' : '#FBF3DF', band, open: () => this.openEmpSel(e.id) };
+    });
+    const empSelSrc = d.employees.find(e => e.id === s.empSelId) || d.employees[0];
+    const empSelScoreObj = empScores.find(e => e.name === empSelSrc.name) || empScores[0];
+    const empSel = {
+      initials: empSelSrc.initials, name: empSelSrc.name, role: empSelSrc.role, branch: empSelSrc.branch,
+      score: empSelScoreObj.score, bandBg: empSelScoreObj.bandBg, band: empSelScoreObj.band, c: empSelScoreObj.c,
+      note: 'Consistent performer with strong QA scores this period.',
+      parts: [
+        { label: 'QA', weight: '40%', raw: 94, c: '#0D2B4E', contrib: 38 },
+        { label: 'Attendance', weight: '30%', raw: 96, c: '#2E6B4F', contrib: 29 },
+        { label: 'Punctuality', weight: '20%', raw: 88, c: '#C8960C', contrib: 18 },
+        { label: 'Conduct', weight: '10%', raw: 100, c: '#2E6B4F', contrib: 10 }
+      ]
+    };
+    const empTeamAvg = '89.4';
+
+    // ---- documents ----
+    const docCatList = ['All', 'Contracts', 'SOPs', 'Policies', 'IDs', 'Certificates', 'Signed'];
+    const docCats = docCatList.map(label => ({ label, select: () => this.selectDocCat(label), bg: s.docCatSelected === label ? '#0D2B4E' : '#FFFFFF', color: s.docCatSelected === label ? '#FFFFFF' : '#0D2B4E', border: s.docCatSelected === label ? '#0D2B4E' : '#D8DFE7' }));
+    const docAccessNote = role && (role.id === 'director' || role.id === 'hr') ? 'You can upload and manage every document in the library.' : 'View-only access. Your own signed documents are shown first.';
+    const docCanUpload = !!role && (role.id === 'director' || role.id === 'hr');
+    const docSrc = [
+      { name: 'Employment contract · you', cat: 'Contracts', ext: 'PDF', extColor: '#0D2B4E', desc: 'Your signed employment contract on file.', size: '412 KB', updated: '10 Mar 2025', mine: true, mineBadge: 'YOUR SIGNED COPY', canDownload: false, signed: true, signer: (role ? role.userName : 'Employee'), body: ['This agreement is entered into between Open Base Africa Ltd and the employee named above.', 'The employee agrees to the terms of employment, compensation and conduct as set out herein.', 'Both parties acknowledge acceptance of the terms above.'] },
+      { name: 'SOP · Escalations', cat: 'SOPs', ext: 'DOC', extColor: '#2E6B4F', desc: 'Standard procedure for escalating unresolved tickets.', size: '88 KB', updated: '11 Jul 2026', mine: false, canDownload: true, signed: false },
+      { name: 'Data Protection Policy', cat: 'Policies', ext: 'PDF', extColor: '#0D2B4E', desc: "Company policy under Ghana's Data Protection Act 843.", size: '210 KB', updated: '2 Feb 2026', mine: false, canDownload: true, signed: false },
+      { name: 'Master Service Agreement · Zanzu', cat: 'Contracts', ext: 'PDF', extColor: '#0D2B4E', desc: 'Client services agreement with Zanzu Telecom.', size: '540 KB', updated: '2 Feb 2026', mine: false, canDownload: docCanUpload, signed: false },
+      { name: 'Ghana Card · scan', cat: 'IDs', ext: 'JPG', extColor: '#8A6508', desc: 'National ID verification scan.', size: '1.1 MB', updated: '9 Mar 2025', mine: false, canDownload: false, signed: false },
+      { name: 'First Aid Certificate', cat: 'Certificates', ext: 'PDF', extColor: '#0D2B4E', desc: 'Occupational First Aid training certificate.', size: '96 KB', updated: '4 Jun 2026', mine: false, canDownload: true, signed: false }
+    ];
+    const docFiltered = docSrc.filter(dd => (s.docCatSelected === 'All' || dd.cat === s.docCatSelected || (s.docCatSelected === 'Signed' && dd.signed)) && dd.name.toLowerCase().includes((s.docQuery || '').toLowerCase()));
+    const docList = docFiltered.slice(0, s.docShowCount).map(dd => ({
+      name: dd.name, cat: dd.cat, ext: dd.ext, extColor: dd.extColor, desc: dd.desc, size: dd.size, updated: dd.updated,
+      mine: dd.mine, mineBadge: dd.mineBadge, notMine: !dd.mine, canDownload: dd.canDownload,
+      view: () => this.openDocView(dd.name), download: () => this.toast('Downloading ' + dd.name + '…')
+    }));
+    const docViewSrc = docSrc.find(dd => dd.name === s.docViewId) || docSrc[0];
+    const docView = {
+      name: docViewSrc.name, cat: docViewSrc.cat, updated: docViewSrc.updated, ext: docViewSrc.ext, extColor: docViewSrc.extColor,
+      desc: docViewSrc.desc, isSigned: docViewSrc.signed, notSigned: !docViewSrc.signed,
+      signer: docViewSrc.signer || '', body: docViewSrc.body || []
+    };
+
+    // ---- vault ----
+    const vaultCatList = ['All', 'Banking', 'Government', 'Software', 'Social'];
+    const vaultCats = vaultCatList.map(label => ({ label, select: () => this.selectVaultCat(label), bg: s.vaultCatSelected === label ? '#0D2B4E' : '#FFFFFF', color: s.vaultCatSelected === label ? '#FFFFFF' : '#0D2B4E', border: s.vaultCatSelected === label ? '#0D2B4E' : '#D8DFE7' }));
+    const vaultFiltered = s.vaultList.filter(v => s.vaultCatSelected === 'All' || v.cat === s.vaultCatSelected);
+    const vaultList = vaultFiltered.map(v => ({
+      system: v.system, cat: v.cat, rotated: v.rotated, user: v.user,
+      pass: s.vaultRevealed[v.id] ? v.pass : '••••••••••',
+      revealLabel: s.vaultRevealed[v.id] ? 'Hide' : 'Reveal',
+      owner: v.owner, stBg: v.stBg, stColor: v.stColor, strength: v.strength,
+      toggle: () => this.vaultToggle(v.id), copy: () => this.vaultCopy(v.id)
+    }));
+    const vaultStats = [
+      { label: 'CREDENTIALS', value: String(s.vaultList.length), c: '#0D2B4E', d: 'across all systems' },
+      { label: 'WEAK PASSWORDS', value: String(s.vaultList.filter(v => v.strength === 'Weak').length), c: '#9B2C2C', d: 'need rotation' },
+      { label: 'ROTATED (90D)', value: String(s.vaultList.length - 1), c: '#2E6B4F', d: 'up to date' },
+      { label: 'REVEALS TODAY', value: String(Object.values(s.vaultRevealed).filter(Boolean).length), c: '#8A6508', d: 'logged to audit' }
+    ];
+
+    // ---- training / qa ----
+    const trainRing = this.ring(52, 0.71);
+    const trainTiles = [
+      { label: 'COURSES LIVE', value: '9', color: '#0D2B4E' },
+      { label: 'COHORTS', value: '4', color: '#0D2B4E' },
+      { label: 'COMPLETIONS (MO)', value: '38', color: '#2E6B4F' },
+      { label: 'OVERDUE', value: '6', color: '#9B2C2C' }
+    ];
+    const trainCohorts = [
+      { name: 'July onboarding cohort', pct: '84%', color: '#2E6B4F', learners: '12 learners' },
+      { name: 'QA calibration refresh', pct: '58%', color: '#C8960C', learners: '9 learners' },
+      { name: 'Team Lead upskilling', pct: '46%', color: '#C8960C', learners: '5 learners' },
+      { name: 'Data protection compliance', pct: '92%', color: '#2E6B4F', learners: '24 learners' }
+    ];
+    const trainCourses = [
+      { name: 'Customer Support Fundamentals', mods: '6 modules', dur: '4h', status: 'LIVE', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { name: 'QA Scoring & Calibration', mods: '4 modules', dur: '2.5h', status: 'LIVE', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { name: 'Leadership for Team Leads', mods: '8 modules', dur: '6h', status: 'LIVE', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { name: 'Data Protection Act 843', mods: '3 modules', dur: '1.5h', status: 'MANDATORY', stBg: '#FBF3DF', stColor: '#8A6508' }
+    ];
+    const qaGaugeRing = this.ring(52, 0.93);
+    const qaGaugeDist = this.ringSegs(52, [
+      { frac: 0.62, color: '#2E6B4F', label: 'Excellent (90+)', count: 82 },
+      { frac: 0.28, color: '#C8960C', label: 'Good (80–89)', count: 37 },
+      { frac: 0.10, color: '#9B2C2C', label: 'Needs coaching (<80)', count: 13 }
+    ]);
+    const qaGauge = { ringDash: qaGaugeRing.dash, ringOffset: qaGaugeRing.offset, dist: qaGaugeDist };
+    const qaScores = d.employees.slice(0, 8).map((e, i) => {
+      const pct = 78 + ((i * 5) % 20);
+      const band = pct >= 90 ? 'Excellent' : pct >= 80 ? 'Good' : 'Coaching';
+      const bandColor = pct >= 90 ? '#2E6B4F' : pct >= 80 ? '#0D2B4E' : '#C8960C';
+      return { name: e.name, role: e.role, pct: pct + '%', band, bandBg: pct >= 90 ? '#E6F0EB' : pct >= 80 ? '#EAF0F7' : '#FBF3DF', bandColor };
+    });
+    const qaAudits = d.employees.slice(0, 6).map((e, i) => ({ agent: e.name, ticket: 'TCK-' + (4200 + i), score: (86 + i) + '/100', c: (86 + i) >= 90 ? '#2E6B4F' : '#C8960C', note: i % 2 === 0 ? 'Great empathy, followed script.' : 'Missed verification step.' }));
+
+    // ---- calendar ----
+    const calSummary = [
+      { label: 'MEETINGS', value: '14', color: '#0D2B4E' },
+      { label: 'DEADLINES', value: '6', color: '#9B2C2C' },
+      { label: 'HOLIDAYS', value: '1', color: '#2E6B4F' }
+    ];
+    const calLegend = [
+      { label: 'Meeting', color: '#0D2B4E' }, { label: 'Deadline', color: '#9B2C2C' },
+      { label: 'Training', color: '#C8960C' }, { label: 'Holiday', color: '#2E6B4F' }
+    ];
+    const calWeekdays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+    const calEventsByDay = { 3: [{ t: 'Payroll close', bg: '#FBECEC', c: '#9B2C2C' }], 8: [{ t: 'Board pack due', bg: '#FBECEC', c: '#9B2C2C' }], 14: [{ t: 'QA calibration', bg: '#FBF3DF', c: '#C8960C' }], 22: [{ t: 'Client review · Zanzu', bg: '#EAF0F7', c: '#0D2B4E' }], 31: [{ t: 'Founders Day', bg: '#E6F0EB', c: '#2E6B4F' }] };
+    const calCells = Array.from({ length: 35 }, (_, i) => {
+      const day = i - 2;
+      const inMonth = day >= 1 && day <= 31;
+      const evs = inMonth ? (calEventsByDay[day] || []) : [];
+      return { day: inMonth ? day : '', todayBg: day === 22 ? '#FBF3DF' : '#FFFFFF', dayColor: inMonth ? '#0D2B4E' : '#D8DFE7', evs };
+    });
+    const calAgenda = [
+      { day: 'TODAY', t: 'Client review call · Zanzu Telecom, 2pm', c: '#0D2B4E' },
+      { day: 'THU 23 JUL', t: 'QA calibration session', c: '#C8960C' },
+      { day: 'FRI 24 JUL', t: 'Board pack submission deadline', c: '#9B2C2C' },
+      { day: 'MON 27 JUL', t: 'New cohort onboarding starts', c: '#2E6B4F' }
+    ];
+
+    // ---- leave ----
+    const leaveRowsVals = s.leaveRows.map(l => ({
+      name: l.name, type: l.type, dates: l.dates, days: l.days, branch: l.branch, balanceNote: l.balanceNote,
+      pending: l.pending, decided: !l.pending, decision: l.decision, decBg: l.decBg, decColor: l.decColor,
+      approve: () => this.leaveApprove(l.id), reject: () => this.leaveReject(l.id)
+    }));
+    const leaveTypes = [
+      { name: 'Annual', policy: '15 days / year' },
+      { name: 'Sick', policy: '12 days / year' },
+      { name: 'Compassionate', policy: '5 days / year' },
+      { name: 'Maternity / Paternity', policy: 'Per statute' }
+    ];
+    const whoOff = [
+      { name: 'Esi Owusu', type: 'Compassionate', dates: '15–16 Jul', branch: 'Accra HQ' },
+      { name: 'Isaac Adjei', type: 'Annual', dates: '01–03 Jul', branch: 'Takoradi' }
+    ];
+    const leaveBalances = [
+      { name: 'Annual leave', used: '4', total: '15', pct: '27%', color: '#0D2B4E' },
+      { name: 'Sick leave', used: '2', total: '12', pct: '17%', color: '#2E6B4F' },
+      { name: 'Compassionate', used: '2', total: '5', pct: '40%', color: '#C8960C' }
+    ];
+
+    // ---- payroll ----
+    const payTrendVals = [412, 430, 448, 461, 475, 486];
+    const payTrend = ['FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL'].map((label, i) => ({ label, height: Math.round((payTrendVals[i] / Math.max(...payTrendVals)) * 100) + 'px' }));
+    const payRowsVals = s.payRows.map(p => ({ ...p, open: () => this.openPaySlip(p.id) }));
+    const paySlipSrc = s.payRows.find(p => p.id === s.paySlipId) || s.payRows[0];
+    const paySlip = {
+      initials: this.initials(paySlipSrc.name), name: paySlipSrc.name, role: paySlipSrc.role,
+      gross: paySlipSrc.gross, ssnit: paySlipSrc.ssnit, paye: paySlipSrc.paye,
+      hasDed: paySlipSrc.dedN > 0, ded: paySlipSrc.ded, dedNote: paySlipSrc.dedNote,
+      net: paySlipSrc.net, employerSsnit: this.fmt(paySlipSrc.employerSsnit)
+    };
+
+    // ---- recruitment ----
+    const recFunnelCounts = { applied: s.candidates.filter(c => c.stage === 'applied').length + 6, screening: s.candidates.filter(c => c.stage === 'screening').length + 3, interview: s.candidates.filter(c => c.stage === 'interview').length + 2, offer: s.candidates.filter(c => c.stage === 'offer').length + 1, hired: s.candidates.filter(c => c.stage === 'hired').length + 4 };
+    const recFunnelMax = Math.max(...Object.values(recFunnelCounts));
+    const recFunnel = [
+      { label: 'Applied', n: recFunnelCounts.applied, conv: '100%' },
+      { label: 'Screening', n: recFunnelCounts.screening, conv: '52%' },
+      { label: 'Interview', n: recFunnelCounts.interview, conv: '31%' },
+      { label: 'Offer', n: recFunnelCounts.offer, conv: '12%' },
+      { label: 'Hired', n: recFunnelCounts.hired, conv: '9%' }
+    ].map(f => ({ ...f, width: Math.max(10, Math.round((f.n / recFunnelMax) * 100)) + '%', color: '#0D2B4E' }));
+    const STAGE_LABELS = { applied: 'APPLIED', screening: 'SCREENING', interview: 'INTERVIEW', offer: 'OFFER', hired: 'HIRED' };
+    const recCols = ['applied', 'screening', 'interview', 'offer'].map(stage => {
+      const cards = s.candidates.filter(c => c.stage === stage).map(c => ({
+        name: c.name, roleTitle: c.roleTitle, view: () => this.openCand(c.id),
+        canAdvance: true, advanceLabel: stage === 'offer' ? 'Mark hired →' : 'Advance →', advance: () => this.candAdvance(c.id),
+        canReject: true, reject: () => this.candReject(c.id)
+      }));
+      return { label: STAGE_LABELS[stage], count: cards.length, cards, colEmpty: cards.length === 0 };
+    });
+    const candDetailSrc = s.candidates.find(c => c.id === s.candId) || s.candidates[0];
+    const candDetail = { initials: this.initials(candDetailSrc.name), name: candDetailSrc.name, roleTitle: candDetailSrc.roleTitle, stage: STAGE_LABELS[candDetailSrc.stage], email: candDetailSrc.email, phone: candDetailSrc.phone, exp: candDetailSrc.exp, edu: candDetailSrc.edu, applied: candDetailSrc.applied, notes: candDetailSrc.notes };
+
+    // ---- my space ----
+    const clockedIn = s.clockedIn;
+    const myStats = [
+      { label: 'HOURS TODAY', value: clockedIn ? '5.4' : '0.0', color: '#0D2B4E', sub: 'auto-tracked' },
+      { label: 'TICKETS CLOSED', value: '31', color: '#2E6B4F', sub: 'today so far' },
+      { label: 'QA SCORE', value: '94', color: '#2E6B4F', sub: 'last 30 days' },
+      { label: 'ATTENDANCE', value: '96%', color: '#2E6B4F', sub: 'last 30 days' },
+      { label: 'LEAVE BALANCE', value: '11', color: '#0D2B4E', sub: 'days left' }
+    ];
+    const myWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day, i) => ({
+      day, shift: i < 5 ? 'Day 08:00–17:00' : i === 5 ? 'Day 08:00–13:00' : 'Off',
+      bg: i === 6 ? '#F0F2F5' : '#E6F0EB', color: i === 6 ? '#6B7684' : '#2E6B4F', tag: i === 6 ? 'OFF' : 'SCHEDULED',
+      rowBg: i === 2 ? '#F8FAFC' : 'transparent'
+    }));
+    const pastSlips = [
+      { month: 'June 2026', net: 'GH₵ 2,512' }, { month: 'May 2026', net: 'GH₵ 2,470' }, { month: 'April 2026', net: 'GH₵ 2,455' }
+    ];
+    const drBadge = 'DUE TODAY', drBadgeBg = '#FBF3DF', drBadgeColor = '#8A6508';
+    const dailyReportsBase = [
+      { day: 'Fri 11 Jul', tickets: 44, esc: 0, hours: '8.0', noteSuffix: ' · smooth shift' },
+      { day: 'Thu 10 Jul', tickets: 39, esc: 1, hours: '8.0', noteSuffix: ' · one billing escalation' }
+    ];
+    const dailyReports = [...s.dailyReportsExtra, ...dailyReportsBase];
+    const myDocs = [
+      { name: 'Employment contract', note: 'Signed 10 Mar 2025', stBg: '#E6F0EB', stColor: '#2E6B4F', status: 'SIGNED' },
+      { name: 'Ghana Card', note: 'Verified', stBg: '#E6F0EB', stColor: '#2E6B4F', status: 'VERIFIED' },
+      { name: 'Data protection training', note: 'Completed 4 Jun 2026', stBg: '#E6F0EB', stColor: '#2E6B4F', status: 'DONE' },
+      { name: 'Bank / MoMo details', note: 'On file', stBg: '#EAF0F7', stColor: '#0D2B4E', status: 'ON FILE' }
+    ];
+    const myLeave = [
+      { type: 'Sick', dates: '22 Jul', stBg: '#FBF3DF', stColor: '#8A6508', stLabel: 'PENDING' },
+      { type: 'Annual', dates: '01–03 Jun', stBg: '#E6F0EB', stColor: '#2E6B4F', stLabel: 'APPROVED' }
+    ];
+    const myKpis = [
+      { name: 'Tickets / day', value: '31', target: '30', pct: '100%', color: '#2E6B4F' },
+      { name: 'QA score', value: '94', target: '90', pct: '100%', color: '#2E6B4F' },
+      { name: 'Attendance', value: '96%', target: '95%', pct: '100%', color: '#2E6B4F' },
+      { name: 'Escalations', value: '1', target: '<3', pct: '90%', color: '#2E6B4F' }
+    ];
+    const myReports = [
+      { type: 'Equipment', text: 'Headset needs replacing', stBg: '#FBF3DF', stColor: '#8A6508', status: 'OPEN' },
+      { type: 'Schedule', text: 'Requested Saturday swap', stBg: '#E6F0EB', stColor: '#2E6B4F', status: 'RESOLVED' }
+    ];
+    const news = [
+      { title: 'Founders Day · 31 July', date: '20 Jul', body: 'Office closed company-wide, paid holiday for all staff.' },
+      { title: 'New QA calibration schedule', date: '18 Jul', body: 'Calibration sessions move to Thursdays starting this week.' },
+      { title: 'Welcome to the July cohort', date: '14 Jul', body: '12 new starters joined onboarding this week across all branches.' }
+    ];
+
+    // ---- IT & facilities ----
+    const itTickets = [
+      { priority: 'HIGH', prBg: '#FBECEC', prColor: '#9B2C2C', title: 'Wifi down · Kumasi floor 2', meta: 'Reported 07:40 · Kumasi', isOpen: true, canStart: true, inProgress: false, done: false, start: () => this.itStart('t1'), close: () => this.itClose('t1') },
+      { priority: 'MEDIUM', prBg: '#FBF3DF', prColor: '#8A6508', title: 'Printer offline · Accra HQ', meta: 'Reported yesterday · Accra HQ', isOpen: true, canStart: false, inProgress: true, done: false, start: () => this.itStart('t2'), close: () => this.itClose('t2') },
+      { priority: 'LOW', prBg: '#F0F2F5', prColor: '#6B7684', title: 'New monitor request · Takoradi', meta: 'Reported 3 days ago', isOpen: false, canStart: false, inProgress: false, done: true, start: () => {}, close: () => {} },
+      { priority: 'HIGH', prBg: '#FBECEC', prColor: '#9B2C2C', title: 'VPN certificate expiring', meta: 'Reported today · all branches', isOpen: true, canStart: true, inProgress: false, done: false, start: () => this.itStart('t4'), close: () => this.itClose('t4') }
+    ];
+    const itAssets = [
+      { name: 'Dell Latitude 5440', tag: 'OBA-LT-0142', owner: 'Kwame Owusu', branch: 'Kumasi', condition: 'Good', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { name: 'iPhone SE', tag: 'OBA-PH-0088', owner: 'Ama Serwaa', branch: 'Accra HQ', condition: 'Good', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { name: 'Jabra Headset', tag: 'OBA-HS-0311', owner: 'Kwesi Appiah', branch: 'Takoradi', condition: 'Needs repair', stBg: '#FBF3DF', stColor: '#8A6508' },
+      { name: 'HP LaserJet Pro', tag: 'OBA-PR-0021', owner: 'Front desk', branch: 'Accra HQ', condition: 'Fair', stBg: '#FBF3DF', stColor: '#8A6508' },
+      { name: 'Dell Latitude 5440', tag: 'OBA-LT-0203', owner: 'Abena Boateng', branch: 'Tema', condition: 'Good', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { name: 'Ergonomic chair', tag: 'OBA-FR-0450', owner: 'Floor stock', branch: 'Tamale', condition: 'Good', stBg: '#E6F0EB', stColor: '#2E6B4F' }
+    ];
+    const itSystems = [
+      { name: 'Core telephony (VOIP)', detail: 'All branches', color: '#2E6B4F', status: 'ONLINE' },
+      { name: 'CRM / ticketing', detail: 'Cloud-hosted', color: '#2E6B4F', status: 'ONLINE' },
+      { name: 'Payroll system', detail: 'Cloud-hosted', color: '#2E6B4F', status: 'ONLINE' },
+      { name: 'Kumasi branch wifi', detail: 'Floor 2 outage', color: '#9B2C2C', status: 'DEGRADED' },
+      { name: 'Backup power (Accra HQ)', detail: 'Generator + UPS', color: '#2E6B4F', status: 'ONLINE' }
+    ];
+    const itMaint = [
+      { task: 'Generator service', where: 'Accra HQ', bg: '#FBF3DF', color: '#8A6508', when: 'Fri 24 Jul' },
+      { task: 'AC servicing', where: 'Kumasi', bg: '#FBF3DF', color: '#8A6508', when: 'Mon 27 Jul' },
+      { task: 'Network cabling audit', where: 'Takoradi', bg: '#EAF0F7', color: '#0D2B4E', when: '3 Aug' },
+      { task: 'Fire extinguisher check', where: 'All branches', bg: '#E6F0EB', color: '#2E6B4F', when: 'Completed' }
+    ];
+    const itProcureVals = s.itProcure.map(p => ({ item: p.item, cost: p.cost, reason: p.reason, canDecide: p.canDecide, approve: () => this.procApprove(p.id), deny: () => this.procDeny(p.id), showBadge: p.showBadge, stBg: p.stBg, stColor: p.stColor, status: p.status }));
+
+    // ---- analytics ----
+    const anPeriodLabels = ['Month', 'Quarter', 'YTD'];
+    const an_periods = anPeriodLabels.map((label, i) => ({ label, select: () => this.selectPeriod(i), bg: i === 0 ? '#0D2B4E' : '#FFFFFF', color: i === 0 ? '#FFFFFF' : '#6B7684', border: i === 0 ? '#0D2B4E' : '#D8DFE7' }));
+    const anRevVals = [420, 452, 468, 455, 505, 540];
+    const anSpark = this.spark(anRevVals, 820, 240, 12);
+    const anArea = this.smoothArea(anRevVals, 820, 240, 12);
+    const an = {
+      heroTitle: 'REVENUE · YTD', heroValue: '$396k', heroDelta: '8.2%', heroSub: 'Ahead of plan by $18k', periodLabel: 'This month',
+      revGrid: [60, 120, 180].map(y => ({ y })),
+      revArea: anArea, revLine: anSpark.d, revPts: anSpark.pts.map(p => ({ cx: p[0], cy: p[1] })),
+      revXLabels: ['FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL'].map(label => ({ label })),
+      heroStats: [
+        { label: 'GROSS MARGIN', value: '31%', delta: '▲ 1.4pt' },
+        { label: 'NEW CLIENTS', value: '2', delta: '▲ 2' },
+        { label: 'CHURN', value: '0%', delta: '● steady' },
+        { label: 'AVG DEAL SIZE', value: '$6.2k', delta: '▲ 5%' }
+      ],
+      kpis: [
+        { label: 'REVENUE', value: '$66.0k', color: '#0D2B4E', sub: 'this month', sparkLine: this.spark([50, 54, 58, 61, 66], 108, 34, 3).d, upColor: '#2E6B4F', sparkX: this.spark([50, 54, 58, 61, 66], 108, 34, 3).x, sparkY: this.spark([50, 54, 58, 61, 66], 108, 34, 3).y },
+        { label: 'SLA', value: '93%', color: '#0D2B4E', sub: 'company-wide', sparkLine: this.spark([90, 91, 92, 91, 93], 108, 34, 3).d, upColor: '#2E6B4F', sparkX: this.spark([90, 91, 92, 91, 93], 108, 34, 3).x, sparkY: this.spark([90, 91, 92, 91, 93], 108, 34, 3).y },
+        { label: 'ATTENDANCE', value: '94%', color: '#0D2B4E', sub: 'company-wide', sparkLine: this.spark([92, 93, 91, 95, 94], 108, 34, 3).d, upColor: '#2E6B4F', sparkX: this.spark([92, 93, 91, 95, 94], 108, 34, 3).x, sparkY: this.spark([92, 93, 91, 95, 94], 108, 34, 3).y },
+        { label: 'OPEN TICKETS', value: '18', color: '#0D2B4E', sub: 'across all clients', sparkLine: this.spark([26, 24, 21, 19, 18], 108, 34, 3).d, upColor: '#2E6B4F', sparkX: this.spark([26, 24, 21, 19, 18], 108, 34, 3).x, sparkY: this.spark([26, 24, 21, 19, 18], 108, 34, 3).y }
+      ],
+      donut: this.ringSegs(54, [
+        { frac: 0.42, color: '#0D2B4E', name: 'Accra HQ', pct: '42%' },
+        { frac: 0.31, color: '#C8960C', name: 'Kumasi', pct: '31%' },
+        { frac: 0.27, color: '#7E92AC', name: 'Takoradi + Tema', pct: '27%' }
+      ]),
+      leaders: [
+        { name: 'Zanzu Telecom', value: '$122k', width: '92%' },
+        { name: 'Baobab Retail', value: '$98k', width: '78%' },
+        { name: 'PrimeCare Health', value: '$74k', width: '58%' }
+      ],
+      tickets: ['FEB', 'MAR', 'APR', 'MAY'].map((label, i) => {
+        const recv = [420, 440, 460, 410][i], res = [400, 430, 452, 405][i];
+        return { label, res, recvH: Math.round((recv / 460) * 100) + 'px', resH: Math.round((res / 460) * 100) + 'px' };
+      }),
+      insights: [
+        { c: '#2E6B4F', text: 'Revenue is 8% ahead of plan, driven by the Baobab Retail expansion.' },
+        { c: '#C8960C', text: 'Nova Logistics SLA slipped to 87% — coaching plan underway.' },
+        { c: '#0D2B4E', text: 'Two new deals closed this quarter, adding $15.3k monthly recurring revenue.' },
+        { c: '#9B2C2C', text: 'Days sales outstanding rose to 34 — Finance is following up on PrimeCare Health.' }
+      ]
+    };
+
+    // ---- sales ----
+    const salesKpis = [
+      { label: 'PIPELINE VALUE', value: '$31.0k', color: '#0D2B4E', sub: 'monthly recurring' },
+      { label: 'OPEN DEALS', value: String(d.clients.length + 1), color: '#0D2B4E', sub: 'across 5 stages' },
+      { label: 'WIN RATE', value: '38%', color: '#2E6B4F', sub: 'last 90 days' },
+      { label: 'AVG DEAL SIZE', value: '$6.2k', color: '#0D2B4E', sub: 'monthly value' }
+    ];
+    const salesCols = s.salesCols.map(col => ({
+      label: col.label, tint: col.tint, tintColor: col.tintColor, count: col.cards.length,
+      cards: col.cards.map(c => ({
+        co: c.co, svc: c.svc, val: c.val, src: c.src, srcBg: c.srcBg, srcColor: c.srcColor,
+        open: () => this.openDeal(c.id), canConvert: c.canConvert, convert: () => this.convertDeal(col.key, c.id)
+      }))
+    }));
+
+    // ---------- assemble ----------
+    return {
+      // login
+      isLogin: s.isLogin, isApp: s.isApp,
+      roleMenuOpen: s.roleMenuOpen, roleMenuBorder: s.roleMenuOpen ? '#C8960C' : '#D8DFE7',
+      roleEmail: pendingRole.email, loginRole: pendingRole.role, roleCaret: s.roleMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+      roleOptions, toggleRoleMenu: () => this.toggleRoleMenu(),
+      loginPw: s.loginPw, onLoginPw: (e) => this.onLoginPw(e), loginPwBorder: s.loginErr ? '#9B2C2C' : '#D8DFE7',
+      loginErr: s.loginErr, doLogin: () => this.doLogin(),
+      toggleForgot: () => this.toggleForgot(), showForgotOms: s.showForgotOms, sendOmsReset: () => this.sendOmsReset(),
+      omsResetLabel: s.omsResetSent ? 'Reset link sent ✓' : 'Send reset link',
+      loginRoleHint: pendingRole.role + ' (' + pendingRole.email + ')',
+
+      // app shell
+      showToast: s.showToast, toastMsg: s.toastMsg,
+      navGroups, userInitials: role ? this.initials(role.userName) : '', userName: role ? role.userName : '', userSub: role ? role.userSub : '',
+      signOut: () => this.signOut(),
+      pageTitle: meta[0], pageSub: meta[1],
+      showClientPicker, activeClient: s.activeClient, onActiveClient: (e) => this.onActiveClient(e), clientPickerOpts,
+      searchQ: s.searchQ, onSearch: (e) => this.onSearch(e), openSearch: () => this.openSearch(), closeSearch: () => this.closeSearch(),
+      searchOpen: s.searchOpen, searchResults, searchEmpty: s.searchOpen && q.length > 0 && searchResults.length === 0,
+      toggleNotif: () => this.toggleNotif(), hasUnread: s.notifUnreadCount > 0, notifUnread: String(s.notifUnreadCount),
+      notifOpen: s.notifOpen, notifList, notifEmpty: notifList.length === 0, markAllRead: () => this.markAllRead(),
+      accraTime: '09:14', seattleTime: '23:14', todayStr, greeting,
+      loading: s.loading,
+      screenHero,
+
+      // flags
+      ...flags,
+
+      // command center
+      cmdHero: { ringDash: cmdRing.dash, ringOffset: cmdRing.offset, revSpark: cmdSpark.d, revX: cmdSpark.x, revY: cmdSpark.y, stats: [
+        { label: 'REVENUE (MO)', value: '$66.0k' }, { label: 'CASH POSITION', value: '$142k' }, { label: 'SLA TODAY', value: '93%' }, { label: 'OPEN TICKETS', value: '18' }
+      ] },
+      attentionItems: attentionItems.map(a => ({ text: a.text, action: a.action, go: a.go })),
+      hasAdvSuggMgmt, advSuggMgmt,
+      heroTiles, statTiles, wfSnapshot, clientHealth, goPortal: () => this.goPortal(),
+      manageClients, ncName: s.ncName, onNcName: (e) => this.onNcName(e), ncRegion: s.ncRegion, onNcRegion: (e) => this.onNcRegion(e),
+      ncIndustry: s.ncIndustry, onNcIndustry: (e) => this.onNcIndustry(e), ncCur: s.ncCur, onNcCur: (e) => this.onNcCur(e),
+      ncSla: s.ncSla, onNcSla: (e) => this.onNcSla(e), ncStaff: s.ncStaff, onNcStaff: (e) => this.onNcStaff(e),
+      createClient: () => this.createClient(), hasNewClients: s.newClientList.length > 0, newClientList,
+
+      // advisor
+      advKpis, advBoardPapers,
+      advSuggName: s.advSuggName, onAdvSuggName: (e) => this.onAdvSuggName(e),
+      advSuggRegion: s.advSuggRegion, onAdvSuggRegion: (e) => this.onAdvSuggRegion(e),
+      advSuggNote: s.advSuggNote, onAdvSuggNote: (e) => this.onAdvSuggNote(e),
+      submitAdvSuggestion: () => this.submitAdvSuggestion(),
+      hasAdvSuggestions, advSuggestions: advSuggestionsVals.map(a => ({ name: a.name, region: a.region, note: a.note })),
+
+      // portal
+      portalClientName: activeClientObj.name, portalClientHealth: activeClientObj.health,
+      portalClientHealthColor: d.healthColor(activeClientObj.health).color, portalClientRegion: activeClientObj.region,
+      portalKpis: [
+        { label: 'SLA', value: activeClientObj.sla, color: '#0D2B4E', sub: 'this month' },
+        { label: 'HEADCOUNT', value: String(activeClientObj.team), color: '#0D2B4E', sub: 'assigned staff' },
+        { label: 'ATTENDANCE', value: '95%', color: '#2E6B4F', sub: 'this week' },
+        { label: 'AVG QA', value: '92.4', color: '#2E6B4F', sub: 'last audit cycle' }
+      ],
+      roster: portalRoster, rosterEmpty: portalRoster.length === 0,
+      slaRows, slaEmpty: false, qaReports, qaEmpty: false,
+      invoices: portalInvoices, invoicesEmpty: portalInvoices.length === 0,
+      docs: portalDocs, docsEmpty: false,
+      pipeline, training, trainingEmpty: false,
+      reqDraft: s.reqDraft, onReqDraft: (e) => this.onReqDraft(e), raiseRequest: () => this.raiseRequest(),
+      requests: requestsVals,
+      payOpen: s.payOpen, closePay: () => this.closePay(), stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
+      payInvId: s.payInvoiceId || '', payInvAmt: (s.invoicesList.find(i => i.id === s.payInvoiceId) || {}).amount || '',
+      payCardNo: '', onPayCardNo: () => this.onPayCardNo(), payExp: '', onPayExp: () => this.onPayExp(), payCvc: '', onPayCvc: () => this.onPayCvc(),
+      confirmPay: () => this.confirmPay(),
+
+      // shifts
+      shiftCards, ciCount: '41', lateCount: '3', missCount: '2', boardRows, supervisors, teamReports,
+      drPendingCount: '1', teamIssues, templates,
+
+      // workforce
+      wfDonut, people, canCreateAccounts: !!(role && role.canCreateAccounts),
+      naName: s.naName, onNaName: (e) => this.onNaName(e), naRole: s.naRole, onNaRole: (e) => this.onNaRole(e),
+      naBranch: s.naBranch, onNaBranch: (e) => this.onNaBranch(e), naGhCard: s.naGhCard, onNaGhCard: (e) => this.onNaGhCard(e),
+      submitAccount: () => this.submitAccount(),
+      pendingAccounts: s.pendingAccounts,
+      selInitials: selEmp.initials, selName: selEmp.name, selRole: selEmp.role, selBranch: selEmp.branch, selSince: selEmp.since.slice(0, 7),
+      selStats, selPath, selRecord,
+
+      // employees
+      empDirCount: String(empDirAll.length), empDir, hasMoreEmp: s.empShowCount < empDirAll.length, loadMoreEmp: () => this.loadMoreEmp(),
+
+      // scheduling
+      schBranch: schBranchName, onSchBranch: (e) => this.onSchBranch(e),
+      schStatusBg: '#FBF3DF', schStatusColor: '#8A6508', schStatusLabel: 'DRAFT',
+      schRing, schTiles, schDays, publishRoster: () => this.publishRoster(),
+
+      // attendance
+      attDonut, attTrend, attRows, attEmpty: false,
+
+      // incidents
+      incDonut, incidents, incidentsEmpty: false,
+      incName: s.incName || incNames[0], onIncName: (e) => this.onIncName(e), incNames,
+      incType: s.incType || 'Lateness', onIncType: (e) => this.onIncType(e),
+      incDetail: s.incDetail || '', onIncDetail: (e) => this.onIncDetail(e), logIncident: () => this.logIncident(),
+
+      // security
+      secAudit, hasMoreAudit: s.auditShowCount < secAuditAll.length, loadMoreAudit: () => this.loadMoreAudit(),
+      openTwofa: () => this.openTwofa(), secControls, secMatrix, secCompliance, secDataReqs, secLogins, secFailedCount: '2',
+      twofaOpen: s.twofaOpen, closeTwofa: () => this.closeTwofa(), twofaNotDone: !s.twofaDone, twofaDone: s.twofaDone,
+      twofaCode: s.twofaCode, onTwofaCode: (e) => this.onTwofaCode(e), verifyTwofa: () => this.verifyTwofa(),
+
+      // invoices
+      invClientLabel: activeClientObj.name + ' · ' + activeClientObj.region,
+      invDesc: s.invDesc, onInvDesc: (e) => this.onInvDesc(e), invAmount: s.invAmount, onInvAmount: (e) => this.onInvAmount(e),
+      invDue: s.invDue, onInvDue: (e) => this.onInvDue(e), sendInvoice: () => this.sendInvoice(),
+      invDonut, invOutstanding: '$66.7k', invCount: String(invList.length), invList,
+      invoiceOpen: s.invoiceOpen, closeInvoice: () => this.closeInvoice(), invoiceView,
+
+      // kpi
+      kpiPeriodLabel: kpiPeriods[s.kpiPeriodIdx].label, kpiPeriods, kpiFilters, kpiExport: () => this.kpiExport(),
+      kpiTiles, kpiGroups, empTeamAvg, kpiWeights, empScores,
+      empSelOpen: s.empSelOpen, closeEmpSel: () => this.closeEmpSel(), empSel,
+      kpiSelOpen: s.kpiSelOpen, closeKpiSel: () => this.closeKpiSel(), kpiSel,
+
+      // docs
+      docCats, docQuery: s.docQuery, onDocQuery: (e) => this.onDocQuery(e), docCanUpload, docUpload: () => this.docUpload(),
+      docAccessNote, docList, docEmpty: docFiltered.length === 0, hasMoreDocs: s.docShowCount < docFiltered.length, loadMoreDocs: () => this.loadMoreDocs(),
+      docViewerOpen: s.docViewerOpen, closeDocView: () => this.closeDocView(), docView,
+
+      // vault
+      vaultStats, vaultCats, vaultList, addCredential: () => this.addCredential(),
+      vsSystem: s.vsSystem, onVsSystem: (e) => this.onVsSystem(e), vsUser: s.vsUser, onVsUser: (e) => this.onVsUser(e), vsPass: s.vsPass, onVsPass: (e) => this.onVsPass(e),
+
+      // training / qa
+      trainRing, trainTiles, trainCohorts, trainCourses,
+      qaGauge, qaScores, qaAudits,
+
+      // calendar
+      calSummary, calLegend, calWeekdays, calCells, calAgenda,
+
+      // leave
+      leaveRows: leaveRowsVals, leaveEmpty: leaveRowsVals.length === 0, leaveTypes, whoOff, leaveBalances,
+
+      // payroll
+      exportBankFile: () => this.exportBankFile(), payTrend, payRows: payRowsVals,
+      paySlipOpen: s.paySlipOpen, closePaySlip: () => this.closePaySlip(), paySlip, downloadPayslip: () => this.downloadPayslip(),
+
+      // recruitment
+      recFunnel, recCols, candOpen: s.candOpen, closeCand: () => this.closeCand(), candDetail,
+
+      // my space
+      clockBg: clockedIn ? '#FBECEC' : '#E6F0EB', clockColor: clockedIn ? '#9B2C2C' : '#2E6B4F', clockLabel: clockedIn ? 'Clock out' : 'Clock in',
+      toggleClock: () => this.toggleClock(),
+      breakBg: s.onBreak ? '#0D2B4E' : '#FFFFFF', breakColor: s.onBreak ? '#FFFFFF' : '#0D2B4E', breakBorder: '#D8DFE7',
+      breakLabel: s.onBreak ? 'End break' : 'Start break', toggleBreak: () => this.toggleBreak(),
+      myStats, myWeek, pastSlips,
+      drBadge, drBadgeBg, drBadgeColor, drTickets: s.drTickets, onDrTickets: (e) => this.onDrTickets(e),
+      drEsc: s.drEsc, onDrEsc: (e) => this.onDrEsc(e), drAutoHours: '5.4', drText: s.drText, onDrText: (e) => this.onDrText(e),
+      submitDaily: () => this.submitDaily(), dailyReports,
+      myDocs,
+      lvType: s.lvType, onLvType: (e) => this.onLvType(e), lvFrom: s.lvFrom, onLvFrom: (e) => this.onLvFrom(e),
+      lvTo: s.lvTo, onLvTo: (e) => this.onLvTo(e), submitLeave: () => this.submitLeave(), myLeave,
+      myKpis,
+      repType: s.repType, onRepType: (e) => this.onRepType(e), repText: s.repText, onRepText: (e) => this.onRepText(e),
+      submitReport: () => this.submitReport(), myReports,
+      news,
+      empDataExport: () => this.empDataExport(), empDataDelete: () => this.empDataDelete(), empPrivacyMsg: s.empPrivacyMsg,
+
+      // it & facilities
+      itOpenCount: String(itTickets.filter(t => t.isOpen).length), itTickets, itAssets, itSystems, itMaint,
+      procApprover: role && role.procApprover ? 'Approver: you' : 'Approver: Director',
+      canRequestProc: !!(role && role.canRequestProc),
+      pcItem: s.pcItem, onPcItem: (e) => this.onPcItem(e), pcCost: s.pcCost, onPcCost: (e) => this.onPcCost(e),
+      pcReason: s.pcReason, onPcReason: (e) => this.onPcReason(e), submitProc: () => this.submitProc(),
+      itProcure: itProcureVals,
+
+      // analytics
+      an, anExport: () => this.anExport(),
+
+      // sales
+      salesKpis, salesCols
+    };
+  }
+}
+
+</script>
+
+</x-dc>
+</body>
+</html>
