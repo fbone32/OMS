@@ -3077,8 +3077,21 @@ class Component extends StreamableLogic {
         nav: [
           { heading: 'ME', items: ['myspace', 'calendar'] }
         ]
+      },
+      {
+        id: 'supervisor', email: 'yaw.asante@openbaseafrica.com', role: 'Supervisor',
+        userName: 'Yaw Asante', userSub: 'Supervisor · Own team attendance', greeting: 'Good day',
+        landing: 'attendance', canCreateAccounts: false, canRequestProc: false, procApprover: false,
+        nav: [
+          { heading: 'OPERATIONS', items: ['attendance'] },
+          { heading: 'ME', items: ['myspace'] }
+        ]
       }
     ];
+
+    // Real branch list backing the Phase 1 Scheduling/Attendance/Employees
+    // screens (matches the 5 branches seeded into Postgres).
+    this.BRANCH_NAMES = ['Accra HQ', 'Kumasi', 'Takoradi', 'Tema', 'Tamale'];
 
     this.buildStaticData();
 
@@ -3173,11 +3186,98 @@ class Component extends StreamableLogic {
 
       payOpen: false,
 
-      docCanUpload: false
+      docCanUpload: false,
+
+      // ---- Phase 1 real-backend state (fetched from /api/...) ----
+      authChecked: false,
+      sessionUser: null,
+      apiEmployees: [],
+      apiDocuments: [],
+      apiLeaveAll: [],
+      apiMyLeave: [],
+      apiAttendanceToday: [],
+      apiMyAttendance: null,
+      apiPayrollRuns: [],
+      apiMyPayslips: [],
+      apiRoster: null,
+      apiMyRoster: []
     };
   }
 
+  componentDidMount() {
+    this.restoreSession();
+  }
+
   componentWillUnmount() {}
+
+  // ================= Phase 1 API helpers =================
+  apiGet(path) {
+    return fetch(path, { credentials: 'same-origin' })
+      .then(async (res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+  }
+  apiSend(path, method, body) {
+    return fetch(path, {
+      method,
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    }).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, data };
+    }).catch(() => ({ ok: false, status: 0, data: { error: 'Network error' } }));
+  }
+
+  restoreSession() {
+    this.apiGet('/api/auth/me').then((data) => {
+      if (data && data.user) { this.applySession(data.user); return; }
+      this.setState({ authChecked: true });
+    });
+  }
+
+  applySession(user) {
+    const role = this.ROLES.find(r => r.email === user.email) || this.ROLES.find(r => r.id === 'employee');
+    this.setState({
+      isLogin: false, isApp: true, currentRoleId: role.id, activeScreen: role.landing,
+      sessionUser: user, authChecked: true
+    });
+    this.loadPhase1Data(role, user);
+  }
+
+  fetchRoster(branchName) {
+    this.apiGet('/api/scheduling?branch=' + encodeURIComponent(branchName)).then((d) => { if (d) this.setState({ apiRoster: d }); });
+  }
+
+  loadPhase1Data(role, user) {
+    const id = role.id;
+    if (id === 'director' || id === 'hr') {
+      this.apiGet('/api/employees').then((d) => d && this.setState({ apiEmployees: d.employees || [] }));
+      this.apiGet('/api/leave').then((d) => d && this.setState({ apiLeaveAll: d.requests || [] }));
+    }
+    if (id !== 'bd' && id !== 'advisor') {
+      this.apiGet('/api/documents').then((d) => d && this.setState({ apiDocuments: d.documents || [] }));
+    }
+    if (id === 'director' || id === 'ops' || id === 'supervisor') {
+      this.apiGet('/api/attendance').then((d) => d && this.setState({ apiAttendanceToday: d.records || [] }));
+    }
+    if (id === 'director' || id === 'accountant') {
+      this.apiGet('/api/payroll/runs').then((d) => d && this.setState({ apiPayrollRuns: d.runs || [] }));
+    }
+    if (user.employeeId) {
+      this.apiGet('/api/leave?mine=1').then((d) => d && this.setState({ apiMyLeave: d.requests || [] }));
+      this.apiGet('/api/attendance?mine=1').then((d) => d && this.setState({ apiMyAttendance: (d.records && d.records[0]) || null }));
+      this.apiGet('/api/payroll/payslips').then((d) => d && this.setState({ apiMyPayslips: d.payslips || [] }));
+      this.apiGet('/api/scheduling?mine=1').then((d) => d && this.setState({ apiMyRoster: d.entries || [] }));
+    }
+    if (id === 'director' || id === 'ops') {
+      this.fetchRoster(this.BRANCH_NAMES[0]);
+    }
+  }
+
+  refreshMyLeave() { this.apiGet('/api/leave?mine=1').then((d) => d && this.setState({ apiMyLeave: d.requests || [] })); }
+  refreshAllLeave() { this.apiGet('/api/leave').then((d) => d && this.setState({ apiLeaveAll: d.requests || [] })); }
+  refreshDocuments() { this.apiGet('/api/documents').then((d) => d && this.setState({ apiDocuments: d.documents || [] })); }
+  refreshMyAttendance() { this.apiGet('/api/attendance?mine=1').then((d) => d && this.setState({ apiMyAttendance: (d.records && d.records[0]) || null })); }
 
   // ================= static demo data =================
   buildStaticData() {
@@ -3362,15 +3462,24 @@ class Component extends StreamableLogic {
     const pw = this.state.loginPw || '';
     if (!pw) { this.setState({ loginErr: true }); return; }
     const role = this.ROLES.find(r => r.id === this.state.pendingRoleId) || this.ROLES[0];
-    this.setState({
-      isLogin: false, isApp: true, currentRoleId: role.id, activeScreen: role.landing,
-      loginPw: '', loginErr: false, roleMenuOpen: false
+    this.setState({ loading: true });
+    this.apiSend('/api/auth/login', 'POST', { email: role.email, password: pw }).then(({ ok, data }) => {
+      if (!ok) { this.setState({ loginErr: true, loading: false }); return; }
+      const matchedRole = this.ROLES.find(r => r.email === data.user.email) || role;
+      this.setState({
+        isLogin: false, isApp: true, currentRoleId: matchedRole.id, activeScreen: matchedRole.landing,
+        loginPw: '', loginErr: false, roleMenuOpen: false, loading: false, sessionUser: data.user
+      });
+      this.loadPhase1Data(matchedRole, data.user);
     });
   }
   signOut() {
+    this.apiSend('/api/auth/logout', 'POST');
     this.setState({
       isLogin: true, isApp: false, currentRoleId: null, loginPw: '', loginErr: false,
-      pendingRoleId: this.state.pendingRoleId || 'director'
+      pendingRoleId: this.state.pendingRoleId || 'director', sessionUser: null,
+      apiEmployees: [], apiDocuments: [], apiLeaveAll: [], apiMyLeave: [], apiAttendanceToday: [],
+      apiMyAttendance: null, apiPayrollRuns: [], apiMyPayslips: [], apiRoster: null, apiMyRoster: []
     });
   }
   goPortal() { this.setScreen('portal'); }
@@ -3463,9 +3572,27 @@ class Component extends StreamableLogic {
 
   // ---- scheduling ----
   onSchBranch(e) { this.setSchBranchByName(e && e.target ? e.target.value : e); }
-  setSchBranchByName(name) { const idx = ['Accra HQ', 'Kumasi', 'Takoradi', 'Tema', 'Tamale'].indexOf(name); this.setState({ schBranchIdx: idx < 0 ? 0 : idx }); }
-  publishRoster() { this.toast('Roster published · staff notified'); }
-  schAssign(branch, day) { this.setState(s => { const g = { ...s.schGaps }; g[branch] = { ...(g[branch] || {}) }; delete g[branch][day]; return { schGaps: g }; }); this.toast('Staff assigned to shift'); }
+  setSchBranchByName(name) {
+    const idx = this.BRANCH_NAMES.indexOf(name);
+    this.setState({ schBranchIdx: idx < 0 ? 0 : idx });
+    this.fetchRoster(this.BRANCH_NAMES[idx < 0 ? 0 : idx]);
+  }
+  publishRoster() {
+    const branchName = this.BRANCH_NAMES[this.state.schBranchIdx] || this.BRANCH_NAMES[0];
+    this.apiSend('/api/scheduling/publish', 'POST', { branch: branchName }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not publish roster'); return; }
+      this.toast('Roster published · staff notified');
+      this.fetchRoster(branchName);
+    });
+  }
+  schAssign(entryId) {
+    this.apiSend('/api/scheduling/assign', 'POST', { id: entryId }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not assign staff'); return; }
+      this.toast('Staff assigned to shift');
+      const branchName = this.BRANCH_NAMES[this.state.schBranchIdx] || this.BRANCH_NAMES[0];
+      this.fetchRoster(branchName);
+    });
+  }
   schTap() {}
 
   // ---- attendance / incidents ----
@@ -3513,7 +3640,24 @@ class Component extends StreamableLogic {
   // ---- documents / vault ----
   onDocQuery(e) { this.setState({ docQuery: e.target ? e.target.value : e }); }
   selectDocCat(cat) { this.setState({ docCatSelected: cat }); }
-  docUpload() { this.toast('Document uploaded'); }
+  docUpload() {
+    const catMap = { Contracts: 'CONTRACT', SOPs: 'SOP', Policies: 'POLICY', IDs: 'ID', Certificates: 'CERTIFICATE' };
+    const category = catMap[this.state.docCatSelected] || 'OTHER';
+    const label = category.charAt(0) + category.slice(1).toLowerCase();
+    const fileName = label + ' - ' + new Date().toLocaleDateString('en-GB') + '.txt';
+    this.apiSend('/api/documents', 'POST', { category, fileName, notes: 'Uploaded from the Document Library.' }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not upload document'); return; }
+      this.toast('Document uploaded');
+      this.refreshDocuments();
+    });
+  }
+  docDownload(id, name) {
+    fetch('/api/documents/' + id + '/download', { credentials: 'same-origin' }).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { this.toast(data.error || 'Download not permitted for this document'); return; }
+      this.toast('Downloading ' + name + '…');
+    });
+  }
   loadMoreDocs() { this.setState(s => ({ docShowCount: s.docShowCount + 6 })); }
   openDocView(id) { this.setState({ docViewerOpen: true, docViewId: id }); }
   closeDocView() { this.setState({ docViewerOpen: false }); }
@@ -3550,11 +3694,26 @@ class Component extends StreamableLogic {
   candReject(id) { this.setState(s => ({ candidates: s.candidates.filter(c => c.id !== id) })); this.toast('Candidate rejected'); }
 
   // ---- leave ----
-  leaveApprove(id) { this.setState(s => ({ leaveRows: s.leaveRows.map(l => l.id === id ? { ...l, pending: false, decision: 'APPROVED', decBg: '#E6F0EB', decColor: '#2E6B4F' } : l) })); }
-  leaveReject(id) { this.setState(s => ({ leaveRows: s.leaveRows.map(l => l.id === id ? { ...l, pending: false, decision: 'REJECTED', decBg: '#FBECEC', decColor: '#B23B3B' } : l) })); }
+  leaveDecide(id, status) {
+    this.apiSend('/api/leave/' + id, 'PATCH', { status }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not update leave request'); return; }
+      this.toast(status === 'APPROVED' ? 'Leave approved · scheduling updated' : 'Leave rejected');
+      this.refreshAllLeave();
+    });
+  }
+  leaveApprove(id) { this.leaveDecide(id, 'APPROVED'); }
+  leaveReject(id) { this.leaveDecide(id, 'REJECTED'); }
 
   // ---- my space ----
-  toggleClock() { this.setState(s => ({ clockedIn: !s.clockedIn })); this.toast(this.state.clockedIn ? 'Clocked out' : 'Clocked in'); }
+  toggleClock() {
+    const rec = this.state.apiMyAttendance;
+    const isClockedIn = !!(rec && rec.clockIn && !rec.clockOut);
+    this.apiSend(isClockedIn ? '/api/attendance/clock-out' : '/api/attendance/clock-in', 'POST').then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not update your clock'); return; }
+      this.toast(isClockedIn ? 'Clocked out' : 'Clocked in');
+      this.refreshMyAttendance();
+    });
+  }
   toggleBreak() { this.setState(s => ({ onBreak: !s.onBreak })); }
   onDrTickets(e) { this.setState({ drTickets: e.target ? e.target.value : e }); }
   onDrEsc(e) { this.setState({ drEsc: e.target ? e.target.value : e }); }
@@ -3566,7 +3725,20 @@ class Component extends StreamableLogic {
   onLvType(e) { this.setState({ lvType: e.target ? e.target.value : e }); }
   onLvFrom(e) { this.setState({ lvFrom: e.target ? e.target.value : e }); }
   onLvTo(e) { this.setState({ lvTo: e.target ? e.target.value : e }); }
-  submitLeave() { this.toast('Leave request submitted'); this.setState({ lvFrom: '', lvTo: '' }); }
+  submitLeave() {
+    const parseLoose = (s, fallbackDaysFromNow) => {
+      if (s) { const guess = new Date(s + ' ' + new Date().getFullYear()); if (!isNaN(guess.getTime())) return guess; }
+      const d = new Date(); d.setDate(d.getDate() + fallbackDaysFromNow); return d;
+    };
+    const start = parseLoose(this.state.lvFrom, 7);
+    const end = parseLoose(this.state.lvTo, 9);
+    this.apiSend('/api/leave', 'POST', { type: this.state.lvType, startDate: start.toISOString(), endDate: end.toISOString() }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not submit leave request'); return; }
+      this.toast('Leave request submitted');
+      this.setState({ lvFrom: '', lvTo: '' });
+      this.refreshMyLeave();
+    });
+  }
   onRepType(e) { this.setState({ repType: e.target ? e.target.value : e }); }
   onRepText(e) { this.setState({ repText: e.target ? e.target.value : e }); }
   submitReport() { if (!this.state.repText) { this.toast('Describe the issue first'); return; } this.toast('Issue sent to your supervisor'); this.setState({ repText: '' }); }
@@ -3907,55 +4079,69 @@ class Component extends StreamableLogic {
       { label: 'Contract', value: 'Signed', color: '#2E6B4F' }
     ];
 
-    // ---- employees directory ----
-    const empDirAll = d.employees.map(e => ({
-      name: e.name, role: e.role, branch: e.branch, since: e.since.slice(0, 7), initials: e.initials,
-      docBg: '#E6F0EB', docColor: '#2E6B4F', docBadge: 'COMPLETE',
+    // ---- employees directory (Phase 1 · real data from /api/employees) ----
+    const empDirAll = s.apiEmployees.map(e => ({
+      id: e.id, name: e.name, role: e.jobTitle, branch: e.branch,
+      since: (e.startDate || '').slice(0, 7), initials: this.initials(e.name),
+      docBg: '#E6F0EB', docColor: '#2E6B4F', docBadge: 'ON FILE',
       open: () => this.selectEmployee(e.id)
     }));
     const empDir = empDirAll.slice(0, s.empShowCount);
 
-    // ---- scheduling ----
-    const BRANCH_NAMES = ['Accra HQ', 'Kumasi', 'Takoradi', 'Tema', 'Tamale'];
-    const schBranchName = BRANCH_NAMES[s.schBranchIdx] || BRANCH_NAMES[0];
-    const schRing = { ...this.ring(34, 0.9), pct: '90%', color: '#2E6B4F' };
+    // ---- scheduling (Phase 1 · real data from /api/scheduling) ----
+    const schBranchName = this.BRANCH_NAMES[s.schBranchIdx] || this.BRANCH_NAMES[0];
+    const roster = (s.apiRoster && s.apiRoster.branch === schBranchName) ? s.apiRoster : null;
+    const schEntries = roster ? roster.entries : [];
+    const schAssignedCount = schEntries.filter(e => e.employeeId).length;
+    const schUnfilledCount = schEntries.filter(e => !e.employeeId).length;
+    const schCoverageFrac = schEntries.length ? schAssignedCount / schEntries.length : 0;
+    const schRing = { ...this.ring(34, schCoverageFrac), pct: Math.round(schCoverageFrac * 100) + '%', color: schCoverageFrac > 0.9 ? '#2E6B4F' : schCoverageFrac > 0.75 ? '#C8960C' : '#9B2C2C' };
     const schTiles = [
-      { label: 'ASSIGNED', value: '48', color: '#0D2B4E', sub: 'this week' },
-      { label: 'UNFILLED', value: String(Object.keys(d.schGaps[schBranchName] || {}).length), color: '#9B2C2C', sub: 'shifts open' },
-      { label: 'SWAP REQUESTS', value: '2', color: '#C8960C', sub: 'pending' },
-      { label: 'OVERTIME', value: '3', color: '#0D2B4E', sub: 'flagged' }
+      { label: 'ASSIGNED', value: String(schAssignedCount), color: '#0D2B4E', sub: 'this week' },
+      { label: 'UNFILLED', value: String(schUnfilledCount), color: '#9B2C2C', sub: 'shifts open' },
+      { label: 'PUBLISHED', value: roster && roster.published ? 'YES' : 'NO', color: roster && roster.published ? '#2E6B4F' : '#C8960C', sub: roster && roster.published ? 'locked' : 'editable' },
+      { label: 'BRANCH STAFF', value: String(new Set(schEntries.map(e => e.employeeId).filter(Boolean)).size), color: '#0D2B4E', sub: 'unique staff' }
     ];
     const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    const SHIFT_TYPE_ORDER = ['DAY', 'EVENING', 'NIGHT'];
     const schDays = DAYS.map((day, di) => {
-      const gaps = d.schGaps[schBranchName] || {};
-      const rows = [0, 1, 2].map(ri => {
-        const cellId = di * 3 + ri;
-        const isGap = !!gaps[cellId];
+      const rows = SHIFT_TYPE_ORDER.map((shiftType, ri) => {
+        const entry = schEntries.find(e => e.dayOfWeek === di && e.shiftType === shiftType);
+        const isGap = !entry || !entry.employeeId;
         const shiftName = ri === 0 ? 'Day' : ri === 1 ? 'Evening' : 'Night';
         return {
           shift: shiftName + ' · ' + (ri === 0 ? '08–17' : ri === 1 ? '17–00' : '00–08'),
           bg: isGap ? '#FBECEC' : '#F5F7FA', accent: isGap ? '#9B2C2C' : '#0D2B4E',
-          cursor: 'pointer', outline: 'none', gap: isGap, who: isGap ? '' : d.employees[(di + ri) % d.employees.length].name.split(' ')[0],
-          tap: () => this.schTap(), assign: () => this.schAssign(schBranchName, cellId)
+          cursor: (entry && !entry.published) ? 'pointer' : 'default', outline: 'none', gap: isGap,
+          who: entry && entry.employeeName ? entry.employeeName : '',
+          tap: () => this.schTap(), assign: () => { if (entry) this.schAssign(entry.id); }
         };
       });
       return { day, rows };
     });
 
-    // ---- attendance ----
+    // ---- attendance (Phase 1 · real data from /api/attendance, today) ----
+    const attRecords = s.apiAttendanceToday;
+    const attTotalMarked = attRecords.length || 1;
+    const attOnTimeCount = attRecords.filter(r => r.status === 'ON_TIME').length;
+    const attLateCount = attRecords.filter(r => r.status === 'LATE').length;
+    const attPresentPct = Math.round(((attOnTimeCount + attLateCount) / attTotalMarked) * 100);
     const attSegs = this.ringSegs(52, [
-      { frac: 0.94, color: '#2E6B4F', label: 'Present', count: 122 },
-      { frac: 0.04, color: '#C8960C', label: 'Late', count: 5 },
-      { frac: 0.02, color: '#9B2C2C', label: 'Absent', count: 5 }
+      { frac: attOnTimeCount / attTotalMarked, color: '#2E6B4F', label: 'On time', count: attOnTimeCount },
+      { frac: attLateCount / attTotalMarked, color: '#C8960C', label: 'Late', count: attLateCount }
     ]);
     const attDonut = attSegs;
-    const attTrendVals = [92, 93, 91, 95, 94, 96, 94];
-    const attTrend = DAYS.map((label, i) => ({ label, value: attTrendVals[i] + '%', height: (attTrendVals[i] - 70) + 'px' }));
-    const attRows = d.employees.slice(0, 10).map((e, i) => {
-      const late = i === 3;
+    // Phase 1 only tracks live clock-ins (no historical backfill job yet), so
+    // the weekly trend shows today's real rate repeated rather than
+    // fabricated multi-day history.
+    const attTrend = DAYS.map((label) => ({ label, value: attPresentPct + '%', height: Math.max(4, attPresentPct - 70) + 'px' }));
+    const fmtTime = (dt) => dt ? new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—';
+    const attRows = attRecords.map((r) => {
+      const late = r.status === 'LATE';
+      const hours = (r.clockIn && r.clockOut) ? (((new Date(r.clockOut) - new Date(r.clockIn)) / 3600000).toFixed(1)) : '—';
       return {
-        name: e.name, role: e.role, branch: e.branch,
-        inTime: late ? '08:19' : '07:5' + (i % 5), outTime: '17:0' + (i % 5), hours: '8.5',
+        name: r.name, role: r.jobTitle, branch: r.branch,
+        inTime: fmtTime(r.clockIn), outTime: fmtTime(r.clockOut), hours,
         stBg: late ? '#FBF3DF' : '#E6F0EB', stColor: late ? '#8A6508' : '#2E6B4F', statusLabel: late ? 'LATE' : 'ON TIME'
       };
     });
@@ -4098,26 +4284,37 @@ class Component extends StreamableLogic {
     };
     const empTeamAvg = '89.4';
 
-    // ---- documents ----
-    const docCatList = ['All', 'Contracts', 'SOPs', 'Policies', 'IDs', 'Certificates', 'Signed'];
+    // ---- documents (Phase 1 · real data from /api/documents) ----
+    const docCatList = ['All', 'Contracts', 'SOPs', 'Policies', 'IDs', 'Certificates', 'Other', 'Signed'];
     const docCats = docCatList.map(label => ({ label, select: () => this.selectDocCat(label), bg: s.docCatSelected === label ? '#0D2B4E' : '#FFFFFF', color: s.docCatSelected === label ? '#FFFFFF' : '#0D2B4E', border: s.docCatSelected === label ? '#0D2B4E' : '#D8DFE7' }));
     const docAccessNote = role && (role.id === 'director' || role.id === 'hr') ? 'You can upload and manage every document in the library.' : 'View-only access. Your own signed documents are shown first.';
     const docCanUpload = !!role && (role.id === 'director' || role.id === 'hr');
-    const docSrc = [
-      { name: 'Employment contract · you', cat: 'Contracts', ext: 'PDF', extColor: '#0D2B4E', desc: 'Your signed employment contract on file.', size: '412 KB', updated: '10 Mar 2025', mine: true, mineBadge: 'YOUR SIGNED COPY', canDownload: false, signed: true, signer: (role ? role.userName : 'Employee'), body: ['This agreement is entered into between Open Base Africa Ltd and the employee named above.', 'The employee agrees to the terms of employment, compensation and conduct as set out herein.', 'Both parties acknowledge acceptance of the terms above.'] },
-      { name: 'SOP · Escalations', cat: 'SOPs', ext: 'DOC', extColor: '#2E6B4F', desc: 'Standard procedure for escalating unresolved tickets.', size: '88 KB', updated: '11 Jul 2026', mine: false, canDownload: true, signed: false },
-      { name: 'Data Protection Policy', cat: 'Policies', ext: 'PDF', extColor: '#0D2B4E', desc: "Company policy under Ghana's Data Protection Act 843.", size: '210 KB', updated: '2 Feb 2026', mine: false, canDownload: true, signed: false },
-      { name: 'Master Service Agreement · Zanzu', cat: 'Contracts', ext: 'PDF', extColor: '#0D2B4E', desc: 'Client services agreement with Zanzu Telecom.', size: '540 KB', updated: '2 Feb 2026', mine: false, canDownload: docCanUpload, signed: false },
-      { name: 'Ghana Card · scan', cat: 'IDs', ext: 'JPG', extColor: '#8A6508', desc: 'National ID verification scan.', size: '1.1 MB', updated: '9 Mar 2025', mine: false, canDownload: false, signed: false },
-      { name: 'First Aid Certificate', cat: 'Certificates', ext: 'PDF', extColor: '#0D2B4E', desc: 'Occupational First Aid training certificate.', size: '96 KB', updated: '4 Jun 2026', mine: false, canDownload: true, signed: false }
-    ];
+    const DOC_CAT_LABEL = { CONTRACT: 'Contracts', SOP: 'SOPs', POLICY: 'Policies', ID: 'IDs', CERTIFICATE: 'Certificates', OTHER: 'Other' };
+    const DOC_CAT_COLOR = { CONTRACT: '#0D2B4E', SOP: '#2E6B4F', POLICY: '#0D2B4E', ID: '#8A6508', CERTIFICATE: '#0D2B4E', OTHER: '#6B7684' };
+    const fmtBytes = (n) => n > 1024 * 1024 ? (n / (1024 * 1024)).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+    const fmtDate = (dt) => new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const docSrc = s.apiDocuments.map((doc) => ({
+      id: doc.id, name: doc.fileName, cat: DOC_CAT_LABEL[doc.category] || 'Other',
+      ext: (doc.mimeType || '').split('/')[1] ? (doc.mimeType.split('/')[1] || 'FILE').slice(0, 4).toUpperCase() : 'FILE',
+      extColor: DOC_CAT_COLOR[doc.category] || '#6B7684',
+      desc: doc.notes || (doc.employeeId ? 'Personal document on file.' : 'Company-wide document.'),
+      size: fmtBytes(doc.sizeBytes), updated: fmtDate(doc.createdAt),
+      mine: doc.mine, mineBadge: doc.mine ? (doc.signed ? 'YOUR SIGNED COPY' : 'YOUR DOCUMENT') : undefined,
+      canDownload: doc.canDownload, signed: doc.signed,
+      signer: doc.mine ? (role ? role.userName : 'Employee') : (doc.ownerName || ''),
+      body: doc.signed ? [
+        'This agreement is entered into between Open Base Africa Ltd and the employee named above.',
+        'The employee agrees to the terms of employment, compensation and conduct as set out herein.',
+        'Both parties acknowledge acceptance of the terms above.'
+      ] : []
+    }));
     const docFiltered = docSrc.filter(dd => (s.docCatSelected === 'All' || dd.cat === s.docCatSelected || (s.docCatSelected === 'Signed' && dd.signed)) && dd.name.toLowerCase().includes((s.docQuery || '').toLowerCase()));
     const docList = docFiltered.slice(0, s.docShowCount).map(dd => ({
       name: dd.name, cat: dd.cat, ext: dd.ext, extColor: dd.extColor, desc: dd.desc, size: dd.size, updated: dd.updated,
       mine: dd.mine, mineBadge: dd.mineBadge, notMine: !dd.mine, canDownload: dd.canDownload,
-      view: () => this.openDocView(dd.name), download: () => this.toast('Downloading ' + dd.name + '…')
+      view: () => this.openDocView(dd.id), download: () => this.docDownload(dd.id, dd.name)
     }));
-    const docViewSrc = docSrc.find(dd => dd.name === s.docViewId) || docSrc[0];
+    const docViewSrc = docSrc.find(dd => dd.id === s.docViewId) || docSrc[0] || { name: '', cat: '', updated: '', ext: '', extColor: '#6B7684', desc: '', signed: false, signer: '', body: [] };
     const docView = {
       name: docViewSrc.name, cat: docViewSrc.cat, updated: docViewSrc.updated, ext: docViewSrc.ext, extColor: docViewSrc.extColor,
       desc: docViewSrc.desc, isSigned: docViewSrc.signed, notSigned: !docViewSrc.signed,
@@ -4202,39 +4399,59 @@ class Component extends StreamableLogic {
       { day: 'MON 27 JUL', t: 'New cohort onboarding starts', c: '#2E6B4F' }
     ];
 
-    // ---- leave ----
-    const leaveRowsVals = s.leaveRows.map(l => ({
-      name: l.name, type: l.type, dates: l.dates, days: l.days, branch: l.branch, balanceNote: l.balanceNote,
-      pending: l.pending, decided: !l.pending, decision: l.decision, decBg: l.decBg, decColor: l.decColor,
-      approve: () => this.leaveApprove(l.id), reject: () => this.leaveReject(l.id)
-    }));
+    // ---- leave (Phase 1 · real data from /api/leave) ----
+    const fmtDateShort = (dt) => new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const leaveRowsVals = s.apiLeaveAll.map(l => {
+      const pending = l.status === 'PENDING';
+      const decBg = l.status === 'APPROVED' ? '#E6F0EB' : '#FBECEC';
+      const decColor = l.status === 'APPROVED' ? '#2E6B4F' : '#9B2C2C';
+      const typeLabel = { ANNUAL: 'Annual', SICK: 'Sick', COMPASSIONATE: 'Compassionate', MATERNITY_PATERNITY: 'Maternity / Paternity' }[l.type] || l.type;
+      return {
+        name: l.name, type: typeLabel, dates: fmtDateShort(l.startDate) + '–' + fmtDateShort(l.endDate), days: l.days,
+        branch: l.branch, balanceNote: l.reason || '—',
+        pending, decided: !pending, decision: l.status, decBg, decColor,
+        approve: () => this.leaveApprove(l.id), reject: () => this.leaveReject(l.id)
+      };
+    });
     const leaveTypes = [
       { name: 'Annual', policy: '15 days / year' },
       { name: 'Sick', policy: '12 days / year' },
       { name: 'Compassionate', policy: '5 days / year' },
       { name: 'Maternity / Paternity', policy: 'Per statute' }
     ];
-    const whoOff = [
-      { name: 'Esi Owusu', type: 'Compassionate', dates: '15–16 Jul', branch: 'Accra HQ' },
-      { name: 'Isaac Adjei', type: 'Annual', dates: '01–03 Jul', branch: 'Takoradi' }
-    ];
-    const leaveBalances = [
-      { name: 'Annual leave', used: '4', total: '15', pct: '27%', color: '#0D2B4E' },
-      { name: 'Sick leave', used: '2', total: '12', pct: '17%', color: '#2E6B4F' },
-      { name: 'Compassionate', used: '2', total: '5', pct: '40%', color: '#C8960C' }
-    ];
+    const whoOff = s.apiLeaveAll.filter(l => l.status === 'APPROVED').map(l => ({
+      name: l.name, type: { ANNUAL: 'Annual', SICK: 'Sick', COMPASSIONATE: 'Compassionate', MATERNITY_PATERNITY: 'Maternity / Paternity' }[l.type] || l.type,
+      dates: fmtDateShort(l.startDate) + '–' + fmtDateShort(l.endDate), branch: l.branch
+    }));
+    const LEAVE_TYPE_TOTALS = { ANNUAL: 15, SICK: 12, COMPASSIONATE: 5 };
+    const leaveBalances = Object.keys(LEAVE_TYPE_TOTALS).map((type) => {
+      const used = s.apiLeaveAll.filter(l => l.type === type && l.status === 'APPROVED').reduce((sum, l) => sum + l.days, 0);
+      const total = LEAVE_TYPE_TOTALS[type];
+      const pct = Math.min(100, Math.round((used / total) * 100));
+      const label = { ANNUAL: 'Annual leave', SICK: 'Sick leave', COMPASSIONATE: 'Compassionate' }[type];
+      return { name: label, used: String(used), total: String(total), pct: pct + '%', color: pct > 70 ? '#C8960C' : '#0D2B4E' };
+    });
 
-    // ---- payroll ----
-    const payTrendVals = [412, 430, 448, 461, 475, 486];
-    const payTrend = ['FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL'].map((label, i) => ({ label, height: Math.round((payTrendVals[i] / Math.max(...payTrendVals)) * 100) + 'px' }));
-    const payRowsVals = s.payRows.map(p => ({ ...p, open: () => this.openPaySlip(p.id) }));
-    const paySlipSrc = s.payRows.find(p => p.id === s.paySlipId) || s.payRows[0];
-    const paySlip = {
-      initials: this.initials(paySlipSrc.name), name: paySlipSrc.name, role: paySlipSrc.role,
-      gross: paySlipSrc.gross, ssnit: paySlipSrc.ssnit, paye: paySlipSrc.paye,
-      hasDed: paySlipSrc.dedN > 0, ded: paySlipSrc.ded, dedNote: paySlipSrc.dedNote,
-      net: paySlipSrc.net, employerSsnit: this.fmt(paySlipSrc.employerSsnit)
-    };
+    // ---- payroll (Phase 1 · real data from /api/payroll/runs) ----
+    const payRunsSorted = [...s.apiPayrollRuns].sort((a, b) => a.period.localeCompare(b.period));
+    const payMaxNet = Math.max(1, ...payRunsSorted.map(r => r.totalNet));
+    const payTrend = payRunsSorted.map(r => ({ label: r.period, height: Math.max(4, Math.round((r.totalNet / payMaxNet) * 100)) + 'px' }));
+    const payRunLatest = s.apiPayrollRuns[0] || null;
+    const payslips = payRunLatest ? payRunLatest.payslips : [];
+    const payRowsVals = payslips.map(p => ({
+      id: p.id, name: p.name, role: p.jobTitle,
+      gross: this.fmt(p.grossPay), ssnit: this.fmt(p.ssnitEmployee), paye: this.fmt(p.payeTax),
+      ded: this.fmt(p.otherDeductions), dedNote: p.deductionNote || '—', dedColor: p.otherDeductions > 0 ? '#9B2C2C' : '#9AA4B0',
+      net: this.fmt(p.netPay), employerSsnit: this.fmt(p.ssnitEmployer),
+      open: () => this.openPaySlip(p.id)
+    }));
+    const paySlipSrc = payslips.find(p => p.id === s.paySlipId) || payslips[0] || null;
+    const paySlip = paySlipSrc ? {
+      initials: this.initials(paySlipSrc.name), name: paySlipSrc.name, role: paySlipSrc.jobTitle,
+      gross: this.fmt(paySlipSrc.grossPay), ssnit: this.fmt(paySlipSrc.ssnitEmployee), paye: this.fmt(paySlipSrc.payeTax),
+      hasDed: paySlipSrc.otherDeductions > 0, ded: this.fmt(paySlipSrc.otherDeductions), dedNote: paySlipSrc.deductionNote || '—',
+      net: this.fmt(paySlipSrc.netPay), employerSsnit: this.fmt(paySlipSrc.ssnitEmployer)
+    } : { initials: '', name: 'No payroll run yet', role: '', gross: '0', ssnit: '0', paye: '0', hasDed: false, ded: '0', dedNote: '', net: '0', employerSsnit: '0' };
 
     // ---- recruitment ----
     const recFunnelCounts = { applied: s.candidates.filter(c => c.stage === 'applied').length + 6, screening: s.candidates.filter(c => c.stage === 'screening').length + 3, interview: s.candidates.filter(c => c.stage === 'interview').length + 2, offer: s.candidates.filter(c => c.stage === 'offer').length + 1, hired: s.candidates.filter(c => c.stage === 'hired').length + 4 };
@@ -4258,8 +4475,9 @@ class Component extends StreamableLogic {
     const candDetailSrc = s.candidates.find(c => c.id === s.candId) || s.candidates[0];
     const candDetail = { initials: this.initials(candDetailSrc.name), name: candDetailSrc.name, roleTitle: candDetailSrc.roleTitle, stage: STAGE_LABELS[candDetailSrc.stage], email: candDetailSrc.email, phone: candDetailSrc.phone, exp: candDetailSrc.exp, edu: candDetailSrc.edu, applied: candDetailSrc.applied, notes: candDetailSrc.notes };
 
-    // ---- my space ----
-    const clockedIn = s.clockedIn;
+    // ---- my space (Phase 1 · attendance/leave/payslips/schedule are real) ----
+    const myAtt = s.apiMyAttendance;
+    const clockedIn = !!(myAtt && myAtt.clockIn && !myAtt.clockOut);
     const myStats = [
       { label: 'HOURS TODAY', value: clockedIn ? '5.4' : '0.0', color: '#0D2B4E', sub: 'auto-tracked' },
       { label: 'TICKETS CLOSED', value: '31', color: '#2E6B4F', sub: 'today so far' },
@@ -4267,14 +4485,21 @@ class Component extends StreamableLogic {
       { label: 'ATTENDANCE', value: '96%', color: '#2E6B4F', sub: 'last 30 days' },
       { label: 'LEAVE BALANCE', value: '11', color: '#0D2B4E', sub: 'days left' }
     ];
-    const myWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day, i) => ({
-      day, shift: i < 5 ? 'Day 08:00–17:00' : i === 5 ? 'Day 08:00–13:00' : 'Off',
-      bg: i === 6 ? '#F0F2F5' : '#E6F0EB', color: i === 6 ? '#6B7684' : '#2E6B4F', tag: i === 6 ? 'OFF' : 'SCHEDULED',
-      rowBg: i === 2 ? '#F8FAFC' : 'transparent'
-    }));
-    const pastSlips = [
-      { month: 'June 2026', net: 'GH₵ 2,512' }, { month: 'May 2026', net: 'GH₵ 2,470' }, { month: 'April 2026', net: 'GH₵ 2,455' }
-    ];
+    const MY_SHIFT_LABEL = { DAY: 'Day 08:00–17:00', EVENING: 'Evening 17:00–00:00', NIGHT: 'Night 00:00–08:00' };
+    const myRosterByDay = {};
+    s.apiMyRoster.forEach(e => { myRosterByDay[e.dayOfWeek] = e; });
+    const myWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day, i) => {
+      const entry = myRosterByDay[i];
+      const isOff = !entry;
+      return {
+        day, shift: isOff ? 'Off' : (MY_SHIFT_LABEL[entry.shiftType] || entry.shiftType),
+        bg: isOff ? '#F0F2F5' : '#E6F0EB', color: isOff ? '#6B7684' : '#2E6B4F', tag: isOff ? 'OFF' : 'SCHEDULED',
+        rowBg: 'transparent'
+      };
+    });
+    const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const periodLabel = (period) => { const [y, m] = period.split('-'); return MONTH_NAMES[parseInt(m, 10) - 1] + ' ' + y; };
+    const pastSlips = s.apiMyPayslips.map(p => ({ month: periodLabel(p.period), net: 'GH₵ ' + this.fmt(p.netPay) }));
     const drBadge = 'DUE TODAY', drBadgeBg = '#FBF3DF', drBadgeColor = '#8A6508';
     const dailyReportsBase = [
       { day: 'Fri 11 Jul', tickets: 44, esc: 0, hours: '8.0', noteSuffix: ' · smooth shift' },
@@ -4287,10 +4512,14 @@ class Component extends StreamableLogic {
       { name: 'Data protection training', note: 'Completed 4 Jun 2026', stBg: '#E6F0EB', stColor: '#2E6B4F', status: 'DONE' },
       { name: 'Bank / MoMo details', note: 'On file', stBg: '#EAF0F7', stColor: '#0D2B4E', status: 'ON FILE' }
     ];
-    const myLeave = [
-      { type: 'Sick', dates: '22 Jul', stBg: '#FBF3DF', stColor: '#8A6508', stLabel: 'PENDING' },
-      { type: 'Annual', dates: '01–03 Jun', stBg: '#E6F0EB', stColor: '#2E6B4F', stLabel: 'APPROVED' }
-    ];
+    const MY_LEAVE_TYPE_LABEL = { ANNUAL: 'Annual', SICK: 'Sick', COMPASSIONATE: 'Compassionate', MATERNITY_PATERNITY: 'Maternity / Paternity' };
+    const myLeave = s.apiMyLeave.map(l => ({
+      type: MY_LEAVE_TYPE_LABEL[l.type] || l.type,
+      dates: fmtDateShort(l.startDate) + (l.days > 1 ? '–' + fmtDateShort(l.endDate) : ''),
+      stBg: l.status === 'APPROVED' ? '#E6F0EB' : l.status === 'REJECTED' ? '#FBECEC' : '#FBF3DF',
+      stColor: l.status === 'APPROVED' ? '#2E6B4F' : l.status === 'REJECTED' ? '#9B2C2C' : '#8A6508',
+      stLabel: l.status
+    }));
     const myKpis = [
       { name: 'Tickets / day', value: '31', target: '30', pct: '100%', color: '#2E6B4F' },
       { name: 'QA score', value: '94', target: '90', pct: '100%', color: '#2E6B4F' },
@@ -4495,11 +4724,13 @@ class Component extends StreamableLogic {
 
       // scheduling
       schBranch: schBranchName, onSchBranch: (e) => this.onSchBranch(e),
-      schStatusBg: '#FBF3DF', schStatusColor: '#8A6508', schStatusLabel: 'DRAFT',
+      schStatusBg: roster && roster.published ? '#E6F0EB' : '#FBF3DF',
+      schStatusColor: roster && roster.published ? '#2E6B4F' : '#8A6508',
+      schStatusLabel: roster && roster.published ? 'PUBLISHED' : 'DRAFT',
       schRing, schTiles, schDays, publishRoster: () => this.publishRoster(),
 
       // attendance
-      attDonut, attTrend, attRows, attEmpty: false,
+      attDonut, attTrend, attRows, attEmpty: attRows.length === 0,
 
       // incidents
       incDonut, incidents, incidentsEmpty: false,
