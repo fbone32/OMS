@@ -1,0 +1,161 @@
+// OBA Jobs (jobs.openbaseafrica.com) — Phase 1 data model.
+//
+// Shares the SAME Postgres database/instance as the root OMS app
+// (same DATABASE_URL — see architecture note in the root repo's task brief),
+// but is a fully separate Prisma schema/generated client with its own model
+// set (JobListing, JobApplication, AdminSyncQueue-ish fields) so employer/
+// candidate-facing job-website data never lives in the same tables as
+// internal OMS data (Employee/User/Payroll/etc). This schema's generated
+// client NEVER touches those tables — it doesn't even know their shape.
+//
+// The only bridge between the two apps is a network call: this app POSTs
+// application metadata to the OMS's own
+// app/api/recruitment/external-applications route (authenticated with the
+// shared JOB_WEBSITE_API_SECRET), and the OMS pulls the CV bytes back via
+// this app's GET /api/internal/cv/[id] route (same shared secret) — see
+// lib/oms-sync.js. The OMS then stores its own copy in its own Candidate
+// row. Two independent databases-worth of tables, one small authenticated
+// integration surface.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Named JobShiftType (not ShiftType) deliberately: this app shares the SAME
+// Postgres database/"public" schema namespace as the root OMS app (see this
+// file's header comment), and Postgres enum types are global per-database,
+// not per-Prisma-schema — the OMS already has its own "ShiftType" enum
+// (DAY/EVENING/NIGHT, on ShiftRosterEntry) which a same-named type here
+// would collide with at migration time. Model/table names don't collide
+// (JobListing/JobApplication vs. JobOpening/Candidate) so only the enum
+// needed renaming.
+enum JobShiftType {
+  DAY
+  NIGHT
+  ROTATING
+}
+
+enum JobListingStatus {
+  OPEN
+  CLOSED
+  // Auto-expire once closingDate passes, independent of manual open/close —
+  // computed at read time (see lib/jobs.js effectiveStatus), not a separate
+  // cron-flipped column, so "expired" is always correct even if a deploy or
+  // cron is late.
+}
+
+model JobListing {
+  id                String           @id @default(cuid())
+  title             String
+  postingCompany    String           @default("Open Base Africa")
+  employmentType    String           @default("Full-time") // e.g. Full-time / Part-time / Contract
+  branch            String // location/branch — matches the OMS's own free-text branch field
+  shift             JobShiftType
+  salaryMonth       Decimal? @db.Decimal(12, 2) // GHS per month; null = "Negotiable" / not disclosed
+  salaryCurrency    String           @default("GH₵")
+  summary           String           @db.Text
+  description       String           @db.Text
+  requirements      String           @db.Text
+  closingDate       DateTime
+  status            JobListingStatus @default(OPEN)
+  // Stable reference the OMS's JobOpening.externalRef keys off of, so
+  // repeated applications against the same listing always land on the same
+  // OMS JobOpening rather than creating a duplicate one per application.
+  externalRef       String           @unique @default(cuid())
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  applications JobApplication[]
+}
+
+enum ApplicationStatus {
+  NEW
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+}
+
+enum SyncStatus {
+  PENDING   // not yet pushed to the OMS (either brand new, or a previous push failed)
+  SYNCED    // OMS confirmed it created/found a Candidate row
+  FAILED    // pushed, OMS reachable, but OMS itself rejected it (not retried further)
+}
+
+model JobApplication {
+  id             String            @id @default(cuid())
+  jobListingId   String
+  jobListing     JobListing        @relation(fields: [jobListingId], references: [id])
+  fullName       String
+  phone          String
+  email          String
+  whyGoodFit     String            @db.Text
+  cvFileName     String
+  cvMimeType     String
+  cvSizeBytes    Int
+  cvDataUrl      String            @db.Text // base64 data URL — same storage pattern as the OMS's own Document.fileDataUrl
+  status         ApplicationStatus @default(NEW)
+  ipAddress      String? // best-effort, spam/abuse review only, never shown to other candidates
+
+  // ---- OMS integration / retry-safe queue ----
+  syncStatus       SyncStatus @default(PENDING)
+  syncAttempts     Int        @default(0)
+  lastSyncError    String?
+  lastSyncAt       DateTime?
+  omsCandidateId   String? // the id OMS's Candidate row got, once synced — for admin cross-reference only
+  omsJobOpeningId  String?
+
+  // ---- confirmation email ----
+  confirmationEmailSent   Boolean   @default(false)
+  confirmationEmailError  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Duplicate-application guard: one application per (listing, email).
+  @@unique([jobListingId, email])
+  @@index([email])
+  @@index([syncStatus])
+}
+
+// Simple persisted rate-limit ledger for the public apply/contact endpoints.
+// A DB-backed counter (not in-memory) because serverless function instances
+// are ephemeral/multiple — an in-memory map (fine for the OMS's own
+// low-sensitivity internal lookup endpoint, see its lib/rate-limit.js
+// comment) would not meaningfully throttle a public, unauthenticated,
+// file-upload-accepting endpoint like this one.
+model RateLimitHit {
+  id        String   @id @default(cuid())
+  bucketKey String // e.g. "apply:203.0.113.4"
+  createdAt DateTime @default(now())
+
+  @@index([bucketKey, createdAt])
+}
+
+// Single shared Admin account for Phase 1 (brief: "even a simple shared
+// admin password/account for Phase 1 is fine ... must not be wide open to
+// the public"). A real row (not just an env-var check) so login attempts,
+// lockout, and last-login are genuinely tracked — but there is deliberately
+// only ever one of these in Phase 1; multi-admin/employer accounts are
+// Phase 2.
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model AdminPasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}

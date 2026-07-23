@@ -1,0 +1,174 @@
+:root {
+  --navy: #0D2B4E;
+  --navy-dark: #081b33;
+  --gold: #C8960C;
+  --gold-dark: #B5860A;
+  --bg: #F5F7FA;
+  --card: #FFFFFF;
+  --border: #E3E7EC;
+  --text: #1A2733;
+  --muted: #6B7684;
+  --danger: #C0392B;
+  --success: #1E7A46;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--navy); text-decoration: none; }
+a:hover { color: var(--gold); }
+
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: 16px; /* prevents iOS zoom-on-focus */
+}
+
+:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+img { max-width: 100%; }
+
+.container {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14.5px;
+  padding: 13px 22px;
+  cursor: pointer;
+  min-height: 44px; /* touch target */
+  transition: background .15s;
+}
+.btn-primary { background: var(--gold); color: #fff; }
+.btn-primary:hover { background: var(--gold-dark); color: #fff; }
+.btn-secondary { background: var(--navy); color: #fff; }
+.btn-secondary:hover { background: var(--navy-dark); color: #fff; }
+.btn-outline { background: transparent; color: var(--navy); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-block { width: 100%; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 6px;
+}
+
+.field-input {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 13px;
+  font-size: 15px;
+  background: #fff;
+  color: var(--text);
+}
+.field-input:focus { outline-color: var(--gold); border-color: var(--gold); }
+.field-input.has-error { border-color: var(--danger); }
+
+.field-error {
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-top: 5px;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: #EAF0F7;
+  color: var(--navy);
+}
+.badge-gold { background: #FCF1DC; color: var(--gold-dark); }
+
+/* ---- Listings table (desktop) / card list (mobile) ---- */
+.listing-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.listing-table thead th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--border);
+}
+.listing-table tbody tr {
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.listing-table tbody tr:hover { background: #F5F8FC; }
+.listing-table tbody td {
+  padding: 16px 14px;
+  font-size: 14.5px;
+}
+.listing-cards { display: none; }
+
+@media (max-width: 720px) {
+  .listing-table thead { display: none; }
+  .listing-table, .listing-table tbody, .listing-table tr, .listing-table td {
+    display: block;
+    width: 100%;
+  }
+  .listing-table tbody tr {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .listing-table tbody td { padding: 3px 0; border: none; }
+  .listing-table tbody td[data-label]:not(:first-child)::before {
+    content: attr(data-label) ": ";
+    font-weight: 700;
+    color: var(--muted);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+}
+
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  background: var(--gold);
+  color: #fff;
+  padding: 10px 16px;
+  z-index: 999;
+}
+.skip-link:focus { left: 8px; top: 8px; }

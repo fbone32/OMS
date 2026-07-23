@@ -195,19 +195,19 @@ model User {
   procurementReceived  ProcurementRequest[] @relation("ProcurementReceivedBy")
 
   // ---- Phase 4 (Growth & Finance) ----
-  dealsCreated            Deal[]              @relation("DealCreatedBy")
-  dealContactLogsCreated  DealContactLog[]    @relation("DealContactLogCreatedBy")
-  contractsCreated        Contract[]          @relation("ContractCreatedBy")
-  contractsReminded       Contract[]          @relation("ContractReminderBy")
-  expensesCreated         Expense[]           @relation("ExpenseCreatedBy")
-  bankLinesImported       BankStatementLine[] @relation("BankLineImportedBy")
-  bankLinesMatched        BankStatementLine[] @relation("BankLineMatchedBy")
-  taxFilingsFiled         TaxFiling[]         @relation("TaxFilingFiledBy")
-  vaultCredentialsCreated VaultCredential[]   @relation("VaultCredentialCreatedBy")
-  invoicesCreated         Invoice[]              @relation("InvoiceCreatedBy")
-  invoiceTaxSettingsUpdated InvoiceTaxSettings[] @relation("InvoiceTaxSettingsUpdatedBy")
-  supportRequestsCreated  ClientSupportRequest[]  @relation("SupportRequestCreatedBy")
-  supportMessagesAuthored ClientSupportMessage[] @relation("SupportMessageAuthor")
+  dealsCreated              Deal[]                 @relation("DealCreatedBy")
+  dealContactLogsCreated    DealContactLog[]       @relation("DealContactLogCreatedBy")
+  contractsCreated          Contract[]             @relation("ContractCreatedBy")
+  contractsReminded         Contract[]             @relation("ContractReminderBy")
+  expensesCreated           Expense[]              @relation("ExpenseCreatedBy")
+  bankLinesImported         BankStatementLine[]    @relation("BankLineImportedBy")
+  bankLinesMatched          BankStatementLine[]    @relation("BankLineMatchedBy")
+  taxFilingsFiled           TaxFiling[]            @relation("TaxFilingFiledBy")
+  vaultCredentialsCreated   VaultCredential[]      @relation("VaultCredentialCreatedBy")
+  invoicesCreated           Invoice[]              @relation("InvoiceCreatedBy")
+  invoiceTaxSettingsUpdated InvoiceTaxSettings[]   @relation("InvoiceTaxSettingsUpdatedBy")
+  supportRequestsCreated    ClientSupportRequest[] @relation("SupportRequestCreatedBy")
+  supportMessagesAuthored   ClientSupportMessage[] @relation("SupportMessageAuthor")
 }
 
 model Employee {
@@ -404,9 +404,22 @@ model JobOpening {
   branch          String
   status          JobOpeningStatus @default(OPEN)
   openings        Int              @default(1)
-  createdByUserId String
-  createdBy       User             @relation("JobOpeningCreatedBy", fields: [createdByUserId], references: [id])
+  // Optional — nullable so the existing internal "add job opening" flow is
+  // untouched, matching the precedent already set by Deal.createdByUserId
+  // (also optional) for actions that may originate outside a logged-in
+  // internal user session.
+  createdByUserId String?
+  createdBy       User?            @relation("JobOpeningCreatedBy", fields: [createdByUserId], references: [id])
   createdAt       DateTime         @default(now())
+
+  // OBA Jobs (jobs.openbaseafrica.com) integration — job-website's own
+  // JobListing.externalRef value, so every application against the SAME
+  // public listing lands on the SAME JobOpening here instead of creating a
+  // duplicate one per application. Set once, at first-application time, by
+  // POST /api/recruitment/external-applications; null for JobOpenings
+  // created the ordinary internal way.
+  externalRef    String? @unique
+  externalSource String? // e.g. "JOB_WEBSITE" — which external system this came from, for admin clarity
 
   candidates Candidate[]
 }
@@ -424,6 +437,19 @@ model Candidate {
   education           String?
   notes               String?
   appliedAt           DateTime       @default(now())
+  // OBA Jobs (jobs.openbaseafrica.com) integration — additive fields, null
+  // for every candidate added the ordinary internal way (POST
+  // /api/recruitment/candidates). Populated only by POST
+  // /api/recruitment/external-applications, which authenticates via the
+  // shared JOB_WEBSITE_API_SECRET rather than a session — see that route
+  // for the full flow. "source" future-proofs a second external channel
+  // without another migration.
+  source              String         @default("OMS") // "OMS" | "JOB_WEBSITE"
+  coverLetter         String?        @db.Text // the application form's "why are you a good fit" free text
+  cvFileName          String?
+  cvMimeType          String?
+  cvSizeBytes         Int?
+  cvDataUrl           String?        @db.Text // same base64-data-url storage pattern as Document.fileDataUrl
   // Set once, by the one-click "hire" conversion — creates a real Employee
   // (+ User login, same generated-temp-password mechanism as
   // app/api/employees/onboard) and links back here. @unique enforces a
@@ -432,6 +458,13 @@ model Candidate {
   convertedEmployee   Employee?      @relation(fields: [convertedEmployeeId], references: [id])
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+
+  // Duplicate-application guard, defense-in-depth alongside the job-website's
+  // own (jobListingId, email) unique constraint: the same email can't create
+  // two Candidate rows against the same JobOpening. Multiple NULL
+  // jobOpeningId rows are unaffected (Postgres treats NULLs as distinct in a
+  // unique index), so ordinary internal candidate-adding is untouched.
+  @@unique([email, jobOpeningId])
 }
 
 // Quality Assurance — one row per audited ticket/interaction. Feeds both the
@@ -743,12 +776,12 @@ model Client {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  dealSource  Deal? // reverse of Deal.convertedClientId (1:1)
-  staff       Employee[]
-  contracts   Contract[]
-  portalUsers User[]
-  invoices    Invoice[]
-  documents   Document[]
+  dealSource      Deal? // reverse of Deal.convertedClientId (1:1)
+  staff           Employee[]
+  contracts       Contract[]
+  portalUsers     User[]
+  invoices        Invoice[]
+  documents       Document[]
   supportRequests ClientSupportRequest[]
 }
 
@@ -960,21 +993,21 @@ enum InvoiceStatus {
 }
 
 model Invoice {
-  id              String            @id @default(cuid())
+  id              String        @id @default(cuid())
   clientId        String
-  client          Client            @relation(fields: [clientId], references: [id])
+  client          Client        @relation(fields: [clientId], references: [id])
   // Optional — set when generated off a specific Contract (the common case:
   // billing a client's existing retainer), left null for a one-off/ad-hoc
   // invoice raised directly against the client with no linked agreement.
   contractId      String?
-  contract        Contract?         @relation(fields: [contractId], references: [id])
+  contract        Contract?     @relation(fields: [contractId], references: [id])
   period          String // e.g. "2026-07" — the billing period this invoice covers
-  currency        String            @default("$")
+  currency        String        @default("$")
   // Denormalized SUBTOTAL (sum of lineItems' amounts, pre-tax), recomputed
   // server-side on every write (never trust a client-supplied total) — see
   // app/api/invoices. Real tax due on top of this is the vat/nhil/getfund/
   // covidLevy fields below; totalAmount is the actual grand total to collect.
-  amount          Decimal           @db.Decimal(12, 2)
+  amount          Decimal       @db.Decimal(12, 2)
   // Whether this invoice is treated as an export of services (VAT/levy
   // exempt) vs. standard-rated. Defaulted at creation time from
   // Client.currency === '$' as a starting-point signal (a USD-billed client
@@ -982,28 +1015,28 @@ model Invoice {
   // explicit, overridable choice made by Accountant/Director when raising
   // the invoice (see app/api/invoices POST) — never silently inferred with
   // no way to correct it.
-  taxExempt       Boolean           @default(false)
+  taxExempt       Boolean       @default(false)
   // Real tax breakdown, computed from the InvoiceTaxSettings row in effect
   // at creation time and SNAPSHOTTED here (same pattern as Payslip snapshots
   // PayrollSettings' rates) so a later edit to InvoiceTaxSettings never
   // silently changes the amount already invoiced to a client. All zero when
   // taxExempt is true.
-  vatAmount       Decimal           @default(0) @db.Decimal(12, 2)
-  nhilAmount      Decimal           @default(0) @db.Decimal(12, 2)
-  getfundAmount   Decimal           @default(0) @db.Decimal(12, 2)
-  covidLevyAmount Decimal           @default(0) @db.Decimal(12, 2)
+  vatAmount       Decimal       @default(0) @db.Decimal(12, 2)
+  nhilAmount      Decimal       @default(0) @db.Decimal(12, 2)
+  getfundAmount   Decimal       @default(0) @db.Decimal(12, 2)
+  covidLevyAmount Decimal       @default(0) @db.Decimal(12, 2)
   // amount + vatAmount + nhilAmount + getfundAmount + covidLevyAmount (or
   // just amount when taxExempt) — the real amount actually due, shown as
   // "Total due" on the invoice/PDF/email, NOT `amount` alone.
-  totalAmount     Decimal           @db.Decimal(12, 2)
-  status          InvoiceStatus     @default(DRAFT)
+  totalAmount     Decimal       @db.Decimal(12, 2)
+  status          InvoiceStatus @default(DRAFT)
   dueDate         DateTime?
   sentAt          DateTime?
   paidAt          DateTime?
   createdByUserId String?
-  createdBy       User?             @relation("InvoiceCreatedBy", fields: [createdByUserId], references: [id])
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdBy       User?         @relation("InvoiceCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   lineItems InvoiceLineItem[]
 
@@ -1034,17 +1067,17 @@ model InvoiceLineItem {
 // NOT been verified against current GRA guidance and must be confirmed by
 // an accountant before any real invoice's tax line is relied upon.
 model InvoiceTaxSettings {
-  id                String   @id @default(cuid())
-  vatRatePct        Decimal  @db.Decimal(5, 2) // headline VAT rate, e.g. 15.0 — PLACEHOLDER
-  nhilRatePct       Decimal  @db.Decimal(5, 2) // National Health Insurance Levy — PLACEHOLDER
-  getfundRatePct    Decimal  @db.Decimal(5, 2) // GETFund Levy — PLACEHOLDER
-  covidLevyRatePct  Decimal  @db.Decimal(5, 2) // COVID-19 Health Recovery Levy — PLACEHOLDER
-  effectiveFrom     DateTime @default(now())
-  notes             String?
-  updatedByUserId   String?
-  updatedBy         User?    @relation("InvoiceTaxSettingsUpdatedBy", fields: [updatedByUserId], references: [id])
-  updatedAt         DateTime @updatedAt
-  createdAt         DateTime @default(now())
+  id               String   @id @default(cuid())
+  vatRatePct       Decimal  @db.Decimal(5, 2) // headline VAT rate, e.g. 15.0 — PLACEHOLDER
+  nhilRatePct      Decimal  @db.Decimal(5, 2) // National Health Insurance Levy — PLACEHOLDER
+  getfundRatePct   Decimal  @db.Decimal(5, 2) // GETFund Levy — PLACEHOLDER
+  covidLevyRatePct Decimal  @db.Decimal(5, 2) // COVID-19 Health Recovery Levy — PLACEHOLDER
+  effectiveFrom    DateTime @default(now())
+  notes            String?
+  updatedByUserId  String?
+  updatedBy        User?    @relation("InvoiceTaxSettingsUpdatedBy", fields: [updatedByUserId], references: [id])
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
 }
 
 // ============== Client Portal support requests ==============
