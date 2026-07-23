@@ -1,17 +1,19 @@
 // OBA Platform — Phase 1 (Core HR & Payroll) data model.
 // Datasource URL resolution: Vercel Postgres integrations set POSTGRES_PRISMA_URL
-// (pooled, pgbouncer) alongside DATABASE_URL / POSTGRES_URL (direct). We read
-// whichever is present via the DATABASE_URL env var itself, which our own
-// bootstrap (lib/db.js env normalization) guarantees is populated from
-// POSTGRES_PRISMA_URL / POSTGRES_URL / DATABASE_URL, in that order of
-// preference, before `next build`/`next start` ever touch this file.
+// (pooled, pgbouncer) alongside DATABASE_URL / POSTGRES_URL / POSTGRES_URL_NON_POOLING.
+// `url` (used by the generated client at request time) and `DIRECT_URL` (used only
+// by `prisma migrate` commands, which need a non-pooled connection for their
+// session-level advisory locks) are both populated by scripts/vercel-build.mjs at
+// build time and by lib/db.js's runtime fallback, in that order of preference,
+// before this file's env() calls are ever read.
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {

@@ -1,7 +1,6 @@
-const bcrypt = require('bcryptjs');
-const { prisma } = require('../../../../lib/db');
 const { createSessionToken, sessionCookieHeader } = require('../../../../lib/auth');
 const { logAudit } = require('../../../../lib/audit');
+const { verifyCredentials } = require('../../../../lib/credentials');
 
 function json(data, init) {
   return new Response(JSON.stringify(data), {
@@ -20,6 +19,16 @@ function publicUser(user) {
   };
 }
 
+// Both response helpers are deliberately generic and non-leaky: neither
+// reveals whether an email is registered, and neither reveals implementation
+// detail. The two ARE distinguishable to a human (a real bad password says
+// "try again"; an infra failure says "try again in a moment"), but that
+// distinction never depends on account existence — only on whether we could
+// even complete the credential check.
+const invalidCredentials = () => json({ error: 'Invalid email or password' }, { status: 401 });
+const serviceUnavailable = () =>
+  json({ error: 'Something went wrong on our end. Please try again in a moment.' }, { status: 503 });
+
 async function POST(request) {
   let body;
   try {
@@ -33,19 +42,57 @@ async function POST(request) {
     return json({ error: 'Email and password are required' }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { email }, include: { employee: true } });
-  // Constant-shaped response whether or not the user exists, to avoid
-  // leaking which emails are registered.
-  const invalid = () => json({ error: 'Invalid email or password' }, { status: 401 });
-  if (!user) return invalid();
-
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) {
-    await logAudit({ session: null, action: 'LOGIN_FAILED', targetType: 'User', targetId: user.id, detail: { email } });
-    return invalid();
+  let result;
+  try {
+    result = await verifyCredentials(email, password);
+  } catch (err) {
+    // Genuine infrastructure failure (DB unreachable, table doesn't exist
+    // because migrations never ran, etc.) — NOT a wrong password. Logged
+    // with a distinct action tag so it never gets collapsed into normal
+    // LOGIN_FAILED metrics/monitoring, even though the client response is
+    // still generic.
+    console.error('[auth/login] infra error verifying credentials:', err);
+    await logAudit({
+      session: null,
+      action: 'LOGIN_ERROR_INFRA',
+      targetType: 'User',
+      targetId: null,
+      detail: { email, error: String((err && err.message) || err) },
+    });
+    return serviceUnavailable();
   }
 
-  const token = createSessionToken(user);
+  if (!result.ok) {
+    // Covers both "no such user" and "wrong password" — identical response,
+    // and only logged with the target user id when we actually found one.
+    await logAudit({
+      session: null,
+      action: 'LOGIN_FAILED',
+      targetType: 'User',
+      targetId: result.user ? result.user.id : null,
+      detail: { email },
+    });
+    return invalidCredentials();
+  }
+
+  const user = result.user;
+  let token;
+  try {
+    token = createSessionToken(user);
+  } catch (err) {
+    // e.g. SESSION_SECRET not set in this environment — again an infra/
+    // config problem, not the user's fault, and not a wrong password.
+    console.error('[auth/login] failed to create session token:', err);
+    await logAudit({
+      session: null,
+      action: 'LOGIN_ERROR_INFRA',
+      targetType: 'User',
+      targetId: user.id,
+      detail: { email, error: String((err && err.message) || err) },
+    });
+    return serviceUnavailable();
+  }
+
   await logAudit({ session: { uid: user.id, email: user.email }, action: 'LOGIN_SUCCESS', targetType: 'User', targetId: user.id });
 
   return json({ user: publicUser(user) }, {

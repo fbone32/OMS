@@ -133,39 +133,42 @@
       <div style="background:#FFFFFF;border-radius:12px;padding:28px;box-shadow:0 10px 40px rgba(0,0,0,0.25);">
         <div style="font-size:17px;font-weight:800;color:#0D2B4E;margin-bottom:4px;">Sign in</div>
         <div style="font-size:12px;color:#6B7684;font-weight:500;margin-bottom:16px;">One account · your role decides what you see.</div>
-        <label style="display:block;font-size:12.5px;font-weight:600;color:#0D2B4E;margin-bottom:5px;">Account</label>
-        <div style="position:relative;margin-bottom:14px;">
-          <button onClick="{{ toggleRoleMenu }}" style="width:100%;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid {{ roleMenuBorder }};border-radius:9px;padding:12px 14px;font-size:13px;background:#FFFFFF;cursor:pointer;text-align:left;">
-            <span style="min-width:0;"><span style="display:block;font-weight:700;color:#0D2B4E;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ roleEmail }}</span><span style="font-size:11px;font-weight:600;color:#C8960C;">{{ loginRole }}</span></span>
-            <span style="width:22px;height:22px;border-radius:6px;background:#EAF0F7;color:#0D2B4E;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;transform:{{ roleCaret }};transition:transform .15s;">▾</span>
-          </button>
-          <sc-if value="{{ roleMenuOpen }}" hint-placeholder-val="{{ false }}">
-            <div style="position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:20;background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;box-shadow:0 12px 34px rgba(13,43,78,0.18);overflow:hidden;padding:5px;">
-              <sc-for list="{{ roleOptions }}" as="o" hint-placeholder-count="7">
-                <button onClick="{{ o.select }}" style="width:100%;box-sizing:border-box;display:flex;justify-content:space-between;align-items:center;gap:10px;background:{{ o.bg }};border:none;border-radius:7px;padding:10px 12px;cursor:pointer;text-align:left;" style-hover="background:#F5F7FA;">
-                  <span style="min-width:0;font-size:12.5px;font-weight:600;color:{{ o.emailColor }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ o.email }}</span>
-                  <span style="font-size:10.5px;font-weight:800;color:{{ o.roleColor }};background:{{ o.pillBg }};padding:2px 9px;border-radius:99px;white-space:nowrap;">{{ o.role }}</span>
-                </button>
-              </sc-for>
-            </div>
+        <label style="display:block;font-size:12.5px;font-weight:600;color:#0D2B4E;margin-bottom:5px;">Email</label>
+        <input type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" value="{{ loginEmail }}" onInput="{{ onLoginEmail }}" placeholder="you@openbaseafrica.com" style="width:100%;box-sizing:border-box;border:1px solid {{ loginEmailBorder }};border-radius:9px;padding:12px 14px;font-size:13px;outline-color:#C8960C;margin-bottom:8px;">
+        <sc-if value="{{ roleHintVisible }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:9px;background:#EAF0F7;border:1px solid #D3E0EF;border-radius:8px;padding:9px 12px;margin-bottom:14px;">
+            <span style="width:24px;height:24px;border-radius:50%;background:#0D2B4E;color:#FFFFFF;font-size:10.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">{{ roleHintInitials }}</span>
+            <span style="font-size:12px;color:#0D2B4E;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Signing in as <strong>{{ roleHintName }}</strong> · {{ roleHintRoleLabel }}</span>
+          </div>
+        </sc-if>
+        <label style="display:block;font-size:12.5px;font-weight:600;color:#0D2B4E;margin-bottom:5px;">Password</label>
+        <div style="position:relative;margin-bottom:6px;">
+          <input type="{{ loginPwFieldType }}" value="{{ loginPw }}" onChange="{{ onLoginPw }}" placeholder="••••••••" autocomplete="current-password" style="width:100%;box-sizing:border-box;border:1px solid {{ loginPwBorder }};border-radius:7px;padding:11px 44px 11px 13px;font-size:13.5px;outline-color:#C8960C;">
+          <sc-if value="{{ loginPwHidden }}" hint-placeholder-val="{{ true }}">
+            <button type="button" onClick="{{ togglePwVisible }}" aria-label="Show password" aria-pressed="false" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:6px;background:#EAF0F7;border:none;color:#0D2B4E;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;" style-hover="background:#DCE6F2;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" stroke="#0D2B4E" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="#0D2B4E" stroke-width="1.7"/><line x1="3" y1="21" x2="21" y2="3" stroke="#0D2B4E" stroke-width="1.7" stroke-linecap="round"/></svg>
+            </button>
+          </sc-if>
+          <sc-if value="{{ loginPwVisible }}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{ togglePwVisible }}" aria-label="Hide password" aria-pressed="true" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:6px;background:#EAF0F7;border:none;color:#0D2B4E;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;" style-hover="background:#DCE6F2;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" stroke="#0D2B4E" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2.6" stroke="#0D2B4E" stroke-width="1.7"/></svg>
+            </button>
           </sc-if>
         </div>
-        <label style="display:block;font-size:12.5px;font-weight:600;color:#0D2B4E;margin-bottom:5px;">Password</label>
-        <input type="password" value="{{ loginPw }}" onChange="{{ onLoginPw }}" placeholder="••••••••" style="width:100%;box-sizing:border-box;border:1px solid {{ loginPwBorder }};border-radius:7px;padding:11px 13px;font-size:13.5px;outline-color:#C8960C;margin-bottom:6px;">
         <sc-if value="{{ loginErr }}" hint-placeholder-val="{{ false }}">
-          <div style="font-size:12px;color:#9B2C2C;font-weight:600;margin-bottom:6px;">Enter your password to continue (any password works in this demo).</div>
+          <div style="font-size:12px;color:#9B2C2C;font-weight:600;margin-bottom:6px;">{{ loginErrMsg }}</div>
         </sc-if>
         <div style="text-align:right;margin-bottom:4px;">
           <button onClick="{{ toggleForgot }}" style="background:none;border:none;font-size:11.5px;color:#C8960C;font-weight:700;cursor:pointer;padding:0;">Forgot password?</button>
         </div>
         <sc-if value="{{ showForgotOms }}" hint-placeholder-val="{{ false }}">
           <div style="background:#EAF0F7;border:1px solid #D3E0EF;border-radius:8px;padding:11px 13px;margin-bottom:10px;">
-            <div style="font-size:11.5px;font-weight:600;color:#0D2B4E;margin-bottom:7px;">We'll send a reset link to {{ roleEmail }}.</div>
+            <div style="font-size:11.5px;font-weight:600;color:#0D2B4E;margin-bottom:7px;">We'll send a reset link to {{ loginEmail }}.</div>
             <button onClick="{{ sendOmsReset }}" style="width:100%;background:#0D2B4E;color:#FFFFFF;border:none;font-size:12px;font-weight:700;padding:8px;border-radius:6px;cursor:pointer;">{{ omsResetLabel }}</button>
           </div>
         </sc-if>
         <button onClick="{{ doLogin }}" style="width:100%;margin-top:10px;background:#C8960C;color:#FFFFFF;border:none;font-size:14.5px;font-weight:700;padding:13px;border-radius:8px;cursor:pointer;" style-hover="background:#B5860A;">Sign in</button>
-        <div style="margin-top:16px;background:#F5F7FA;border-radius:8px;padding:11px 14px;font-size:11.5px;color:#6B7684;font-weight:500;line-height:1.6;">Your role is detected automatically: <strong style="color:#0D2B4E;">{{ loginRoleHint }}</strong></div>
+        <div style="margin-top:16px;background:#F5F7FA;border-radius:8px;padding:11px 14px;font-size:11.5px;color:#6B7684;font-weight:500;line-height:1.6;">Start typing your email — we'll show which dashboard it opens before you sign in.</div>
       </div>
       <p style="font-size:11px;color:#5F7797;margin:16px 0 0 0;text-align:center;line-height:1.6;">Client accounts are fully separated from staff accounts.<br>All sign-ins are audit-logged.</p>
     </div>
@@ -3101,10 +3104,12 @@ class Component extends StreamableLogic {
       // ---- login ----
       isLogin: true,
       isApp: false,
-      pendingRoleId: 'director',
-      roleMenuOpen: false,
+      loginEmail: '',
       loginPw: '',
+      loginPwVisible: false,
       loginErr: false,
+      loginErrMsg: '',
+      roleHint: null,
       showForgotOms: false,
       omsResetSent: false,
 
@@ -3453,22 +3458,67 @@ class Component extends StreamableLogic {
   closeMobileDrawer() { this.setState({ mobileDrawerOpen: false }); }
 
   // ---- login ----
-  chooseRole(id) { this.setState({ pendingRoleId: id, roleMenuOpen: false, loginErr: false }); }
-  toggleRoleMenu() { this.setState(s => ({ roleMenuOpen: !s.roleMenuOpen })); }
+  // Email-driven role detection: as the person types, a debounced lookup
+  // (GET /api/auth/role-hint) tells us which real account that email
+  // belongs to, purely so the "Signing in as ... · <role>" preview can show
+  // before submit. It is a UX preview only — it never sees a password, and
+  // real authentication below still runs the actual email+password check.
+  onLoginEmail(e) {
+    const value = (e && e.target) ? e.target.value : e;
+    this.setState({ loginEmail: value, loginErr: false });
+    this.scheduleRoleHintLookup(value);
+  }
+  scheduleRoleHintLookup(rawEmail) {
+    clearTimeout(this._roleHintTimer);
+    const email = (rawEmail || '').trim().toLowerCase();
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      // Not email-shaped yet — clear any stale hint without a network call
+      // (and without treating an incomplete address as a hard error).
+      this.setState({ roleHint: null });
+      return;
+    }
+    this._roleHintTimer = setTimeout(() => this.lookupRoleHint(email), 350);
+  }
+  lookupRoleHint(email) {
+    this.apiGet('/api/auth/role-hint?email=' + encodeURIComponent(email)).then((data) => {
+      // Guard against a slow response landing after the person kept typing
+      // (or cleared the field) — never apply a hint for a stale query.
+      if ((this.state.loginEmail || '').trim().toLowerCase() !== email) return;
+      this.setState({ roleHint: (data && data.found) ? { displayName: data.displayName, role: data.role } : null });
+    });
+  }
+  togglePwVisible() { this.setState(s => ({ loginPwVisible: !s.loginPwVisible })); }
   onLoginPw(v) { this.setState({ loginPw: (v && v.target) ? v.target.value : v, loginErr: false }); }
   toggleForgot() { this.setState(s => ({ showForgotOms: !s.showForgotOms, omsResetSent: false })); }
   sendOmsReset() { this.setState({ omsResetSent: true }); }
   doLogin() {
+    const email = (this.state.loginEmail || '').trim().toLowerCase();
     const pw = this.state.loginPw || '';
-    if (!pw) { this.setState({ loginErr: true }); return; }
-    const role = this.ROLES.find(r => r.id === this.state.pendingRoleId) || this.ROLES[0];
+    if (!email || !pw) {
+      this.setState({ loginErr: true, loginErrMsg: 'Enter your email and password to continue.' });
+      return;
+    }
     this.setState({ loading: true });
-    this.apiSend('/api/auth/login', 'POST', { email: role.email, password: pw }).then(({ ok, data }) => {
-      if (!ok) { this.setState({ loginErr: true, loading: false }); return; }
-      const matchedRole = this.ROLES.find(r => r.email === data.user.email) || role;
+    // Real authentication — the role hint above is only ever a preview; the
+    // server independently re-verifies email+password here exactly as
+    // before, and the role/dashboard shown after login comes from the
+    // server's response, never from the pre-submit hint.
+    this.apiSend('/api/auth/login', 'POST', { email, password: pw }).then(({ ok, status, data }) => {
+      if (!ok) {
+        // 401/400 = a real bad email+password combo; anything else (503,
+        // network failure, etc.) is an infra problem, not a wrong password
+        // — worth telling the person apart so they don't waste time
+        // retyping a password that was never the issue.
+        const msg = (status === 401 || status === 400)
+          ? ((data && data.error) || 'Incorrect email or password.')
+          : 'Something went wrong on our end. Please try again in a moment.';
+        this.setState({ loginErr: true, loginErrMsg: msg, loading: false });
+        return;
+      }
+      const matchedRole = this.ROLES.find(r => r.email === data.user.email) || this.ROLES.find(r => r.id === 'employee');
       this.setState({
         isLogin: false, isApp: true, currentRoleId: matchedRole.id, activeScreen: matchedRole.landing,
-        loginPw: '', loginErr: false, roleMenuOpen: false, loading: false, sessionUser: data.user
+        loginPw: '', loginErr: false, loginPwVisible: false, loading: false, sessionUser: data.user, roleHint: null
       });
       this.loadPhase1Data(matchedRole, data.user);
     });
@@ -3476,8 +3526,8 @@ class Component extends StreamableLogic {
   signOut() {
     this.apiSend('/api/auth/logout', 'POST');
     this.setState({
-      isLogin: true, isApp: false, currentRoleId: null, loginPw: '', loginErr: false,
-      pendingRoleId: this.state.pendingRoleId || 'director', sessionUser: null,
+      isLogin: true, isApp: false, currentRoleId: null, loginEmail: '', loginPw: '', loginPwVisible: false,
+      loginErr: false, roleHint: null, sessionUser: null,
       apiEmployees: [], apiDocuments: [], apiLeaveAll: [], apiMyLeave: [], apiAttendanceToday: [],
       apiMyAttendance: null, apiPayrollRuns: [], apiMyPayslips: [], apiRoster: null, apiMyRoster: []
     });
@@ -3786,14 +3836,8 @@ class Component extends StreamableLogic {
     const greeting = hh < 12 ? 'Good morning' : hh < 17 ? 'Good afternoon' : 'Good evening';
     const todayStr = 'Wednesday, 22 July 2026';
 
-    // ---- role picker ----
-    const roleOptions = this.ROLES.map(r => ({
-      email: r.email, role: r.role,
-      bg: r.id === s.pendingRoleId ? '#F5F7FA' : '#FFFFFF',
-      emailColor: '#0D2B4E', roleColor: '#0D2B4E', pillBg: '#EAF0F7',
-      select: () => this.chooseRole(r.id)
-    }));
-    const pendingRole = this.ROLES.find(r => r.id === s.pendingRoleId) || this.ROLES[0];
+    // ---- login: email-driven role hint ----
+    const roleHint = s.roleHint;
 
     // ---- nav ----
     let navGroups = [];
@@ -4630,14 +4674,18 @@ class Component extends StreamableLogic {
     return {
       // login
       isLogin: s.isLogin, isApp: s.isApp,
-      roleMenuOpen: s.roleMenuOpen, roleMenuBorder: s.roleMenuOpen ? '#C8960C' : '#D8DFE7',
-      roleEmail: pendingRole.email, loginRole: pendingRole.role, roleCaret: s.roleMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-      roleOptions, toggleRoleMenu: () => this.toggleRoleMenu(),
+      loginEmail: s.loginEmail, onLoginEmail: (e) => this.onLoginEmail(e),
+      loginEmailBorder: s.loginErr ? '#9B2C2C' : '#D8DFE7',
+      roleHintVisible: !!roleHint,
+      roleHintInitials: roleHint ? this.initials(roleHint.displayName || roleHint.role) : '',
+      roleHintName: roleHint ? (roleHint.displayName || roleHint.role) : '',
+      roleHintRoleLabel: roleHint ? roleHint.role : '',
       loginPw: s.loginPw, onLoginPw: (e) => this.onLoginPw(e), loginPwBorder: s.loginErr ? '#9B2C2C' : '#D8DFE7',
-      loginErr: s.loginErr, doLogin: () => this.doLogin(),
+      loginPwFieldType: s.loginPwVisible ? 'text' : 'password',
+      loginPwVisible: s.loginPwVisible, loginPwHidden: !s.loginPwVisible, togglePwVisible: () => this.togglePwVisible(),
+      loginErr: s.loginErr, loginErrMsg: s.loginErrMsg, doLogin: () => this.doLogin(),
       toggleForgot: () => this.toggleForgot(), showForgotOms: s.showForgotOms, sendOmsReset: () => this.sendOmsReset(),
       omsResetLabel: s.omsResetSent ? 'Reset link sent ✓' : 'Send reset link',
-      loginRoleHint: pendingRole.role + ' (' + pendingRole.email + ')',
 
       // app shell
       showToast: s.showToast, toastMsg: s.toastMsg,
