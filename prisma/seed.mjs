@@ -18,6 +18,7 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { SEED_PASSWORD } from '../lib/demo-seed-constants.js';
+import { encryptSecret } from '../lib/vault-crypto.js';
 
 const prisma = new PrismaClient();
 
@@ -606,6 +607,243 @@ async function main() {
         decidedAt: p.status !== 'PENDING' ? new Date() : null,
       },
     });
+  }
+
+  // ============== Phase 4 (Growth & Finance) ==============
+
+  console.log('Seeding Sales & CRM pipeline (deals across all 5 stages)...');
+  const bd = users.BUSINESS_DEVELOPMENT;
+  const dealDefs = [
+    { company: 'Coastline Insurance', contactName: 'Efua Owusu', contactEmail: 'efua.owusu@coastline.example.com', contactPhone: '024 100 2001', region: 'Accra', serviceDesc: 'Claims support, 24/7, 12 agents', valueAmount: 7200, currency: '$', source: 'Website', stage: 'NEW_ENQUIRY' },
+    { company: 'Savannah Microfinance', contactName: 'Kwesi Mensah', contactEmail: 'kwesi.mensah@savannahmf.example.com', contactPhone: '020 200 3002', region: 'Kumasi', serviceDesc: 'Collections desk, 6 agents', valueAmount: 3600, currency: '$', source: 'Referral', stage: 'QUALIFIED' },
+    { company: 'Gulf Freight Gh', contactName: 'Ama Tetteh', contactEmail: 'ama.tetteh@gulffreight.example.com', contactPhone: '027 300 4003', region: 'Takoradi', serviceDesc: 'Dispatch & tracking, 8 agents', valueAmount: 5100, currency: '$', source: 'Website', stage: 'PROPOSAL_SENT' },
+    { company: 'Kente Retail Group', contactName: 'Kojo Appiah', contactEmail: 'kojo.appiah@kenteretail.example.com', contactPhone: '055 400 5004', region: 'Tema', serviceDesc: 'Customer care, 10 agents', valueAmount: 6400, currency: '$', source: 'Outbound', stage: 'NEGOTIATION' },
+    { company: 'Northline Traders', contactName: 'Abena Osei', contactEmail: 'abena.osei@northline.example.com', contactPhone: '024 500 6005', region: 'Tamale', serviceDesc: 'General helpdesk, 4 agents', valueAmount: 2200, currency: '$', source: 'Outbound', stage: 'LOST', lostReason: 'Went with an in-house team' },
+    // Two WON deals, each converted to a real Client with its own Contract +
+    // JobOpening + CLIENT portal login — the seed data needed to actually
+    // test cross-client isolation (see report/verification notes).
+    { company: 'Zanzu Telecom', contactName: 'Yaa Adjei', contactEmail: 'yaa.adjei@zanzutelecom.example.com', contactPhone: '024 600 7006', region: 'Accra', serviceDesc: 'Billing helpdesk, 14 agents', valueAmount: 8900, currency: '$', source: 'Website', stage: 'WON', convert: true, portalEmail: 'client@zanzutelecom.example.com', staffEmployee: 'Kojo Bediako' },
+    { company: 'PrimeCare Health', contactName: 'Nana Kwarteng', contactEmail: 'nana.kwarteng@primecarehealth.example.com', contactPhone: '020 700 8007', region: 'Kumasi', serviceDesc: 'Healthcare patient support, 8 agents', valueAmount: 5400, currency: 'GH₵', source: 'Referral', stage: 'WON', convert: true, portalEmail: 'client@primecarehealth.example.com', staffEmployee: 'Yaw Asante' },
+  ];
+  const deals = {};
+  for (const def of dealDefs) {
+    let deal = await prisma.deal.findFirst({ where: { company: def.company, serviceDesc: def.serviceDesc } });
+    if (!deal) {
+      deal = await prisma.deal.create({
+        data: {
+          company: def.company, contactName: def.contactName, contactEmail: def.contactEmail, contactPhone: def.contactPhone,
+          region: def.region, serviceDesc: def.serviceDesc, valueAmount: def.valueAmount, currency: def.currency,
+          source: def.source, stage: def.stage, lostReason: def.lostReason || null, createdByUserId: bd.id,
+        },
+      });
+    }
+    deals[def.company] = { deal, def };
+  }
+
+  console.log('Seeding a couple of contact log entries...');
+  const contactLogDefs = [
+    { company: 'Gulf Freight Gh', type: 'CALL', note: 'Initial discovery call — confirmed 8-agent dispatch desk scope.' },
+    { company: 'Kente Retail Group', type: 'EMAIL', note: 'Sent revised pricing after their counter-offer.' },
+    { company: 'Zanzu Telecom', type: 'MEETING', note: 'Contract signing meeting — deal closed.' },
+  ];
+  for (const c of contactLogDefs) {
+    const dealId = deals[c.company].deal.id;
+    const exists = await prisma.dealContactLog.findFirst({ where: { dealId, note: c.note } });
+    if (exists) continue;
+    await prisma.dealContactLog.create({ data: { dealId, type: c.type, note: c.note, createdByUserId: bd.id } });
+  }
+
+  console.log('Converting won deals to real Clients (+ Contract + JobOpening + Client Portal login)...');
+  const clients = {};
+  for (const def of dealDefs.filter((d) => d.convert)) {
+    let { deal } = deals[def.company];
+    let client;
+    if (deal.convertedClientId) {
+      // Already converted by a previous seed run — idempotent, just fetch it.
+      client = await prisma.client.findUnique({ where: { id: deal.convertedClientId } });
+    } else {
+      const startDate = new Date();
+      const renewalDueDate = new Date(startDate);
+      renewalDueDate.setFullYear(renewalDueDate.getFullYear() + 1);
+      const result = await prisma.$transaction(async (tx) => {
+        const newClient = await tx.client.create({
+          data: {
+            name: def.company, region: def.region, industry: def.serviceDesc,
+            currency: def.currency === '$' ? '$' : 'GH₵', status: 'ACTIVE', health: 'GOOD',
+            slaTargetPct: 92,
+          },
+        });
+        await tx.contract.create({
+          data: {
+            type: 'CLIENT', clientId: newClient.id, title: `${def.company} — Service Agreement`,
+            value: def.valueAmount, currency: def.currency === '$' ? '$' : 'GH₵', startDate, renewalDueDate,
+            status: 'ACTIVE', notes: `Auto-created from won deal (${def.serviceDesc}).`, createdByUserId: bd.id,
+          },
+        });
+        await tx.jobOpening.create({
+          data: { title: `Support Agent · ${def.company}`, branch: 'Accra HQ', status: 'OPEN', openings: 1, createdByUserId: bd.id },
+        });
+        const updatedDeal = await tx.deal.update({ where: { id: deal.id }, data: { convertedClientId: newClient.id, convertedAt: new Date() } });
+        return { newClient, updatedDeal };
+      });
+      client = result.newClient;
+      deal = result.updatedDeal;
+    }
+    clients[def.company] = client;
+
+    // Real portal login — same shared demo password as every other seeded
+    // account (see SEED_PASSWORD), upserted on email so reruns don't fail.
+    await prisma.user.upsert({
+      where: { email: def.portalEmail },
+      update: { role: 'CLIENT', clientId: client.id },
+      create: { email: def.portalEmail, passwordHash, role: 'CLIENT', clientId: client.id },
+    });
+
+    // Assign a real, already-seeded employee (with real Attendance/QaAudit
+    // history from Phase 1/2 seeding) to this client's roster, so the
+    // Client Portal shows genuinely distinguishable data per client — the
+    // actual precondition for testing cross-client isolation with 2+ live
+    // clients, not just 2 empty shells.
+    if (def.staffEmployee && employees[def.staffEmployee]) {
+      await prisma.employee.update({ where: { id: employees[def.staffEmployee].id }, data: { clientId: client.id } });
+    }
+  }
+
+  console.log('Seeding Contracts register (STAFF + VENDOR entries, alongside the auto-created CLIENT ones above)...');
+  const soonRenewal = new Date(today);
+  soonRenewal.setDate(soonRenewal.getDate() + 30); // within 60 days -> shows as RENEWAL_DUE
+  const contractDefs = [
+    {
+      type: 'STAFF', title: 'Employment Contract — Kwame Owusu', employeeId: employees['Kwame Owusu'] ? employees['Kwame Owusu'].id : null,
+      value: 3600, currency: 'GH₵', startDate: new Date('2023-06-01'), renewalDueDate: soonRenewal, notes: 'Annual staff contract, up for renewal.',
+    },
+    {
+      type: 'VENDOR', title: 'Cloud Hosting Agreement', vendorName: 'AWS (Amazon Web Services)',
+      value: 1200, currency: '$', startDate: new Date('2024-01-01'), renewalDueDate: null, notes: 'Rolling monthly cloud infrastructure agreement.',
+    },
+  ];
+  for (const c of contractDefs) {
+    const exists = await prisma.contract.findFirst({ where: { title: c.title } });
+    if (exists) continue;
+    await prisma.contract.create({
+      data: {
+        type: c.type, title: c.title, employeeId: c.employeeId || null, vendorName: c.vendorName || null,
+        value: c.value, currency: c.currency, startDate: c.startDate, renewalDueDate: c.renewalDueDate,
+        notes: c.notes, createdByUserId: users.DIRECTOR.id,
+      },
+    });
+  }
+
+  console.log('Seeding Finance expense ledger (manual entries)...');
+  const expenseDefs = [
+    { category: 'Rent', description: 'Accra HQ office rent — July', amount: 3500, currency: 'GH₵' },
+    { category: 'Utilities', description: 'Internet & phone lines — July', amount: 450, currency: 'GH₵' },
+  ];
+  const expenses = {};
+  for (const e of expenseDefs) {
+    let expense = await prisma.expense.findFirst({ where: { description: e.description } });
+    if (!expense) {
+      expense = await prisma.expense.create({
+        data: { category: e.category, description: e.description, amount: e.amount, currency: e.currency, source: 'MANUAL', createdByUserId: users.ACCOUNTANT.id },
+      });
+    }
+    expenses[e.description] = expense;
+  }
+
+  console.log('Seeding bank statement lines (one reconciled, one outstanding)...');
+  const bankLineDefs = [
+    { description: 'POS DEBIT — OFFICE RENT LTD', amount: 3500, matchTo: 'Accra HQ office rent — July' },
+    { description: 'MOMO DEPOSIT — UNKNOWN REF 88213', amount: 1200, matchTo: null },
+  ];
+  for (const l of bankLineDefs) {
+    const exists = await prisma.bankStatementLine.findFirst({ where: { description: l.description } });
+    if (exists) continue;
+    await prisma.bankStatementLine.create({
+      data: {
+        date: today, description: l.description, amount: l.amount,
+        importedByUserId: users.ACCOUNTANT.id,
+        matchedExpenseId: l.matchTo ? expenses[l.matchTo].id : null,
+        matchedByUserId: l.matchTo ? users.ACCOUNTANT.id : null,
+        matchedAt: l.matchTo ? new Date() : null,
+      },
+    });
+  }
+
+  console.log('Seeding statutory tax/filing calendar (PAYE, SSNIT, VAT, corporate tax)...');
+  const thisPeriod = period; // "YYYY-MM", already computed above for payroll
+  const nextMonthDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const nextPeriod = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`;
+  const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const prevPeriod = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+  // GRA-style due dates: PAYE/SSNIT by the 14th/15th of the FOLLOWING month;
+  // VAT by the last day of the following month; corporate tax quarterly.
+  const dueInFollowingMonth = (periodStr, day) => {
+    const [y, m] = periodStr.split('-').map(Number);
+    return new Date(y, m, day); // JS Date month is 0-based, so `m` (1-based) IS next month
+  };
+  const taxFilingDefs = [
+    { type: 'PAYE', period: prevPeriod, dueDate: dueInFollowingMonth(prevPeriod, 14), amount: 12500, filed: true },
+    { type: 'SSNIT', period: prevPeriod, dueDate: dueInFollowingMonth(prevPeriod, 15), amount: 18700, filed: true },
+    { type: 'PAYE', period: thisPeriod, dueDate: dueInFollowingMonth(thisPeriod, 14), amount: null, filed: false },
+    { type: 'SSNIT', period: thisPeriod, dueDate: dueInFollowingMonth(thisPeriod, 15), amount: null, filed: false },
+    { type: 'VAT', period: thisPeriod, dueDate: dueInFollowingMonth(thisPeriod, 28), amount: null, filed: false },
+    { type: 'CORPORATE_TAX', period: `${today.getFullYear()}-Q${Math.ceil((today.getMonth() + 1) / 3)}`, dueDate: new Date(today.getFullYear(), today.getMonth() + 2, 0), amount: null, filed: false },
+    { type: 'PAYE', period: nextPeriod, dueDate: dueInFollowingMonth(nextPeriod, 14), amount: null, filed: false },
+    { type: 'SSNIT', period: nextPeriod, dueDate: dueInFollowingMonth(nextPeriod, 15), amount: null, filed: false },
+  ];
+  for (const f of taxFilingDefs) {
+    await prisma.taxFiling.upsert({
+      where: { type_period: { type: f.type, period: f.period } },
+      update: {},
+      create: {
+        type: f.type, period: f.period, dueDate: f.dueDate, amount: f.amount, filed: f.filed,
+        filedAt: f.filed ? new Date() : null, filedByUserId: f.filed ? users.ACCOUNTANT.id : null,
+      },
+    });
+  }
+
+  console.log('Seeding Credentials Vault (encrypted at rest)...');
+  try {
+    const vaultDefs = [
+      { system: 'Company bank portal', category: 'BANKING', username: 'finance.ops', password: 'B4nk!Kv92Xz' },
+      { system: 'GRA e-filing', category: 'GOVERNMENT', username: 'oba-taxadmin', password: 'Gr@Ghana#25' },
+      { system: 'SSNIT employer portal', category: 'GOVERNMENT', username: 'oba-ssnit', password: 'Ssn1t-Emp88' },
+      { system: 'AWS console', category: 'SOFTWARE', username: 'root-oba-it', password: 'Aw$0perations1' },
+      { system: 'Company LinkedIn', category: 'SOCIAL', username: 'oba.social', password: 'link3d1nOBA' },
+    ];
+    const strengthOf = (pw) => {
+      let score = 0;
+      if (pw.length >= 12) score += 1;
+      if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score += 1;
+      if (/\d/.test(pw)) score += 1;
+      if (/[^A-Za-z0-9]/.test(pw)) score += 1;
+      return score >= 4 ? 'Strong' : score >= 2 ? 'Medium' : 'Weak';
+    };
+    for (const v of vaultDefs) {
+      const exists = await prisma.vaultCredential.findFirst({ where: { system: v.system, username: v.username } });
+      if (exists) continue;
+      const enc = encryptSecret(v.password);
+      await prisma.vaultCredential.create({
+        data: {
+          system: v.system, category: v.category, username: v.username,
+          encIv: enc.iv, encTag: enc.tag, encData: enc.data, strength: strengthOf(v.password),
+          createdByUserId: users.IT_FACILITIES.id,
+        },
+      });
+    }
+  } catch (err) {
+    // Never let a missing/misconfigured VAULT_ENCRYPTION_KEY take down the
+    // ENTIRE deploy (this seed script's failure is fatal to the whole build
+    // per scripts/vercel-build.mjs) — the Vault feature itself already fails
+    // loudly and safely at request time (see app/api/vault routes' own 503
+    // handling) if this env var isn't set; that's the right place for this
+    // to be visible, not here blocking login/payroll/every other feature.
+    console.warn(
+      '\n[seed] WARNING: could not seed Credentials Vault rows — VAULT_ENCRYPTION_KEY is likely ' +
+      'missing or invalid in this environment. The rest of the seed completed fine; the Vault ' +
+      'screen will just be empty (and its add/reveal routes will 503) until that env var is set. ' +
+      'Error: ' + String((err && err.message) || err) + '\n'
+    );
   }
 
   console.log('\nSeed complete.');

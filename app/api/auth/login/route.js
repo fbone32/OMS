@@ -21,6 +21,9 @@ function publicUser(user) {
     // seeded demo personas (see Component.resolveRole in public/index.html).
     employeeBranch: user.employee ? user.employee.branch : null,
     employeeJobTitle: user.employee ? user.employee.jobTitle : null,
+    // Phase 4 (Client Portal) — only ever set for Role=CLIENT accounts.
+    clientId: user.clientId || null,
+    clientName: user.client ? user.client.name : null,
   };
 }
 

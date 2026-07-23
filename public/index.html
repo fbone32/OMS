@@ -652,7 +652,16 @@
               <div style="font-size:21px;font-weight:800;color:#FFFFFF;margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">Client: {{ portalClientName }} <span style="background:rgba(255,255,255,0.14);color:{{ portalClientHealthColor }};font-size:11px;font-weight:800;padding:3px 11px;border-radius:99px;">{{ portalClientHealth }}</span></div>
               <div style="font-size:12.5px;color:#9FB0C4;font-weight:500;margin-top:4px;">{{ portalClientRegion }} · 24/7 coverage · Managed by Open Base Africa</div>
             </div>
-            <button style="position:relative;background:#C8960C;color:#FFFFFF;border:none;font-size:13px;font-weight:700;padding:12px 20px;border-radius:8px;cursor:pointer;white-space:nowrap;" style-hover="background:#B5860A;">↓ Executive report · June 2026</button>
+            <div style="position:relative;display:flex;gap:10px;align-items:center;">
+              <sc-if value="{{ portalIsInternal }}" hint-placeholder-val="{{ true }}">
+                <select value="{{ portalClientSel }}" onChange="{{ onPortalClientSel }}" style="border:1px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.08);color:#FFFFFF;font-size:12.5px;font-weight:700;padding:10px 12px;border-radius:8px;">
+                  <sc-for list="{{ portalClientsList }}" as="cl" hint-placeholder-count="2">
+                    <option value="{{ cl.value }}">{{ cl.label }}</option>
+                  </sc-for>
+                </select>
+              </sc-if>
+              <button onClick="{{ downloadPortalReport }}" style="background:#C8960C;color:#FFFFFF;border:none;font-size:13px;font-weight:700;padding:12px 20px;border-radius:8px;cursor:pointer;white-space:nowrap;" style-hover="background:#B5860A;">↓ Download report (CSV)</button>
+            </div>
           </div>
 
           <!-- Portal KPIs -->
@@ -1844,6 +1853,18 @@
 
       <!-- ======== INVOICES ======== -->
       <sc-if value="{{ isInvoices }}" hint-placeholder-val="{{ false }}">
+        <div>
+        <!-- Finance sub-nav (Phase 4): Invoices stays the existing screen;
+             P&L / Expense Ledger / Bank Reconciliation / Tax Calendar are
+             real, Postgres-backed additions living as tabs of this same
+             Finance area, per the brief's "Finance/Invoices screens". -->
+        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
+          <sc-for list="{{ financeTabs }}" as="ft" hint-placeholder-count="5">
+            <button onClick="{{ ft.select }}" style="background:{{ ft.bg }};color:{{ ft.color }};border:1px solid {{ ft.border }};font-size:12px;font-weight:700;padding:8px 16px;border-radius:99px;cursor:pointer;">{{ ft.label }}</button>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ isFinTabInvoices }}" hint-placeholder-val="{{ true }}">
         <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:14px;align-items:start;">
           <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-top:3px solid #C8960C;border-radius:10px;overflow:hidden;">
             <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">New invoice</div>
@@ -1912,6 +1933,121 @@
               </sc-for>
             </div>
           </div>
+        </div>
+        </sc-if>
+
+        <!-- ==== P&L (Phase 4 · real: revenue = active client Contracts, expenses = real Expense ledger incl. PAYROLL/PROCUREMENT feeds) ==== -->
+        <sc-if value="{{ isFinTabPnl }}" hint-placeholder-val="{{ false }}">
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px;">
+            <div style="background:#0D2B4E;border-radius:10px;padding:16px 18px;"><div style="font-size:10.5px;font-weight:800;color:#9FB0C4;letter-spacing:0.07em;">REVENUE (RECURRING)</div><div style="font-size:24px;font-weight:800;color:#C8960C;margin-top:6px;">{{ pnl.revenue }}</div><div style="font-size:11px;color:#9FB0C4;font-weight:500;margin-top:4px;">{{ pnl.revenueContractCount }} active client contract(s)</div></div>
+            <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;padding:16px 18px;"><div style="font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.07em;">TOTAL EXPENSES</div><div style="font-size:24px;font-weight:800;color:#9B2C2C;margin-top:6px;">{{ pnl.totalExpenses }}</div><div style="font-size:11px;color:#6B7684;font-weight:500;margin-top:4px;">payroll + procurement + manual</div></div>
+            <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;padding:16px 18px;"><div style="font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.07em;">NET INCOME</div><div style="font-size:24px;font-weight:800;color:{{ pnl.netColor }};margin-top:6px;">{{ pnl.netIncome }}</div><div style="font-size:11px;color:#6B7684;font-weight:500;margin-top:4px;">revenue − expenses</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+            <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
+              <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Expenses by category</div>
+              <sc-for list="{{ pnl.byCategory }}" as="c" hint-placeholder-count="4">
+                <div style="padding:11px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;font-size:12.5px;"><span style="font-weight:600;color:#1F2A37;">{{ c.category }}</span><span style="font-weight:800;color:#0D2B4E;">{{ c.amount }}</span></div>
+              </sc-for>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
+              <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Expenses by source</div>
+              <div style="padding:11px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;font-size:12.5px;"><span style="font-weight:600;color:#1F2A37;">Payroll (auto-posted on approval)</span><span style="font-weight:800;color:#0D2B4E;">{{ pnl.bySourcePayroll }}</span></div>
+              <div style="padding:11px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;font-size:12.5px;"><span style="font-weight:600;color:#1F2A37;">Procurement (auto-posted on receipt)</span><span style="font-weight:800;color:#0D2B4E;">{{ pnl.bySourceProcurement }}</span></div>
+              <div style="padding:11px 18px;display:flex;justify-content:space-between;font-size:12.5px;"><span style="font-weight:600;color:#1F2A37;">Manual entries</span><span style="font-weight:800;color:#0D2B4E;">{{ pnl.bySourceManual }}</span></div>
+            </div>
+          </div>
+          <sc-if value="{{ payRunApprovable }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#FBF3DF;border:1px solid #EAD9A8;border-radius:8px;padding:11px 16px;margin-top:14px;font-size:12.5px;font-weight:600;color:#8A6508;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span>This month's payroll run is still a draft — approving it posts its real cost to this P&amp;L automatically.</span>
+              <button onClick="{{ approvePayrollRun }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:11.5px;font-weight:700;padding:8px 16px;border-radius:6px;cursor:pointer;white-space:nowrap;">Approve payroll run</button>
+            </div>
+          </sc-if>
+        </sc-if>
+
+        <!-- ==== Expense Ledger (Phase 4 · real, add-expense action) ==== -->
+        <sc-if value="{{ isFinTabExpenses }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-top:3px solid #C8960C;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;color:#0D2B4E;margin-bottom:10px;">Add expense</div>
+            <div style="display:grid;grid-template-columns:1fr 1.5fr 0.8fr auto;gap:9px;">
+              <input value="{{ expCategory }}" onInput="{{ onExpCategory }}" placeholder="Category (e.g. Rent)" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <input value="{{ expDesc }}" onInput="{{ onExpDesc }}" placeholder="Description" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <input value="{{ expAmount }}" onInput="{{ onExpAmount }}" placeholder="Amount" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <button onClick="{{ addExpense }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:12px;font-weight:700;padding:9px 16px;border-radius:7px;cursor:pointer;white-space:nowrap;">Add</button>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+              <thead><tr>
+                <th scope="col" style="text-align:left;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">DATE</th>
+                <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">CATEGORY</th>
+                <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">DESCRIPTION</th>
+                <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">SOURCE</th>
+                <th scope="col" style="text-align:right;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">AMOUNT</th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ expensesVals }}" as="e" hint-placeholder-count="5">
+                  <tr>
+                    <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ e.date }}</td>
+                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;font-weight:700;color:#0D2B4E;">{{ e.category }}</td>
+                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:500;">{{ e.description }}</td>
+                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ e.source }}</td>
+                    <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;text-align:right;font-weight:800;color:#0D2B4E;">{{ e.amount }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </sc-if>
+
+        <!-- ==== Bank Reconciliation (Phase 4 · real: match statement lines to ledger entries) ==== -->
+        <sc-if value="{{ isFinTabBankRec }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-top:3px solid #C8960C;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;color:#0D2B4E;margin-bottom:10px;">Import bank statement line</div>
+            <div style="display:grid;grid-template-columns:1.5fr 1fr auto;gap:9px;">
+              <input value="{{ bankDesc }}" onInput="{{ onBankDesc }}" placeholder="Description" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <input value="{{ bankAmount }}" onInput="{{ onBankAmount }}" placeholder="Amount" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <button onClick="{{ importBankLine }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:12px;font-weight:700;padding:9px 16px;border-radius:7px;cursor:pointer;white-space:nowrap;">Import</button>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
+            <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Statement lines</div>
+            <sc-for list="{{ bankLinesVals }}" as="l" hint-placeholder-count="4">
+              <div style="padding:12px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div><div style="font-size:12.5px;font-weight:700;color:#0D2B4E;">{{ l.description }}</div><div style="font-size:11px;color:#6B7684;font-weight:500;margin-top:2px;">{{ l.date }} · GH₵ {{ l.amount }} {{ l.matchedDesc }}</div></div>
+                <sc-if value="{{ l.reconciled }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:8px;"><span style="background:#E6F0EB;color:#2E6B4F;font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;">RECONCILED</span><button onClick="{{ l.unmatch }}" style="background:#FFFFFF;border:1px solid #D8DFE7;color:#0D2B4E;font-size:10.5px;font-weight:700;padding:5px 11px;border-radius:6px;cursor:pointer;">Unmatch</button></div>
+                </sc-if>
+                <sc-if value="{{ l.unreconciled }}" hint-placeholder-val="{{ true }}">
+                  <select value="{{ blankStr }}" onChange="{{ l.onMatchSelect }}" style="border:1px solid #D8DFE7;border-radius:7px;padding:7px 9px;font-size:11.5px;background-color:#FFFFFF;max-width:220px;">
+                    <option value="">Match to ledger entry…</option>
+                    <sc-for list="{{ unmatchedExpenseOpts }}" as="ux" hint-placeholder-count="3">
+                      <option value="{{ ux.value }}">{{ ux.label }}</option>
+                    </sc-for>
+                  </select>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ==== Tax / Filing Calendar (Phase 4 · real: PAYE/SSNIT/VAT/corporate tax due dates + filed status) ==== -->
+        <sc-if value="{{ isFinTabTaxCal }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
+            <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Statutory filing calendar</div>
+            <sc-for list="{{ taxFilingsVals }}" as="f" hint-placeholder-count="4">
+              <div style="padding:13px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div><div style="font-size:13px;font-weight:700;color:#0D2B4E;">{{ f.type }} · {{ f.period }}</div><div style="font-size:11.5px;color:#6B7684;font-weight:500;margin-top:2px;">Due {{ f.dueDate }}</div></div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <sc-if value="{{ f.notFiled }}" hint-placeholder-val="{{ true }}">
+                    <button onClick="{{ f.markFiled }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:10.5px;font-weight:700;padding:6px 12px;border-radius:6px;cursor:pointer;">Mark filed</button>
+                  </sc-if>
+                  <span style="background:{{ f.stBg }};color:{{ f.stColor }};font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ f.stLabel }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
         </div>
       </sc-if>
 
@@ -2285,7 +2421,7 @@
               <tbody>
                 <sc-for list="{{ vaultList }}" as="v" hint-placeholder-count="6">
                   <tr>
-                    <td style="padding:11px 18px;border-bottom:1px solid #EEF1F4;"><span style="display:block;font-weight:700;color:#0D2B4E;">{{ v.system }}</span><span style="font-size:10.5px;color:#9AA4B0;font-weight:600;">{{ v.cat }} · rotated {{ v.rotated }}</span></td>
+                    <td style="padding:11px 18px;border-bottom:1px solid #EEF1F4;"><span style="display:block;font-weight:700;color:#0D2B4E;">{{ v.system }}</span><span style="font-size:10.5px;color:#9AA4B0;font-weight:600;">{{ v.cat }}</span></td>
                     <td style="padding:11px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:600;font-family:'DejaVu Sans Mono',ui-monospace,monospace;">{{ v.user }}</td>
                     <td style="padding:11px 10px;border-bottom:1px solid #EEF1F4;">
                       <div style="display:flex;align-items:center;gap:8px;">
@@ -2304,10 +2440,14 @@
           <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-top:3px solid #C8960C;border-radius:12px;overflow:hidden;">
             <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Add a credential</div>
             <div style="padding:16px 18px;">
-              <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px;">
+              <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 0.8fr;gap:10px;">
                 <input value="{{ vsSystem }}" onInput="{{ onVsSystem }}" placeholder="System / service name" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:10px 12px;font-size:12.5px;outline-color:#C8960C;">
                 <input value="{{ vsUser }}" onInput="{{ onVsUser }}" placeholder="Username" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:10px 12px;font-size:12.5px;outline-color:#C8960C;">
                 <input value="{{ vsPass }}" onInput="{{ onVsPass }}" placeholder="Password" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:10px 12px;font-size:12.5px;outline-color:#C8960C;">
+                <select value="{{ vsCategory }}" onChange="{{ onVsCategory }}" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:10px 12px;font-size:12.5px;background-color:#FFFFFF;">
+                  <option value="BANKING">Banking</option><option value="GOVERNMENT">Government</option>
+                  <option value="SOFTWARE">Software</option><option value="SOCIAL">Social</option><option value="OTHER">Other</option>
+                </select>
               </div>
               <button onClick="{{ addCredential }}" style="margin-top:11px;background:#0D2B4E;color:#FFFFFF;border:none;font-size:12.5px;font-weight:700;padding:10px 20px;border-radius:7px;cursor:pointer;" style-hover="background:#123A69;">Save credential</button>
             </div>
@@ -2903,10 +3043,10 @@
         </div>
       </sc-if>
 
-      <!-- ======== SALES & CRM PIPELINE ======== -->
+      <!-- ======== SALES & CRM PIPELINE (Phase 4 · real data) ======== -->
       <sc-if value="{{ isSales }}" hint-placeholder-val="{{ false }}">
         <div>
-          <div style="background:#E6F0EB;border:1px solid #BFD8CC;border-radius:8px;padding:11px 16px;margin-bottom:14px;font-size:12.5px;font-weight:600;color:#2E6B4F;">● Live feed connected · enquiries from the openbaseafrica.com booking form drop straight into New Enquiry.</div>
+          <div style="background:#E6F0EB;border:1px solid #BFD8CC;border-radius:8px;padding:11px 16px;margin-bottom:14px;font-size:12.5px;font-weight:600;color:#2E6B4F;">● Live pipeline · every deal below is a real record — stage moves, contact logs and conversions save immediately</div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;">
             <sc-for list="{{ salesKpis }}" as="k" hint-placeholder-count="4">
               <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;padding:16px 18px;">
@@ -2915,6 +3055,17 @@
                 <div style="font-size:11.5px;color:#6B7684;font-weight:600;margin-top:4px;">{{ k.sub }}</div>
               </div>
             </sc-for>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-top:3px solid #C8960C;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;color:#0D2B4E;margin-bottom:10px;">New enquiry</div>
+            <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 0.8fr 0.7fr auto;gap:9px;">
+              <input value="{{ ndCompany }}" onInput="{{ onNdCompany }}" placeholder="Company name" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <input value="{{ ndContact }}" onInput="{{ onNdContact }}" placeholder="Contact name" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <input value="{{ ndService }}" onInput="{{ onNdService }}" placeholder="Service needed" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <input value="{{ ndValue }}" onInput="{{ onNdValue }}" placeholder="Value/mo" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <input value="{{ ndEmail }}" onInput="{{ onNdEmail }}" placeholder="Contact email" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12.5px;outline-color:#C8960C;">
+              <button onClick="{{ createDeal }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:12px;font-weight:700;padding:9px 16px;border-radius:7px;cursor:pointer;white-space:nowrap;" style-hover="background:#123A69;">Add deal</button>
+            </div>
           </div>
           <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start;">
             <sc-for list="{{ salesCols }}" as="col" hint-placeholder-count="5">
@@ -2930,16 +3081,144 @@
                         <div style="font-size:12.5px;font-weight:700;color:#0D2B4E;">{{ c.co }}</div>
                         <div style="font-size:11px;color:#6B7684;font-weight:500;margin-top:3px;line-height:1.4;">{{ c.svc }}</div>
                         <div style="font-size:12px;font-weight:800;color:#C8960C;margin-top:7px;">{{ c.val }}</div>
-                        <div style="margin-top:8px;"><span style="background:{{ c.srcBg }};color:{{ c.srcColor }};font-size:9.5px;font-weight:800;padding:3px 9px;border-radius:99px;">{{ c.src }}</span></div>
+                        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;"><span style="background:{{ c.srcBg }};color:{{ c.srcColor }};font-size:9.5px;font-weight:800;padding:3px 9px;border-radius:99px;">{{ c.src }}</span><span style="background:#F0F2F5;color:#4A5563;font-size:9.5px;font-weight:800;padding:3px 9px;border-radius:99px;">{{ c.logCount }} logged</span></div>
                       </div>
+                      <sc-if value="{{ c.canAdvance }}" hint-placeholder-val="{{ true }}">
+                        <button onClick="{{ c.advance }}" style="width:100%;margin-top:9px;background:#0D2B4E;color:#FFFFFF;border:none;font-size:10.5px;font-weight:700;padding:6px 4px;border-radius:5px;cursor:pointer;" style-hover="background:#123A69;">{{ c.advanceLabel }} &#8594;</button>
+                      </sc-if>
                       <sc-if value="{{ c.canConvert }}" hint-placeholder-val="{{ false }}">
-                        <button onClick="{{ c.convert }}" style="width:100%;margin-top:9px;background:#2E6B4F;color:#FFFFFF;border:none;font-size:10.5px;font-weight:700;padding:6px 4px;border-radius:5px;cursor:pointer;" style-hover="background:#245740;">Convert to client &#8594;</button>
+                        <button onClick="{{ c.open }}" style="width:100%;margin-top:9px;background:#2E6B4F;color:#FFFFFF;border:none;font-size:10.5px;font-weight:700;padding:6px 4px;border-radius:5px;cursor:pointer;" style-hover="background:#245740;">Convert to client &#8594;</button>
                       </sc-if>
                     </div>
                   </sc-for>
+                  <sc-if value="{{ col.colEmpty }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:16px 8px;text-align:center;font-size:11px;color:#9AA4B0;font-weight:500;">No deals</div>
+                  </sc-if>
                 </div>
               </div>
             </sc-for>
+          </div>
+
+          <!-- Deal detail modal: contact log + advance/lost/convert -->
+          <sc-if value="{{ dealDetailOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ closeDeal }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:200;background:rgba(13,43,78,0.45);display:flex;align-items:center;justify-content:center;padding:24px;">
+              <div onClick="{{ stop }}" class="oba-modal-panel" style="width:520px;max-width:100%;max-height:88vh;overflow-y:auto;background:#FFFFFF;border-radius:14px;overflow-x:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="background:#0D2B4E;padding:20px 22px;">
+                  <div style="font-size:17px;font-weight:800;color:#FFFFFF;">{{ dealDetail.company }}</div>
+                  <div style="font-size:12px;color:#9FB0C4;font-weight:500;margin-top:3px;">{{ dealDetail.svc }} · {{ dealDetail.val }}</div>
+                  <span style="display:inline-block;margin-top:8px;background:#C8960C;color:#FFFFFF;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;">{{ dealDetail.stage }}</span>
+                </div>
+                <div style="padding:16px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                  <div><div style="font-size:10px;font-weight:800;color:#9AA4B0;letter-spacing:0.06em;">CONTACT</div><div style="font-size:13px;color:#1F2A37;font-weight:600;margin-top:3px;">{{ dealDetail.contactName }}</div></div>
+                  <div><div style="font-size:10px;font-weight:800;color:#9AA4B0;letter-spacing:0.06em;">EMAIL / PHONE</div><div style="font-size:13px;color:#1F2A37;font-weight:600;margin-top:3px;">{{ dealDetail.contactEmail }} {{ dealDetail.contactPhone }}</div></div>
+                </div>
+                <div style="padding:0 22px 6px 22px;">
+                  <div style="font-size:10px;font-weight:800;color:#9AA4B0;letter-spacing:0.06em;margin-bottom:8px;">CONTACT LOG</div>
+                  <div style="display:flex;flex-direction:column;gap:8px;max-height:160px;overflow-y:auto;margin-bottom:10px;">
+                    <sc-for list="{{ dealDetail.logs }}" as="lg" hint-placeholder-count="2">
+                      <div style="background:#F5F7FA;border-radius:8px;padding:9px 12px;">
+                        <div style="display:flex;justify-content:space-between;font-size:10.5px;font-weight:800;color:#0D2B4E;"><span>{{ lg.type }}</span><span style="color:#9AA4B0;font-weight:600;">{{ lg.when }}</span></div>
+                        <div style="font-size:12.5px;color:#1F2A37;font-weight:500;margin-top:4px;">{{ lg.note }}</div>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ dealDetail.logsEmpty }}" hint-placeholder-val="{{ true }}">
+                      <div style="font-size:11.5px;color:#9AA4B0;font-weight:500;">No contact logged yet.</div>
+                    </sc-if>
+                  </div>
+                  <div style="display:flex;gap:6px;">
+                    <select value="{{ dcType }}" onChange="{{ onDcType }}" style="border:1px solid #D8DFE7;border-radius:7px;padding:9px;font-size:11.5px;background-color:#FFFFFF;">
+                      <option value="CALL">Call</option><option value="EMAIL">Email</option><option value="MEETING">Meeting</option>
+                    </select>
+                    <input value="{{ dcNote }}" onInput="{{ onDcNote }}" placeholder="Note…" style="flex:1;min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12px;outline-color:#C8960C;">
+                    <button onClick="{{ addContactLog }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:11.5px;font-weight:700;padding:9px 14px;border-radius:7px;cursor:pointer;white-space:nowrap;">Log</button>
+                  </div>
+                </div>
+                <sc-if value="{{ dealDetail.canConvert }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:14px 22px;border-top:1px solid #EEF1F4;background:#F8FAFC;">
+                    <div style="font-size:11.5px;font-weight:700;color:#2E6B4F;margin-bottom:8px;">Convert to client — creates a Client, a Contract and a Recruitment brief</div>
+                    <div style="display:flex;gap:8px;">
+                      <input value="{{ convertPortalEmail }}" onInput="{{ onConvertPortalEmail }}" placeholder="Client portal login email (optional)" style="flex:1;min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12px;outline-color:#C8960C;">
+                      <button onClick="{{ dealDetail.convert }}" style="background:#2E6B4F;color:#FFFFFF;border:none;font-size:11.5px;font-weight:700;padding:9px 16px;border-radius:7px;cursor:pointer;white-space:nowrap;" style-hover="background:#245740;">Convert &#8594;</button>
+                    </div>
+                  </div>
+                </sc-if>
+                <div style="padding:14px 22px;border-top:1px solid #EEF1F4;display:flex;justify-content:space-between;gap:10px;">
+                  <sc-if value="{{ dealDetail.canAdvance }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;gap:8px;">
+                      <button onClick="{{ dealDetail.advance }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:11.5px;font-weight:700;padding:9px 14px;border-radius:7px;cursor:pointer;">{{ dealDetail.advanceLabel }}</button>
+                      <button onClick="{{ dealDetail.markLost }}" style="background:#FFFFFF;border:1px solid #E8C9C9;color:#9B2C2C;font-size:11.5px;font-weight:700;padding:9px 14px;border-radius:7px;cursor:pointer;">Mark lost</button>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ dealDetail.terminal }}" hint-placeholder-val="{{ false }}"><span></span></sc-if>
+                  <button onClick="{{ closeDeal }}" style="background:#F0F2F5;color:#0D2B4E;border:none;font-size:12px;font-weight:700;padding:9px 18px;border-radius:7px;cursor:pointer;">Close</button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <!-- ======== CONTRACTS REGISTER (Phase 4 · real data from /api/contracts) ======== -->
+      <sc-if value="{{ isContracts }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="background:#E6F0EB;border:1px solid #BFD8CC;border-radius:8px;padding:11px 16px;margin-bottom:14px;font-size:12.5px;font-weight:600;color:#2E6B4F;">● Single register of client/staff/vendor agreements · client contracts are created automatically by the Sales conversion flow</div>
+          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-top:3px solid #C8960C;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+            <div style="font-size:13px;font-weight:700;color:#0D2B4E;margin-bottom:10px;">Add a contract</div>
+            <div style="display:grid;grid-template-columns:0.8fr 1.4fr 1fr 0.8fr 0.8fr 0.8fr auto;gap:9px;">
+              <select value="{{ ctType }}" onChange="{{ onCtType }}" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px;font-size:12px;background-color:#FFFFFF;">
+                <option value="CLIENT">Client</option><option value="STAFF">Staff</option><option value="VENDOR">Vendor</option>
+              </select>
+              <input value="{{ ctTitle }}" onInput="{{ onCtTitle }}" placeholder="Title" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12px;outline-color:#C8960C;">
+              <sc-if value="{{ isCtTypeClient }}" hint-placeholder-val="{{ true }}">
+                <select value="{{ ctClientId }}" onChange="{{ onCtClientId }}" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px;font-size:12px;background-color:#FFFFFF;">
+                  <option value="">Choose client…</option>
+                  <sc-for list="{{ contractClientOpts }}" as="co" hint-placeholder-count="2"><option value="{{ co.value }}">{{ co.label }}</option></sc-for>
+                </select>
+              </sc-if>
+              <sc-if value="{{ isCtTypeStaff }}" hint-placeholder-val="{{ false }}">
+                <select value="{{ ctEmployeeId }}" onChange="{{ onCtEmployeeId }}" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px;font-size:12px;background-color:#FFFFFF;">
+                  <option value="">Choose employee…</option>
+                  <sc-for list="{{ contractEmployeeOpts }}" as="eo" hint-placeholder-count="2"><option value="{{ eo.value }}">{{ eo.label }}</option></sc-for>
+                </select>
+              </sc-if>
+              <sc-if value="{{ isCtTypeVendor }}" hint-placeholder-val="{{ false }}">
+                <input value="{{ ctVendorName }}" onInput="{{ onCtVendorName }}" placeholder="Vendor name" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12px;outline-color:#C8960C;">
+              </sc-if>
+              <input value="{{ ctValue }}" onInput="{{ onCtValue }}" placeholder="Value" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12px;outline-color:#C8960C;">
+              <input value="{{ ctStart }}" onInput="{{ onCtStart }}" placeholder="Start (YYYY-MM-DD)" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12px;outline-color:#C8960C;">
+              <input value="{{ ctRenewal }}" onInput="{{ onCtRenewal }}" placeholder="Renewal due (YYYY-MM-DD)" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 11px;font-size:12px;outline-color:#C8960C;">
+              <button onClick="{{ addContract }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:12px;font-weight:700;padding:9px 16px;border-radius:7px;cursor:pointer;white-space:nowrap;">Add</button>
+            </div>
+          </div>
+          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+              <thead><tr>
+                <th scope="col" style="text-align:left;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">TYPE</th>
+                <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">TITLE</th>
+                <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">COUNTERPARTY</th>
+                <th scope="col" style="text-align:right;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">VALUE</th>
+                <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">RENEWAL DUE</th>
+                <th scope="col" style="text-align:left;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;">STATUS</th>
+                <th scope="col" style="text-align:right;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10px;font-weight:800;border-bottom:1px solid #EEF1F4;"></th>
+              </tr></thead>
+              <tbody>
+                <sc-for list="{{ contractsVals }}" as="c" hint-placeholder-count="4">
+                  <tr>
+                    <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:600;">{{ c.type }}</td>
+                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;font-weight:700;color:#0D2B4E;">{{ c.title }}</td>
+                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:500;">{{ c.counterparty }}</td>
+                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;text-align:right;font-weight:700;color:#0D2B4E;">{{ c.value }}</td>
+                    <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ c.renewalDue }}</td>
+                    <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;"><span style="background:{{ c.stBg }};color:{{ c.stColor }};font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ c.status }}</span></td>
+                    <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;text-align:right;">
+                      <sc-if value="{{ c.canRemind }}" hint-placeholder-val="{{ false }}">
+                        <button onClick="{{ c.remind }}" style="background:#FFFFFF;border:1px solid #D8DFE7;color:#0D2B4E;font-size:10.5px;font-weight:700;padding:5px 11px;border-radius:6px;cursor:pointer;white-space:nowrap;">{{ c.remindLabel }}</button>
+                      </sc-if>
+                    </td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
           </div>
         </div>
       </sc-if>
@@ -3068,6 +3347,7 @@ class Component extends StreamableLogic {
       calendar:   { label: 'Calendar',                 flag: 'isCalendar' },
       recruit:    { label: 'Recruitment',              flag: 'isRecruit' },
       sales:      { label: 'Sales & CRM',              flag: 'isSales' },
+      contracts:  { label: 'Contracts',                flag: 'isContracts' },
       myspace:    { label: 'My Space',                 flag: 'isMySpace' }
     };
     const N = this.NAV_ITEMS;
@@ -3081,7 +3361,7 @@ class Component extends StreamableLogic {
         nav: [
           { heading: 'OVERVIEW', items: ['command', 'portal', 'analytics'] },
           { heading: 'OPERATIONS', items: ['shifts', 'workforce', 'employees', 'scheduling', 'attendance', 'leave', 'incidents', 'facilities'] },
-          { heading: 'FINANCE', items: ['invoices', 'payroll', 'kpi'] },
+          { heading: 'FINANCE', items: ['invoices', 'payroll', 'kpi', 'contracts'] },
           { heading: 'PEOPLE & QUALITY', items: ['recruit', 'training', 'qa', 'calendar'] },
           { heading: 'SALES', items: ['sales'] },
           { heading: 'SECURITY & DOCS', items: ['security', 'vault', 'docs'] },
@@ -3094,7 +3374,7 @@ class Component extends StreamableLogic {
         landing: 'employees', canCreateAccounts: true, canRequestProc: false, procApprover: false,
         nav: [
           { heading: 'PEOPLE', items: ['employees', 'recruit', 'leave', 'training'] },
-          { heading: 'FINANCE', items: ['invoices'] },
+          { heading: 'FINANCE', items: ['invoices', 'contracts'] },
           { heading: 'DOCS', items: ['docs'] },
           { heading: 'ME', items: ['myspace'] }
         ]
@@ -3105,7 +3385,7 @@ class Component extends StreamableLogic {
         landing: 'sales', canCreateAccounts: false, canRequestProc: false, procApprover: false,
         nav: [
           { heading: 'SALES', items: ['sales'] },
-          { heading: 'CLIENTS', items: ['portal'] },
+          { heading: 'CLIENTS', items: ['portal', 'contracts'] },
           { heading: 'ME', items: ['myspace'] }
         ]
       },
@@ -3124,7 +3404,7 @@ class Component extends StreamableLogic {
         userName: 'Abena Darko', userSub: 'Accountant · Finance & payroll', greeting: 'Good day',
         landing: 'payroll', canCreateAccounts: false, canRequestProc: false, procApprover: false,
         nav: [
-          { heading: 'FINANCE', items: ['payroll', 'invoices', 'kpi'] },
+          { heading: 'FINANCE', items: ['payroll', 'invoices', 'kpi', 'contracts'] },
           { heading: 'ME', items: ['myspace'] }
         ]
       },
@@ -3165,6 +3445,24 @@ class Component extends StreamableLogic {
           { heading: 'PEOPLE & QUALITY', items: ['qa', 'training'] },
           { heading: 'ME', items: ['myspace'] }
         ]
+      },
+      {
+        // Base template for any Role=CLIENT portal login (see
+        // ROLE_ENUM_TO_PERSONA below + resolveRole) — real per-client accounts
+        // are created dynamically by the Sales "Convert to client" flow
+        // (app/api/sales/deals/[id]/convert), so there's no single fixed demo
+        // email here the way every other persona has one; resolveRole()
+        // overrides userName/userSub with the real signed-in client's own
+        // name from the session.
+        id: 'client', email: null, role: 'Client',
+        userName: 'Client', userSub: 'Client Portal', greeting: 'Good day',
+        landing: 'portal', canCreateAccounts: false, canRequestProc: false, procApprover: false,
+        // No 'myspace' — a CLIENT login has no linked Employee record (it's
+        // an external client account, not staff), so the self-service
+        // clock-in/leave/payslip screen has nothing of theirs to show.
+        nav: [
+          { heading: 'YOUR ACCOUNT', items: ['portal'] }
+        ]
       }
     ];
 
@@ -3187,6 +3485,9 @@ class Component extends StreamableLogic {
       // distinct system-access roles — an account with either as its Prisma
       // Role gets the base Employee persona's nav/permissions.
       TRAINER: 'employee', QA_ANALYST: 'employee',
+      // Phase 4 — real Client Portal logins, created dynamically by Sales
+      // conversion (see the 'client' ROLES entry's own comment above).
+      CLIENT: 'client',
     };
     this.ROLE_LABELS = {
       DIRECTOR: 'Director', HR_OFFICER: 'HR Officer', BUSINESS_DEVELOPMENT: 'Business Development',
@@ -3207,12 +3508,17 @@ class Component extends StreamableLogic {
       const roleLabel = this.ROLE_LABELS[user.role] || template.role;
       const primary = user.employeeJobTitle || roleLabel;
       const userSub = user.employeeBranch ? `${primary} · ${user.employeeBranch}` : primary;
+      // Phase 4 — a CLIENT login has no linked Employee, so its display name
+      // comes from its Client row (user.clientName) instead.
+      const userName = user.role === 'CLIENT'
+        ? (user.clientName || user.email)
+        : (user.employeeName || user.email);
       return {
         ...template,
         email: user.email,
         role: roleLabel,
-        userName: user.employeeName || user.email,
-        userSub,
+        userName,
+        userSub: user.role === 'CLIENT' ? 'Client Portal' : userSub,
       };
     };
 
@@ -3350,7 +3656,25 @@ class Component extends StreamableLogic {
       apiProcurement: [],
       apiBoardSummary: null,
       assignAssetSel: '', assignEmployeeSel: '',
-      regAssetName: '', regAssetTag: '', regAssetCategory: 'Laptop', regAssetBranch: 'Accra HQ'
+      regAssetName: '', regAssetTag: '', regAssetCategory: 'Laptop', regAssetBranch: 'Accra HQ',
+
+      // ---- Phase 4 real-backend state (fetched from /api/...) ----
+      apiDeals: [],
+      dealDetailOpen: false, dealDetailId: null,
+      dcType: 'CALL', dcNote: '',
+      ndCompany: '', ndContact: '', ndEmail: '', ndPhone: '', ndService: '', ndValue: '', ndCurrency: '$', ndSource: 'Website',
+      convertPortalEmail: '',
+      apiPortal: null, portalClientSel: '',
+      apiClientsList: [],
+      apiFinancePnl: null, apiExpenses: [], apiBankLines: [], apiUnmatchedExpenses: [], apiTaxFilings: [],
+      financeTab: 'invoices',
+      expCategory: '', expDesc: '', expAmount: '', expCurrency: 'GH₵',
+      bankDesc: '', bankAmount: '', bankDate: '',
+      apiContracts: [],
+      ctType: 'CLIENT', ctTitle: '', ctClientId: '', ctEmployeeId: '', ctVendorName: '', ctValue: '', ctStart: '', ctEnd: '', ctRenewal: '',
+      apiVault: [],
+      vaultRevealedReal: {},
+      vsCategory: 'OTHER',
     };
   }
 
@@ -3411,6 +3735,26 @@ class Component extends StreamableLogic {
     if ((roleId === 'director' || roleId === 'advisor') && s.activeScreen === 'advisor') {
       this.refreshBoardSummary();
     }
+    // Sales pipeline — Director/BD see a new enquiry or stage change live.
+    if ((roleId === 'director' || roleId === 'bd') && s.activeScreen === 'sales') {
+      this.refreshDeals();
+    }
+    // Client Portal — everyone who can see it gets fresh staffing/QA data.
+    if ((roleId === 'director' || roleId === 'bd' || roleId === 'advisor' || roleId === 'client') && s.activeScreen === 'portal') {
+      this.refreshPortal();
+    }
+    // Finance — Director/Accountant see fresh P&L/ledger/reconciliation data.
+    if ((roleId === 'director' || roleId === 'accountant') && s.activeScreen === 'invoices') {
+      this.refreshFinance();
+    }
+    // Contracts register.
+    if ((roleId === 'director' || roleId === 'accountant' || roleId === 'hr' || roleId === 'bd') && s.activeScreen === 'contracts') {
+      this.refreshContracts();
+    }
+    // Credentials Vault.
+    if ((roleId === 'director' || roleId === 'it') && s.activeScreen === 'vault') {
+      this.refreshVault();
+    }
   }
 
   // ================= Phase 1 API helpers =================
@@ -3457,7 +3801,7 @@ class Component extends StreamableLogic {
       this.apiGet('/api/employees').then((d) => d && this.setState({ apiEmployees: d.employees || [] }));
       this.apiGet('/api/leave').then((d) => d && this.setState({ apiLeaveAll: d.requests || [] }));
     }
-    if (id !== 'bd' && id !== 'advisor') {
+    if (id !== 'bd' && id !== 'advisor' && id !== 'client') {
       this.apiGet('/api/documents').then((d) => d && this.setState({ apiDocuments: d.documents || [] }));
     }
     if (id === 'director' || id === 'ops' || id === 'supervisor') {
@@ -3511,6 +3855,28 @@ class Component extends StreamableLogic {
     if (id === 'director' || id === 'advisor') {
       this.refreshBoardSummary();
     }
+
+    // ---- Phase 4 (Growth & Finance) ----
+    if (id === 'director' || id === 'bd') {
+      this.refreshDeals();
+    }
+    if (id === 'director' || id === 'bd' || id === 'advisor' || id === 'client') {
+      this.refreshPortal();
+    }
+    if (id === 'director' || id === 'accountant') {
+      this.refreshFinance();
+    }
+    if (id === 'director' || id === 'accountant' || id === 'hr' || id === 'bd') {
+      this.refreshContracts();
+      // Client picker for the "add a CLIENT contract" form.
+      this.apiGet('/api/portal/summary').then((d) => d && d.clientsList && this.setState({ apiClientsList: d.clientsList }));
+      // Employee picker for the "add a STAFF contract" form (accountant now
+      // included in BASIC_PICKER_ROLES — see app/api/employees route).
+      this.apiGet('/api/employees?basic=1').then((d) => d && this.setState({ apiEmployeesBasic: d.employees || [] }));
+    }
+    if (id === 'director' || id === 'it') {
+      this.refreshVault();
+    }
   }
 
   refreshMyLeave() { this.apiGet('/api/leave?mine=1').then((d) => d && this.setState({ apiMyLeave: d.requests || [] })); }
@@ -3534,6 +3900,25 @@ class Component extends StreamableLogic {
   refreshMaintenance() { this.apiGet('/api/facilities/maintenance').then((d) => d && this.setState({ apiMaintenance: d.tasks || [] })); }
   refreshProcurement() { this.apiGet('/api/facilities/procurement').then((d) => d && this.setState({ apiProcurement: d.requests || [] })); }
   refreshBoardSummary() { this.apiGet('/api/board/summary').then((d) => d && this.setState({ apiBoardSummary: d })); }
+
+  // ---- Phase 4 (Growth & Finance) refresh helpers ----
+  refreshDeals() { this.apiGet('/api/sales/deals').then((d) => d && this.setState({ apiDeals: d.deals || [] })); }
+  refreshPortal() {
+    const s = this.state;
+    const qs = (s.currentRoleId !== 'client' && s.portalClientSel) ? ('?clientId=' + encodeURIComponent(s.portalClientSel)) : '';
+    this.apiGet('/api/portal/summary' + qs).then((d) => {
+      if (!d) return;
+      this.setState({ apiPortal: d, apiClientsList: d.clientsList || this.state.apiClientsList, portalClientSel: (d.client && d.client.id) || s.portalClientSel });
+    });
+  }
+  refreshFinance() {
+    this.apiGet('/api/finance/pnl').then((d) => d && this.setState({ apiFinancePnl: d }));
+    this.apiGet('/api/finance/expenses').then((d) => d && this.setState({ apiExpenses: d.expenses || [] }));
+    this.apiGet('/api/finance/bank-lines').then((d) => d && this.setState({ apiBankLines: d.lines || [], apiUnmatchedExpenses: d.unmatchedExpenses || [] }));
+    this.apiGet('/api/finance/tax-filings').then((d) => d && this.setState({ apiTaxFilings: d.filings || [] }));
+  }
+  refreshContracts() { this.apiGet('/api/contracts').then((d) => d && this.setState({ apiContracts: d.contracts || [] })); }
+  refreshVault() { this.apiGet('/api/vault').then((d) => d && this.setState({ apiVault: d.credentials || [] })); }
 
   // ================= static demo data =================
   buildStaticData() {
@@ -3961,6 +4346,212 @@ class Component extends StreamableLogic {
     });
   }
 
+  // ================= Phase 4 (Growth & Finance) =================
+
+  // ---- sales & CRM ----
+  onNdField(field, e) { this.setState({ [field]: e && e.target ? e.target.value : e }); }
+  createDeal() {
+    const s = this.state;
+    if (!s.ndCompany || !s.ndService) { this.toast('Enter a company name and service description'); return; }
+    this.apiSend('/api/sales/deals', 'POST', {
+      company: s.ndCompany, contactName: s.ndContact, contactEmail: s.ndEmail, contactPhone: s.ndPhone,
+      serviceDesc: s.ndService, valueAmount: s.ndValue ? Number(s.ndValue) : null, currency: s.ndCurrency, source: s.ndSource,
+    }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not create deal'); return; }
+      this.setState({ ndCompany: '', ndContact: '', ndEmail: '', ndPhone: '', ndService: '', ndValue: '' });
+      this.refreshDeals();
+      this.toast('Deal added to New Enquiry');
+    });
+  }
+  openDeal(id) { this.setState({ dealDetailOpen: true, dealDetailId: id, dcNote: '' }); }
+  closeDeal() { this.setState({ dealDetailOpen: false, dealDetailId: null, convertPortalEmail: '' }); }
+  dealAdvance(id) {
+    this.apiSend('/api/sales/deals/' + id, 'PATCH', { action: 'advance' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not advance deal'); return; }
+      this.refreshDeals();
+      this.toast('Deal moved to ' + res.data.deal.stage.replace(/_/g, ' '));
+    });
+  }
+  dealMarkLost(id) {
+    this.apiSend('/api/sales/deals/' + id, 'PATCH', { action: 'lost', lostReason: 'Not proceeding' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not update deal'); return; }
+      this.refreshDeals();
+      this.toast('Deal marked lost');
+    });
+  }
+  onDcType(e) { this.setState({ dcType: e && e.target ? e.target.value : e }); }
+  onDcNote(e) { this.setState({ dcNote: e && e.target ? e.target.value : e }); }
+  addContactLog() {
+    const s = this.state;
+    if (!s.dealDetailId || !s.dcNote) { this.toast('Enter a note first'); return; }
+    this.apiSend('/api/sales/deals/' + s.dealDetailId + '/contact-logs', 'POST', { type: s.dcType, note: s.dcNote }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not log contact'); return; }
+      this.setState({ dcNote: '' });
+      this.refreshDeals();
+      this.toast('Contact logged');
+    });
+  }
+  onConvertPortalEmail(e) { this.setState({ convertPortalEmail: e && e.target ? e.target.value : e }); }
+  convertDeal(id) {
+    const s = this.state;
+    const body = s.convertPortalEmail ? { portalEmail: s.convertPortalEmail } : {};
+    this.apiSend('/api/sales/deals/' + id + '/convert', 'POST', body).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not convert deal'); return; }
+      this.refreshDeals();
+      this.refreshContracts();
+      this.closeDeal();
+      const d = res.data;
+      let msg = `Converted to client "${d.client.name}" · contract + recruitment brief created`;
+      if (d.temporaryPassword) msg += ` · portal login ${d.portalUser.email} / ${d.temporaryPassword}`;
+      this.toast(msg);
+    });
+  }
+
+  // ---- client portal ----
+  onPortalClientSel(e) {
+    this.setState({ portalClientSel: e && e.target ? e.target.value : e }, () => this.refreshPortal());
+  }
+  downloadPortalReport() {
+    const s = this.state;
+    const qs = (s.currentRoleId !== 'client' && s.portalClientSel) ? ('?clientId=' + encodeURIComponent(s.portalClientSel)) : '';
+    this.apiGet('/api/portal/report' + qs).then((d) => {
+      if (!d || !d.dataUrl) { this.toast('Could not generate report'); return; }
+      const a = document.createElement('a');
+      a.href = d.dataUrl; a.download = d.fileName;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      this.toast('Report downloaded');
+    });
+  }
+
+  // ---- finance ----
+  setFinanceTab(tab) { this.setState({ financeTab: tab }); }
+  onExpField(field, e) { this.setState({ [field]: e && e.target ? e.target.value : e }); }
+  addExpense() {
+    const s = this.state;
+    if (!s.expCategory || !s.expDesc || !s.expAmount) { this.toast('Fill in category, description and amount'); return; }
+    this.apiSend('/api/finance/expenses', 'POST', { category: s.expCategory, description: s.expDesc, amount: Number(s.expAmount), currency: s.expCurrency }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not add expense'); return; }
+      this.setState({ expCategory: '', expDesc: '', expAmount: '' });
+      this.refreshFinance();
+      this.toast('Expense added to the ledger');
+    });
+  }
+  onBankField(field, e) { this.setState({ [field]: e && e.target ? e.target.value : e }); }
+  importBankLine() {
+    const s = this.state;
+    if (!s.bankDesc || !s.bankAmount) { this.toast('Enter a description and amount'); return; }
+    this.apiSend('/api/finance/bank-lines', 'POST', { description: s.bankDesc, amount: Number(s.bankAmount), date: s.bankDate || undefined }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not import line'); return; }
+      this.setState({ bankDesc: '', bankAmount: '', bankDate: '' });
+      this.refreshFinance();
+      this.toast('Statement line imported');
+    });
+  }
+  matchBankLine(lineId, expenseId) {
+    this.apiSend('/api/finance/bank-lines/' + lineId + '/match', 'PATCH', { expenseId }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not match line'); return; }
+      this.refreshFinance();
+      this.toast('Reconciled');
+    });
+  }
+  unmatchBankLine(lineId) {
+    this.apiSend('/api/finance/bank-lines/' + lineId + '/match', 'PATCH', { expenseId: null }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not unmatch line'); return; }
+      this.refreshFinance();
+      this.toast('Match removed');
+    });
+  }
+  markTaxFiled(id) {
+    this.apiSend('/api/finance/tax-filings/' + id, 'PATCH', { filed: true }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not update filing'); return; }
+      this.refreshFinance();
+      this.toast('Marked as filed');
+    });
+  }
+  approvePayrollRun(id) {
+    this.apiSend('/api/payroll/runs/' + id + '/approve', 'POST', {}).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not approve run'); return; }
+      this.apiGet('/api/payroll/runs').then((d) => d && this.setState({ apiPayrollRuns: d.runs || [] }));
+      this.refreshFinance();
+      this.toast('Payroll run approved · cost posted to the expense ledger');
+    });
+  }
+  procReceive(id) {
+    this.apiSend('/api/facilities/procurement/' + id + '/receive', 'POST', {}).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not mark received'); return; }
+      this.refreshProcurement();
+      this.toast(`Received · GH₵ ${this.fmt(res.data.expense.amount)} posted to the expense ledger`);
+    });
+  }
+
+  // ---- contracts register ----
+  onCtField(field, e) { this.setState({ [field]: e && e.target ? e.target.value : e }); }
+  addContract() {
+    const s = this.state;
+    if (!s.ctTitle || !s.ctStart) { this.toast('Enter a title and start date'); return; }
+    if (s.ctType === 'CLIENT' && !s.ctClientId) { this.toast('Choose a client'); return; }
+    if (s.ctType === 'STAFF' && !s.ctEmployeeId) { this.toast('Choose an employee'); return; }
+    if (s.ctType === 'VENDOR' && !s.ctVendorName) { this.toast('Enter a vendor name'); return; }
+    this.apiSend('/api/contracts', 'POST', {
+      type: s.ctType, title: s.ctTitle, clientId: s.ctClientId || undefined, employeeId: s.ctEmployeeId || undefined,
+      vendorName: s.ctVendorName || undefined, value: s.ctValue ? Number(s.ctValue) : null,
+      startDate: s.ctStart, endDate: s.ctEnd || undefined, renewalDueDate: s.ctRenewal || undefined,
+    }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not add contract'); return; }
+      this.setState({ ctTitle: '', ctClientId: '', ctEmployeeId: '', ctVendorName: '', ctValue: '', ctStart: '', ctEnd: '', ctRenewal: '' });
+      this.refreshContracts();
+      this.toast('Contract added to the register');
+    });
+  }
+  sendContractReminder(id) {
+    this.apiSend('/api/contracts/' + id + '/remind', 'POST', {}).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not send reminder'); return; }
+      this.refreshContracts();
+      this.toast('Renewal reminder logged');
+    });
+  }
+
+  // ---- credentials vault ----
+  onVsSystem(e) { this.setState({ vsSystem: e.target ? e.target.value : e }); }
+  onVsUser(e) { this.setState({ vsUser: e.target ? e.target.value : e }); }
+  onVsPass(e) { this.setState({ vsPass: e.target ? e.target.value : e }); }
+  onVsCategory(e) { this.setState({ vsCategory: e.target ? e.target.value : e }); }
+  addCredential() {
+    const s = this.state;
+    if (!s.vsSystem || !s.vsUser || !s.vsPass) { this.toast('Fill in system, username and password'); return; }
+    this.apiSend('/api/vault', 'POST', { system: s.vsSystem, username: s.vsUser, password: s.vsPass, category: s.vsCategory }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not save credential'); return; }
+      this.setState({ vsSystem: '', vsUser: '', vsPass: '' });
+      this.refreshVault();
+      this.toast('Credential saved (encrypted at rest)');
+    });
+  }
+  vaultToggleReveal(id) {
+    const s = this.state;
+    if (s.vaultRevealedReal[id]) {
+      // Hide — no server call needed (nothing to audit for hiding), just
+      // drop the decrypted value from client state.
+      this.setState({ vaultRevealedReal: { ...s.vaultRevealedReal, [id]: null } });
+      return;
+    }
+    this.apiSend('/api/vault/' + id + '/reveal', 'POST', { purpose: 'reveal' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not reveal credential'); return; }
+      this.setState({ vaultRevealedReal: { ...this.state.vaultRevealedReal, [id]: res.data.password } });
+    });
+  }
+  vaultCopy(id) {
+    const s = this.state;
+    const doCopy = (password) => {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(password).catch(() => {});
+      this.toast('Password copied');
+    };
+    if (s.vaultRevealedReal[id]) { doCopy(s.vaultRevealedReal[id]); return; }
+    this.apiSend('/api/vault/' + id + '/reveal', 'POST', { purpose: 'copy' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not copy credential'); return; }
+      doCopy(res.data.password);
+    });
+  }
+
   // ---- analytics ----
   anExport() { this.toast('CSV exported'); }
   selectPeriod(idx) { this.toast('Period updated'); }
@@ -4085,17 +4676,10 @@ class Component extends StreamableLogic {
   loadMoreDocs() { this.setState(s => ({ docShowCount: s.docShowCount + 6 })); }
   openDocView(id) { this.setState({ docViewerOpen: true, docViewId: id }); }
   closeDocView() { this.setState({ docViewerOpen: false }); }
+  // Real vault reveal/copy/add live in the Phase 4 handlers block above
+  // (vaultToggleReveal/vaultCopy/addCredential/onVsSystem/onVsUser/onVsPass)
+  // — only the category-filter chip selector is still local UI state.
   selectVaultCat(cat) { this.setState({ vaultCatSelected: cat }); }
-  vaultToggle(id) { this.setState(s => ({ vaultRevealed: { ...s.vaultRevealed, [id]: !s.vaultRevealed[id] } })); }
-  vaultCopy(id) { this.toast('Copied to clipboard · logged'); }
-  onVsSystem(e) { this.setState({ vsSystem: e.target ? e.target.value : e }); }
-  onVsUser(e) { this.setState({ vsUser: e.target ? e.target.value : e }); }
-  onVsPass(e) { this.setState({ vsPass: e.target ? e.target.value : e }); }
-  addCredential() {
-    if (!this.state.vsSystem) { this.toast('Enter a system name'); return; }
-    this.setState(s => ({ vaultList: [{ id: 'v' + Date.now(), system: s.vsSystem, cat: 'Software', user: s.vsUser || '—', pass: s.vsPass || '—', owner: 'You', rotated: 'today', strength: 'Medium', stBg: '#FBF3DF', stColor: '#8A6508', revealed: false }, ...s.vaultList], vsSystem: '', vsUser: '', vsPass: '' }));
-    this.toast('Credential saved');
-  }
 
   // ---- recruitment (Phase 2 · real data via /api/recruitment) ----
   openCand(id) { this.setState({ candOpen: true, candId: id }); }
@@ -4198,18 +4782,10 @@ class Component extends StreamableLogic {
     }));
   }
 
-  // ---- sales ----
-  openDeal(id) { this.toast('Opening deal…'); }
-  convertDeal(colKey, id) {
-    this.setState(s => {
-      const cols = s.salesCols.map(col => col.key === colKey ? { ...col, cards: col.cards.filter(c => c.id !== id) } : col);
-      const card = s.salesCols.find(c => c.key === colKey).cards.find(c => c.id === id);
-      const newClientList = card ? [...s.newClientList, { id: 'client' + Date.now(), name: card.co, region: 'Ghana', cur: '$', staff: 0 }] : s.newClientList;
-      const clients = card ? [...s.clients, { id: 'client' + Date.now(), name: card.co, region: 'Ghana', industry: card.svc, team: 0, cur: '$', sla: '—', health: 'Good', status: 'Onboarding' }] : s.clients;
-      return { salesCols: cols, newClientList, clients };
-    });
-    this.toast('Converted to client · recruitment brief opened');
-  }
+  // Real openDeal/convertDeal (Phase 4) live earlier in this class, in the
+  // "Phase 4 (Growth & Finance)" handlers block — see openDeal/convertDeal
+  // near createDeal/closeDeal above; this used to be a mock duplicate that
+  // (being defined later) silently won and broke the real deal detail modal.
 
   // ================= computed vals for render =================
   renderVals() {
@@ -4315,8 +4891,14 @@ class Component extends StreamableLogic {
     };
     const meta = SCREEN_META[s.activeScreen] || ['OBA Platform', ''];
 
-    const showClientPicker = s.activeScreen === 'portal';
-    const clientPickerOpts = d.clients.map(c => ({ value: c.id, label: c.name }));
+    // Disabled (Phase 4): this used to list the OLD mock d.clients array in
+    // the topbar for every role, including a real CLIENT login — a genuine
+    // cross-client information leak once client names became real data (see
+    // the in-screen client selector added directly inside isPortal instead,
+    // gated by portalIsInternal, which is the ONLY client picker now shown
+    // to internal roles — never to a CLIENT session).
+    const showClientPicker = false;
+    const clientPickerOpts = [];
     const activeClientObj = d.clients.find(c => c.id === s.activeClient) || d.clients[0];
 
     // ---- search ----
@@ -4396,23 +4978,39 @@ class Component extends StreamableLogic {
     const hasAdvSuggestions = s.advSuggestions.length > 0;
     const advSuggestionsVals = s.advSuggestions;
 
-    // ---- portal ----
-    const portalRoster = d.employees.filter(e => e.branch === activeClientObj.region || true).slice(0, 8).map((e, i) => ({
-      name: e.name, role: e.role, shift: i % 2 === 0 ? 'Day 08:00–17:00' : 'Night 20:00–05:00',
-      attend: (90 + (i % 8)) + '%', qa: (86 + (i % 10)),
-      stBg: '#E6F0EB', stColor: '#2E6B4F', status: 'Active'
+    // ---- client portal (Phase 4 · real data from /api/portal/summary) ----
+    // Real, isolation-tested client data — see app/api/portal/summary's own
+    // comment for how a CLIENT session's clientId can never be overridden by
+    // the query string. `portal` is null until the fetch resolves or if no
+    // clients exist yet at all.
+    const portal = s.apiPortal;
+    const portalClient = portal && portal.client;
+    const PORTAL_HEALTH_COLOR = { EXCELLENT: '#2E6B4F', GOOD: '#0D2B4E', ATTENTION: '#C8960C', AT_RISK: '#9B2C2C' };
+    const portalRoster = (portal && portal.roster ? portal.roster : []).map((r) => ({
+      name: r.name, role: r.role, shift: r.branch,
+      attend: r.attendancePct != null ? r.attendancePct + '%' : '—',
+      qa: r.qaAvg != null ? String(r.qaAvg) : '—',
+      stBg: r.active ? '#E6F0EB' : '#FBECEC', stColor: r.active ? '#2E6B4F' : '#9B2C2C', status: r.active ? 'Active' : 'Inactive'
     }));
-    const slaRows = [
-      { name: 'First response time', value: '92%', target: '90%', pct: '92%', color: '#2E6B4F' },
-      { name: 'Resolution within SLA', value: '89%', target: '90%', pct: '89%', color: '#C8960C' },
-      { name: 'CSAT', value: '4.6/5', target: '4.5/5', pct: '92%', color: '#2E6B4F' },
-      { name: 'Abandon rate', value: '3.1%', target: '<5%', pct: '95%', color: '#2E6B4F' }
-    ];
-    const qaReports = [
-      { name: 'Week 28 scorecard', score: '93.4', audits: 22 },
-      { name: 'Week 27 scorecard', score: '91.8', audits: 20 },
-      { name: 'Week 26 scorecard', score: '92.5', audits: 19 }
-    ];
+    const slaRows = (portal && portal.slaRows ? portal.slaRows : []).map((row) => {
+      const pct = row.target ? Math.min(100, Math.round((row.value / row.target) * 100)) : 100;
+      return {
+        name: row.name, value: row.value + (row.unit || ''), target: row.target + (row.unit || ''),
+        pct: pct + '%', color: pct >= 100 ? '#2E6B4F' : pct >= 85 ? '#C8960C' : '#9B2C2C'
+      };
+    });
+    // QA reports panel stays a static illustrative mock (no per-week QA
+    // report artifact model exists) — the REAL QA status for this client is
+    // the "QA score" row in slaRows above, computed from live QaAudit data.
+    const qaReports = [];
+    const fmtDateShortPortal = (dt) => new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const portalContracts = (portal && portal.contracts ? portal.contracts : []).map((c) => ({
+      id: c.id, title: c.title, status: c.status,
+      value: c.value != null ? `${c.currency} ${this.fmt(c.value)}` : '—',
+      renewal: c.renewalDueDate ? fmtDateShortPortal(c.renewalDueDate) : '—'
+    }));
+    const portalClientsListVals = (s.apiClientsList || []).map((c) => ({ value: c.id, label: c.name }));
+    const isPortalInternal = s.currentRoleId !== 'client';
     const portalInvoices = s.invoicesList.filter(i => i.clientId === activeClientObj.id).map(i => ({
       id: i.id, due: i.due, amount: i.amount, stBg: i.stBg, stColor: i.stColor, status: i.status,
       view: () => this.openInvoice(i.id), download: () => this.toast('Downloading invoice…'),
@@ -4790,22 +5388,32 @@ class Component extends StreamableLogic {
       signer: docViewSrc.signer || '', body: docViewSrc.body || []
     };
 
-    // ---- vault ----
-    const vaultCatList = ['All', 'Banking', 'Government', 'Software', 'Social'];
-    const vaultCats = vaultCatList.map(label => ({ label, select: () => this.selectVaultCat(label), bg: s.vaultCatSelected === label ? '#0D2B4E' : '#FFFFFF', color: s.vaultCatSelected === label ? '#FFFFFF' : '#0D2B4E', border: s.vaultCatSelected === label ? '#0D2B4E' : '#D8DFE7' }));
-    const vaultFiltered = s.vaultList.filter(v => s.vaultCatSelected === 'All' || v.cat === s.vaultCatSelected);
-    const vaultList = vaultFiltered.map(v => ({
-      system: v.system, cat: v.cat, rotated: v.rotated, user: v.user,
-      pass: s.vaultRevealed[v.id] ? v.pass : '••••••••••',
-      revealLabel: s.vaultRevealed[v.id] ? 'Hide' : 'Reveal',
-      owner: v.owner, stBg: v.stBg, stColor: v.stColor, strength: v.strength,
-      toggle: () => this.vaultToggle(v.id), copy: () => this.vaultCopy(v.id)
+    // ---- credentials vault (Phase 4 · real encrypted store) ----
+    const VAULT_STRENGTH_COLOR = { Strong: ['#E6F0EB', '#2E6B4F'], Medium: ['#FBF3DF', '#8A6508'], Weak: ['#FBECEC', '#B23B3B'] };
+    const vaultVals = s.apiVault.map(v => {
+      const [stBg, stColor] = VAULT_STRENGTH_COLOR[v.strength] || ['#F0F2F5', '#4A5563'];
+      const revealed = s.vaultRevealedReal[v.id];
+      return {
+        id: v.id, system: v.system, cat: v.category, user: v.username,
+        pass: revealed || v.passwordMasked, revealLabel: revealed ? 'Hide' : 'Reveal',
+        owner: v.createdByEmail || '—', strength: v.strength, stBg, stColor,
+        toggle: () => this.vaultToggleReveal(v.id), copy: () => this.vaultCopy(v.id)
+      };
+    });
+    const vaultCatList = ['All', 'BANKING', 'GOVERNMENT', 'SOFTWARE', 'SOCIAL', 'OTHER'];
+    const VAULT_CAT_DISPLAY = { All: 'All', BANKING: 'Banking', GOVERNMENT: 'Government', SOFTWARE: 'Software', SOCIAL: 'Social', OTHER: 'Other' };
+    const vaultCats = vaultCatList.map(cat => ({
+      label: VAULT_CAT_DISPLAY[cat], select: () => this.selectVaultCat(cat),
+      bg: s.vaultCatSelected === cat ? '#0D2B4E' : '#FFFFFF', color: s.vaultCatSelected === cat ? '#FFFFFF' : '#0D2B4E',
+      border: s.vaultCatSelected === cat ? '#0D2B4E' : '#D8DFE7'
     }));
+    const vaultList = vaultVals.filter(v => s.vaultCatSelected === 'All' || v.cat === s.vaultCatSelected);
+    const revealedCount = Object.values(s.vaultRevealedReal).filter(Boolean).length;
     const vaultStats = [
-      { label: 'CREDENTIALS', value: String(s.vaultList.length), c: '#0D2B4E', d: 'across all systems' },
-      { label: 'WEAK PASSWORDS', value: String(s.vaultList.filter(v => v.strength === 'Weak').length), c: '#9B2C2C', d: 'need rotation' },
-      { label: 'ROTATED (90D)', value: String(s.vaultList.length - 1), c: '#2E6B4F', d: 'up to date' },
-      { label: 'REVEALS TODAY', value: String(Object.values(s.vaultRevealed).filter(Boolean).length), c: '#8A6508', d: 'logged to audit' }
+      { label: 'CREDENTIALS', value: String(s.apiVault.length), c: '#0D2B4E', d: 'across all systems' },
+      { label: 'WEAK PASSWORDS', value: String(s.apiVault.filter(v => v.strength === 'Weak').length), c: '#9B2C2C', d: 'need rotation' },
+      { label: 'CATEGORIES', value: String(new Set(s.apiVault.map(v => v.category)).size), c: '#2E6B4F', d: 'in use' },
+      { label: 'REVEALED (SESSION)', value: String(revealedCount), c: '#8A6508', d: 'logged to audit' }
     ];
 
     // ---- training (Phase 2 · real data from /api/training/courses+completions) ----
@@ -5124,20 +5732,125 @@ class Component extends StreamableLogic {
       ]
     };
 
-    // ---- sales ----
-    const salesKpis = [
-      { label: 'PIPELINE VALUE', value: '$31.0k', color: '#0D2B4E', sub: 'monthly recurring' },
-      { label: 'OPEN DEALS', value: String(d.clients.length + 1), color: '#0D2B4E', sub: 'across 5 stages' },
-      { label: 'WIN RATE', value: '38%', color: '#2E6B4F', sub: 'last 90 days' },
-      { label: 'AVG DEAL SIZE', value: '$6.2k', color: '#0D2B4E', sub: 'monthly value' }
+    // ---- finance (Phase 4 · real data from /api/finance/**) ----
+    const FINANCE_TAB_DEFS = [
+      { key: 'invoices', label: 'Invoices' },
+      { key: 'pnl', label: 'P&L' },
+      { key: 'expenses', label: 'Expense Ledger' },
+      { key: 'bankrec', label: 'Bank Reconciliation' },
+      { key: 'taxcal', label: 'Tax Calendar' }
     ];
-    const salesCols = s.salesCols.map(col => ({
-      label: col.label, tint: col.tint, tintColor: col.tintColor, count: col.cards.length,
-      cards: col.cards.map(c => ({
-        co: c.co, svc: c.svc, val: c.val, src: c.src, srcBg: c.srcBg, srcColor: c.srcColor,
-        open: () => this.openDeal(c.id), canConvert: c.canConvert, convert: () => this.convertDeal(col.key, c.id)
-      }))
+    const financeTabs = FINANCE_TAB_DEFS.map(t => ({
+      label: t.label, select: () => this.setFinanceTab(t.key),
+      bg: s.financeTab === t.key ? '#0D2B4E' : '#FFFFFF',
+      color: s.financeTab === t.key ? '#FFFFFF' : '#0D2B4E',
+      border: s.financeTab === t.key ? '#0D2B4E' : '#D8DFE7'
     }));
+    const pnlSrc = s.apiFinancePnl;
+    const pnl = pnlSrc ? {
+      revenue: this.fmt(pnlSrc.revenue), totalExpenses: this.fmt(pnlSrc.totalExpenses),
+      netIncome: this.fmt(pnlSrc.netIncome), netColor: pnlSrc.netIncome >= 0 ? '#2E6B4F' : '#9B2C2C',
+      revenueContractCount: pnlSrc.revenueContractCount,
+      byCategory: pnlSrc.expensesByCategory.map(c => ({ category: c.category, amount: this.fmt(c.amount) })),
+      bySourcePayroll: this.fmt(pnlSrc.expensesBySource.PAYROLL || 0),
+      bySourceProcurement: this.fmt(pnlSrc.expensesBySource.PROCUREMENT || 0),
+      bySourceManual: this.fmt(pnlSrc.expensesBySource.MANUAL || 0),
+    } : { revenue: '0', totalExpenses: '0', netIncome: '0', netColor: '#0D2B4E', revenueContractCount: 0, byCategory: [], bySourcePayroll: '0', bySourceProcurement: '0', bySourceManual: '0' };
+    const expensesVals = s.apiExpenses.map(e => ({
+      id: e.id, category: e.category, description: e.description,
+      amount: `${e.currency} ${this.fmt(e.amount)}`, source: e.source, date: fmtDateShort(e.date)
+    }));
+    const bankLinesVals = s.apiBankLines.map(l => ({
+      id: l.id, date: fmtDateShort(l.date), description: l.description, amount: this.fmt(l.amount),
+      reconciled: l.reconciled, unreconciled: !l.reconciled,
+      matchedDesc: l.reconciled ? `· matched: ${l.matchedExpenseDescription || ''}` : '',
+      unmatch: () => this.unmatchBankLine(l.id),
+      onMatchSelect: (e) => { const v = e.target.value; if (v) this.matchBankLine(l.id, v); }
+    }));
+    const unmatchedExpenseOpts = s.apiUnmatchedExpenses.map(e => ({ value: e.id, label: `${e.description} (${e.currency || 'GH₵'} ${this.fmt(e.amount)})` }));
+    const TAX_TYPE_LABEL = { PAYE: 'PAYE', SSNIT: 'SSNIT', VAT: 'VAT', CORPORATE_TAX: 'Corporate tax' };
+    const taxFilingsVals = s.apiTaxFilings.map(f => ({
+      id: f.id, type: TAX_TYPE_LABEL[f.type] || f.type, period: f.period, dueDate: fmtDateShort(f.dueDate),
+      filed: f.filed, notFiled: !f.filed, overdue: f.overdue,
+      stBg: f.filed ? '#E6F0EB' : f.overdue ? '#FBECEC' : '#FBF3DF',
+      stColor: f.filed ? '#2E6B4F' : f.overdue ? '#9B2C2C' : '#8A6508',
+      stLabel: f.filed ? 'Filed' : f.overdue ? 'Overdue' : 'Due',
+      markFiled: () => this.markTaxFiled(f.id)
+    }));
+
+    // ---- contracts register (Phase 4 · real data from /api/contracts) ----
+    const CONTRACT_STATUS_COLOR = { ACTIVE: ['#E6F0EB', '#2E6B4F'], RENEWAL_DUE: ['#FBF3DF', '#8A6508'], EXPIRED: ['#FBECEC', '#B23B3B'], TERMINATED: ['#F0F2F5', '#4A5563'] };
+    const contractsVals = s.apiContracts.map(c => {
+      const [stBg, stColor] = CONTRACT_STATUS_COLOR[c.status] || ['#F0F2F5', '#4A5563'];
+      return {
+        id: c.id, type: c.type, title: c.title,
+        counterparty: c.clientName || c.employeeName || c.vendorName || '—',
+        value: c.value != null ? `${c.currency} ${this.fmt(c.value)}` : '—',
+        renewalDue: c.renewalDueDate ? fmtDateShort(c.renewalDueDate) : '—',
+        status: c.status, stBg, stColor,
+        canRemind: c.status === 'RENEWAL_DUE', reminderSent: !!c.reminderSentAt,
+        remindLabel: c.reminderSentAt ? 'Reminder sent ✓' : 'Send reminder',
+        remind: () => this.sendContractReminder(c.id)
+      };
+    });
+    const contractClientOpts = (s.apiClientsList || []).map(c => ({ value: c.id, label: c.name }));
+    const contractEmployeeOpts = (s.apiEmployeesBasic || []).map(e => ({ value: e.id, label: e.name }));
+
+    // ---- sales & CRM (Phase 4 · real data from /api/sales/deals) ----
+    const DEAL_STAGE_LABEL = { NEW_ENQUIRY: 'New enquiry', QUALIFIED: 'Qualified', PROPOSAL_SENT: 'Proposal sent', NEGOTIATION: 'Negotiation', WON: 'Won', LOST: 'Lost' };
+    const DEAL_STAGE_ADVANCE = { NEW_ENQUIRY: 'QUALIFIED', QUALIFIED: 'PROPOSAL_SENT', PROPOSAL_SENT: 'NEGOTIATION', NEGOTIATION: 'WON' };
+    const DEAL_STAGE_TO_COL = { NEW_ENQUIRY: 'new', QUALIFIED: 'qualified', PROPOSAL_SENT: 'proposal', NEGOTIATION: 'negotiation', WON: 'won', LOST: 'won' };
+    const dealVal = (deal) => deal.valueAmount != null ? `${deal.currency} ${this.fmt(deal.valueAmount)}/mo` : '—';
+    const openDeals = s.apiDeals.filter(dl => dl.stage !== 'WON' && dl.stage !== 'LOST');
+    const wonDeals = s.apiDeals.filter(dl => dl.stage === 'WON');
+    const lostDeals = s.apiDeals.filter(dl => dl.stage === 'LOST');
+    const pipelineValue = openDeals.reduce((sum, dl) => sum + (dl.valueAmount || 0), 0);
+    const decided = wonDeals.length + lostDeals.length;
+    const winRate = decided ? Math.round((wonDeals.length / decided) * 100) : 0;
+    const avgDealSize = openDeals.length ? Math.round(pipelineValue / openDeals.length) : 0;
+    const salesKpis = [
+      { label: 'PIPELINE VALUE', value: this.fmt(pipelineValue), color: '#0D2B4E', sub: 'open deals, mixed currency' },
+      { label: 'OPEN DEALS', value: String(openDeals.length), color: '#0D2B4E', sub: 'across 4 active stages' },
+      { label: 'WIN RATE', value: winRate + '%', color: '#2E6B4F', sub: `${wonDeals.length} won · ${lostDeals.length} lost` },
+      { label: 'AVG DEAL SIZE', value: this.fmt(avgDealSize), color: '#0D2B4E', sub: 'per open deal' }
+    ];
+    const SALES_COL_DEFS = [
+      { key: 'new', label: 'NEW ENQUIRY', tint: '#EAF0F7', tintColor: '#0D2B4E' },
+      { key: 'qualified', label: 'QUALIFIED', tint: '#F0F2F5', tintColor: '#4A5563' },
+      { key: 'proposal', label: 'PROPOSAL SENT', tint: '#FBF3DF', tintColor: '#8A6508' },
+      { key: 'negotiation', label: 'NEGOTIATION', tint: '#FBF3DF', tintColor: '#8A6508' },
+      { key: 'won', label: 'WON / LOST', tint: '#E6F0EB', tintColor: '#2E6B4F' }
+    ];
+    const salesCols = SALES_COL_DEFS.map(col => {
+      const dealsInCol = s.apiDeals.filter(dl => DEAL_STAGE_TO_COL[dl.stage] === col.key);
+      return {
+        label: col.label, tint: col.tint, tintColor: col.tintColor, count: dealsInCol.length, colEmpty: dealsInCol.length === 0,
+        cards: dealsInCol.map(dl => ({
+          co: dl.stage === 'LOST' ? `${dl.company} (Lost)` : dl.company,
+          svc: dl.serviceDesc, val: dealVal(dl), src: dl.source, srcBg: '#EAF0F7', srcColor: '#0D2B4E',
+          logCount: dl.contactLogCount || 0,
+          open: () => this.openDeal(dl.id),
+          canAdvance: !!DEAL_STAGE_ADVANCE[dl.stage],
+          advanceLabel: DEAL_STAGE_ADVANCE[dl.stage] ? `Move to ${DEAL_STAGE_LABEL[DEAL_STAGE_ADVANCE[dl.stage]]}` : '',
+          canConvert: dl.stage === 'WON' && !dl.convertedClientId
+        }))
+      };
+    });
+    const dealDetailSrc = s.apiDeals.find(dl => dl.id === s.dealDetailId);
+    const dealDetail = dealDetailSrc ? {
+      company: dealDetailSrc.company, svc: dealDetailSrc.serviceDesc, val: dealVal(dealDetailSrc),
+      stage: DEAL_STAGE_LABEL[dealDetailSrc.stage] || dealDetailSrc.stage,
+      contactName: dealDetailSrc.contactName || '—', contactEmail: dealDetailSrc.contactEmail || '', contactPhone: dealDetailSrc.contactPhone || '',
+      logs: (dealDetailSrc.contactLogs || []).map(lg => ({ type: lg.type, note: lg.note, when: fmtDateShort(lg.createdAt) })),
+      logsEmpty: !(dealDetailSrc.contactLogs || []).length,
+      canAdvance: !!DEAL_STAGE_ADVANCE[dealDetailSrc.stage],
+      advanceLabel: DEAL_STAGE_ADVANCE[dealDetailSrc.stage] ? `Move to ${DEAL_STAGE_LABEL[DEAL_STAGE_ADVANCE[dealDetailSrc.stage]]}` : '',
+      terminal: dealDetailSrc.stage === 'WON' || dealDetailSrc.stage === 'LOST',
+      canConvert: dealDetailSrc.stage === 'WON' && !dealDetailSrc.convertedClientId,
+      advance: () => this.dealAdvance(dealDetailSrc.id),
+      markLost: () => this.dealMarkLost(dealDetailSrc.id),
+      convert: () => this.convertDeal(dealDetailSrc.id)
+    } : { logs: [], logsEmpty: true, company: '', svc: '', val: '', stage: '', contactName: '', contactEmail: '', contactPhone: '', canAdvance: false, canConvert: false, terminal: false, advance: () => {}, markLost: () => {}, convert: () => {} };
 
     // ---------- assemble ----------
     return {
@@ -5202,17 +5915,25 @@ class Component extends StreamableLogic {
       submitAdvSuggestion: () => this.submitAdvSuggestion(),
       hasAdvSuggestions, advSuggestions: advSuggestionsVals.map(a => ({ name: a.name, region: a.region, note: a.note })),
 
-      // portal
-      portalClientName: activeClientObj.name, portalClientHealth: activeClientObj.health,
-      portalClientHealthColor: d.healthColor(activeClientObj.health).color, portalClientRegion: activeClientObj.region,
+      // portal (Phase 4 — real data; see refreshPortal/apiPortal above)
+      portalClientName: portalClient ? portalClient.name : 'No client yet',
+      portalClientHealth: portalClient ? portalClient.health : '—',
+      portalClientHealthColor: portalClient ? (PORTAL_HEALTH_COLOR[portalClient.health] || '#0D2B4E') : '#9AA4B0',
+      portalClientRegion: portalClient ? portalClient.region : '—',
+      portalIsInternal: isPortalInternal,
+      portalClientsList: portalClientsListVals,
+      portalClientSel: s.portalClientSel,
+      onPortalClientSel: (e) => this.onPortalClientSel(e),
+      downloadPortalReport: () => this.downloadPortalReport(),
       portalKpis: [
-        { label: 'SLA', value: activeClientObj.sla, color: '#0D2B4E', sub: 'this month' },
-        { label: 'HEADCOUNT', value: String(activeClientObj.team), color: '#0D2B4E', sub: 'assigned staff' },
-        { label: 'ATTENDANCE', value: '95%', color: '#2E6B4F', sub: 'this week' },
-        { label: 'AVG QA', value: '92.4', color: '#2E6B4F', sub: 'last audit cycle' }
+        { label: 'SLA TARGET', value: portalClient && portalClient.slaTargetPct != null ? portalClient.slaTargetPct + '%' : '—', color: '#0D2B4E', sub: 'target' },
+        { label: 'HEADCOUNT', value: portal ? String(portal.attendanceSummary.staffCount) : '0', color: '#0D2B4E', sub: 'assigned staff' },
+        { label: 'ATTENDANCE', value: portal && portal.attendanceSummary.pct != null ? portal.attendanceSummary.pct + '%' : '—', color: '#2E6B4F', sub: 'last 30 days' },
+        { label: 'AVG QA', value: portal && portal.qaSummary.avg != null ? String(portal.qaSummary.avg) : '—', color: '#2E6B4F', sub: `${portal ? portal.qaSummary.auditCount : 0} audits` }
       ],
       roster: portalRoster, rosterEmpty: portalRoster.length === 0,
-      slaRows, slaEmpty: false, qaReports, qaEmpty: false,
+      slaRows, slaEmpty: slaRows.length === 0, qaReports, qaEmpty: qaReports.length === 0,
+      portalContracts, portalContractsEmpty: portalContracts.length === 0,
       invoices: portalInvoices, invoicesEmpty: portalInvoices.length === 0,
       docs: portalDocs, docsEmpty: false,
       pipeline, training, trainingEmpty: false,
@@ -5343,8 +6064,58 @@ class Component extends StreamableLogic {
       // analytics
       an, anExport: () => this.anExport(),
 
-      // sales
-      salesKpis, salesCols
+      // sales (Phase 4 · real data)
+      salesKpis, salesCols,
+      ndCompany: s.ndCompany, onNdCompany: (e) => this.onNdField('ndCompany', e),
+      ndContact: s.ndContact, onNdContact: (e) => this.onNdField('ndContact', e),
+      ndEmail: s.ndEmail, onNdEmail: (e) => this.onNdField('ndEmail', e),
+      ndPhone: s.ndPhone, onNdPhone: (e) => this.onNdField('ndPhone', e),
+      ndService: s.ndService, onNdService: (e) => this.onNdField('ndService', e),
+      ndValue: s.ndValue, onNdValue: (e) => this.onNdField('ndValue', e),
+      createDeal: () => this.createDeal(),
+      dealDetailOpen: s.dealDetailOpen, closeDeal: () => this.closeDeal(), dealDetail,
+      dcType: s.dcType, onDcType: (e) => this.onDcType(e), dcNote: s.dcNote, onDcNote: (e) => this.onDcNote(e),
+      addContactLog: () => this.addContactLog(),
+      convertPortalEmail: s.convertPortalEmail, onConvertPortalEmail: (e) => this.onConvertPortalEmail(e),
+
+      // finance (Phase 4 · real data)
+      financeTabs,
+      financeTab: s.financeTab, setFinanceTab: (t) => this.setFinanceTab(t),
+      isFinTabInvoices: s.financeTab === 'invoices', isFinTabPnl: s.financeTab === 'pnl',
+      isFinTabExpenses: s.financeTab === 'expenses', isFinTabBankRec: s.financeTab === 'bankrec',
+      isFinTabTaxCal: s.financeTab === 'taxcal',
+      pnl, expensesVals, expCategory: s.expCategory, onExpCategory: (e) => this.onExpField('expCategory', e),
+      expDesc: s.expDesc, onExpDesc: (e) => this.onExpField('expDesc', e),
+      expAmount: s.expAmount, onExpAmount: (e) => this.onExpField('expAmount', e), addExpense: () => this.addExpense(),
+      bankLinesVals, unmatchedExpenseOpts, blankStr: '',
+      bankDesc: s.bankDesc, onBankDesc: (e) => this.onBankField('bankDesc', e),
+      bankAmount: s.bankAmount, onBankAmount: (e) => this.onBankField('bankAmount', e),
+      importBankLine: () => this.importBankLine(),
+      taxFilingsVals,
+      payRunLatestId: payRunLatest ? payRunLatest.id : null, payRunApprovable: !!(payRunLatest && payRunLatest.status === 'DRAFT'),
+      approvePayrollRun: () => payRunLatest && this.approvePayrollRun(payRunLatest.id),
+
+      // contracts register (Phase 4 · real data)
+      contractsVals, ctType: s.ctType, onCtType: (e) => this.onCtField('ctType', e),
+      ctTitle: s.ctTitle, onCtTitle: (e) => this.onCtField('ctTitle', e),
+      ctClientId: s.ctClientId, onCtClientId: (e) => this.onCtField('ctClientId', e),
+      ctEmployeeId: s.ctEmployeeId, onCtEmployeeId: (e) => this.onCtField('ctEmployeeId', e),
+      ctVendorName: s.ctVendorName, onCtVendorName: (e) => this.onCtField('ctVendorName', e),
+      ctValue: s.ctValue, onCtValue: (e) => this.onCtField('ctValue', e),
+      ctStart: s.ctStart, onCtStart: (e) => this.onCtField('ctStart', e),
+      ctEnd: s.ctEnd, onCtEnd: (e) => this.onCtField('ctEnd', e),
+      ctRenewal: s.ctRenewal, onCtRenewal: (e) => this.onCtField('ctRenewal', e),
+      addContract: () => this.addContract(),
+      contractClientOpts, contractEmployeeOpts,
+      isCtTypeClient: s.ctType === 'CLIENT', isCtTypeStaff: s.ctType === 'STAFF', isCtTypeVendor: s.ctType === 'VENDOR',
+
+      // credentials vault (Phase 4 · real encrypted store)
+      vaultVals,
+      vsSystem: s.vsSystem, onVsSystem: (e) => this.onVsSystem(e),
+      vsUser: s.vsUser, onVsUser: (e) => this.onVsUser(e),
+      vsPass: s.vsPass, onVsPass: (e) => this.onVsPass(e),
+      vsCategory: s.vsCategory, onVsCategory: (e) => this.onVsCategory(e),
+      addCredential: () => this.addCredential(),
     };
   }
 }

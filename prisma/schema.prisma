@@ -154,6 +154,14 @@ model User {
   role         Role
   employeeId   String?   @unique
   employee     Employee? @relation(fields: [employeeId], references: [id])
+  // Phase 4 (Client Portal) — set only on Role=CLIENT accounts, created by
+  // the Sales & CRM "convert deal to client" flow. Deliberately NOT unique:
+  // a client may eventually have more than one portal login, but every
+  // portal-scoped API route filters strictly on this field server-side (see
+  // lib/roles.js PORTAL_VIEW + app/api/portal/**), never trusting a
+  // client-supplied clientId, so cross-client data never leaks regardless.
+  clientId     String?
+  client       Client?   @relation(fields: [clientId], references: [id])
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -184,6 +192,18 @@ model User {
   maintenanceCreated   MaintenanceTask[]    @relation("MaintenanceCreatedBy")
   procurementRequested ProcurementRequest[] @relation("ProcurementRequestedBy")
   procurementDecided   ProcurementRequest[] @relation("ProcurementDecidedBy")
+  procurementReceived  ProcurementRequest[] @relation("ProcurementReceivedBy")
+
+  // ---- Phase 4 (Growth & Finance) ----
+  dealsCreated            Deal[]              @relation("DealCreatedBy")
+  dealContactLogsCreated  DealContactLog[]    @relation("DealContactLogCreatedBy")
+  contractsCreated        Contract[]          @relation("ContractCreatedBy")
+  contractsReminded       Contract[]          @relation("ContractReminderBy")
+  expensesCreated         Expense[]           @relation("ExpenseCreatedBy")
+  bankLinesImported       BankStatementLine[] @relation("BankLineImportedBy")
+  bankLinesMatched        BankStatementLine[] @relation("BankLineMatchedBy")
+  taxFilingsFiled         TaxFiling[]         @relation("TaxFilingFiledBy")
+  vaultCredentialsCreated VaultCredential[]   @relation("VaultCredentialCreatedBy")
 }
 
 model Employee {
@@ -202,6 +222,13 @@ model Employee {
   emergencyContactPhone    String?
   emergencyContactRelation String?
   active                   Boolean  @default(true)
+  // Phase 4 (Client Portal) — which client account, if any, this person is
+  // staffed to service. Optional/nullable: most Phase 1-3 employees are
+  // internal-only and never assigned to a client. Set by Director/Ops
+  // Manager via the employee record; drives the Client Portal's "your team
+  // roster" (see app/api/portal/summary), never the reverse.
+  clientId                 String?
+  client                   Client?  @relation(fields: [clientId], references: [id])
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
@@ -211,6 +238,7 @@ model Employee {
   leaveRequests     LeaveRequest[]
   payslips          Payslip[]
   rosterEntries     ShiftRosterEntry[]
+  contracts         Contract[]
 
   // ---- Phase 2 (Operations & Performance) ----
   hiredFromCandidate  Candidate? // reverse of Candidate.convertedEmployeeId (1:1)
@@ -623,6 +651,11 @@ enum ProcurementStatus {
   PENDING
   APPROVED
   DENIED
+  // Phase 4 — set when the ordered item physically arrives. Marking a
+  // request RECEIVED is the trigger that posts its cost to the Finance
+  // expense ledger automatically (see postedExpenseId below and
+  // app/api/facilities/procurement/[id]/receive/route.js).
+  RECEIVED
 }
 
 model ProcurementRequest {
@@ -636,5 +669,254 @@ model ProcurementRequest {
   decidedByUserId   String?
   decidedBy         User?             @relation("ProcurementDecidedBy", fields: [decidedByUserId], references: [id])
   decidedAt         DateTime?
+  // Phase 4 — receiving leg of the workflow, additive to the Phase 3
+  // approve/deny decision above.
+  receivedByUserId  String?
+  receivedBy        User?             @relation("ProcurementReceivedBy", fields: [receivedByUserId], references: [id])
+  receivedAt        DateTime?
+  postedExpenseId   String?           @unique
+  postedExpense     Expense?          @relation(fields: [postedExpenseId], references: [id])
   createdAt         DateTime          @default(now())
+}
+
+// ============== Phase 4 (Growth & Finance) ==============
+// Sales & CRM pipeline, Client Portal's real Client entity, Finance (P&L /
+// expense ledger / bank reconciliation / tax calendar), Contracts register,
+// and Credentials Vault. See lib/roles.js for the matching permission
+// groups and app/api/{sales,portal,finance,contracts,vault}/** for routes.
+
+enum DealStage {
+  NEW_ENQUIRY
+  QUALIFIED
+  PROPOSAL_SENT
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum DealContactType {
+  CALL
+  EMAIL
+  MEETING
+}
+
+enum ClientStatus {
+  ONBOARDING
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum ClientHealth {
+  EXCELLENT
+  GOOD
+  ATTENTION
+  AT_RISK
+}
+
+// A won deal converts into exactly one Client (see Deal.convertedClientId).
+// Everything a Client Portal login can see is scoped to this row's id —
+// Employee.clientId (staffing), Contract.clientId (agreements), and the
+// portal summary/report routes all filter on it server-side.
+model Client {
+  id           String       @id @default(cuid())
+  name         String
+  region       String
+  industry     String
+  currency     String       @default("GH₵")
+  slaTargetPct Decimal?     @db.Decimal(5, 2)
+  status       ClientStatus @default(ONBOARDING)
+  health       ClientHealth @default(GOOD)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  dealSource  Deal? // reverse of Deal.convertedClientId (1:1)
+  staff       Employee[]
+  contracts   Contract[]
+  portalUsers User[]
+}
+
+model Deal {
+  id                String    @id @default(cuid())
+  company           String
+  contactName       String?
+  contactEmail      String?
+  contactPhone      String?
+  region            String    @default("Ghana")
+  serviceDesc       String
+  valueAmount       Decimal?  @db.Decimal(12, 2)
+  currency          String    @default("$")
+  source            String    @default("Website")
+  stage             DealStage @default(NEW_ENQUIRY)
+  lostReason        String?
+  createdByUserId   String?
+  createdBy         User?     @relation("DealCreatedBy", fields: [createdByUserId], references: [id])
+  // Set once, by the one-click "Convert to client" action — creates a real
+  // Client + Contract + JobOpening in one transaction (see
+  // app/api/sales/deals/[id]/convert). @unique enforces a deal converts at
+  // most once.
+  convertedClientId String?   @unique
+  convertedClient   Client?   @relation(fields: [convertedClientId], references: [id])
+  convertedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  contactLogs DealContactLog[]
+}
+
+// Call/email/meeting notes against a deal — the brief's "contact log".
+model DealContactLog {
+  id              String          @id @default(cuid())
+  dealId          String
+  deal            Deal            @relation(fields: [dealId], references: [id])
+  type            DealContactType
+  note            String
+  createdByUserId String
+  createdBy       User            @relation("DealContactLogCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime        @default(now())
+}
+
+enum ContractType {
+  CLIENT
+  STAFF
+  VENDOR
+}
+
+enum ContractStatus {
+  ACTIVE
+  RENEWAL_DUE
+  EXPIRED
+  TERMINATED
+}
+
+// Single register for client/staff/vendor agreements. A CLIENT contract is
+// created automatically by the Sales conversion handoff; STAFF/VENDOR rows
+// are added directly by Director/Accountant.
+model Contract {
+  id                   String         @id @default(cuid())
+  type                 ContractType
+  title                String
+  clientId             String?
+  client               Client?        @relation(fields: [clientId], references: [id])
+  employeeId           String?
+  employee             Employee?      @relation(fields: [employeeId], references: [id])
+  vendorName           String?
+  value                Decimal?       @db.Decimal(12, 2)
+  currency             String         @default("GH₵")
+  startDate            DateTime
+  endDate              DateTime?
+  renewalDueDate       DateTime?
+  status               ContractStatus @default(ACTIVE)
+  notes                String?
+  reminderSentAt       DateTime?
+  reminderSentByUserId String?
+  reminderSentBy       User?          @relation("ContractReminderBy", fields: [reminderSentByUserId], references: [id])
+  createdByUserId      String?
+  createdBy            User?          @relation("ContractCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+}
+
+enum ExpenseSource {
+  MANUAL
+  PAYROLL
+  PROCUREMENT
+}
+
+// Company expense ledger. PAYROLL-sourced rows are posted automatically from
+// an approved PayrollRun's payslip totals (see app/api/finance/pnl and the
+// payroll-approve route) rather than duplicated as a separately-mocked P&L
+// number; PROCUREMENT-sourced rows post automatically when a
+// ProcurementRequest is marked RECEIVED.
+model Expense {
+  id              String        @id @default(cuid())
+  category        String
+  description     String
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("GH₵")
+  date            DateTime      @default(now())
+  source          ExpenseSource @default(MANUAL)
+  sourceRef       String? // e.g. the PayrollRun.id or ProcurementRequest.id this posted from
+  createdByUserId String?
+  createdBy       User?         @relation("ExpenseCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime      @default(now())
+
+  procurementRequest ProcurementRequest?
+  bankMatch          BankStatementLine?
+}
+
+// Bank statement lines to reconcile against ledger (Expense) entries.
+model BankStatementLine {
+  id               String    @id @default(cuid())
+  date             DateTime
+  description      String
+  amount           Decimal   @db.Decimal(12, 2)
+  matchedExpenseId String?   @unique
+  matchedExpense   Expense?  @relation(fields: [matchedExpenseId], references: [id])
+  matchedByUserId  String?
+  matchedBy        User?     @relation("BankLineMatchedBy", fields: [matchedByUserId], references: [id])
+  matchedAt        DateTime?
+  importedByUserId String?
+  importedBy       User?     @relation("BankLineImportedBy", fields: [importedByUserId], references: [id])
+  createdAt        DateTime  @default(now())
+}
+
+enum TaxFilingType {
+  PAYE
+  SSNIT
+  VAT
+  CORPORATE_TAX
+}
+
+// Statutory tax/filing calendar. One row per (type, period) — seeded ahead
+// for the current + next period so the calendar always shows upcoming due
+// dates, and marked filed by the Accountant/Director as each is actually
+// filed with GRA/SSNIT.
+model TaxFiling {
+  id            String        @id @default(cuid())
+  type          TaxFilingType
+  period        String // e.g. "2026-07"
+  dueDate       DateTime
+  amount        Decimal?      @db.Decimal(12, 2)
+  filed         Boolean       @default(false)
+  filedAt       DateTime?
+  filedByUserId String?
+  filedBy       User?         @relation("TaxFilingFiledBy", fields: [filedByUserId], references: [id])
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  @@unique([type, period])
+}
+
+enum VaultCategory {
+  BANKING
+  GOVERNMENT
+  SOFTWARE
+  SOCIAL
+  OTHER
+}
+
+// Shared company logins, restricted to Director + IT & Facilities (see
+// lib/roles.js VAULT_*). The password is genuinely encrypted at rest with
+// AES-256-GCM (lib/vault-crypto.js), keyed off VAULT_ENCRYPTION_KEY — never
+// stored or logged in plaintext. Every reveal/copy writes an AuditLogEntry
+// (see app/api/vault/[id]/reveal).
+model VaultCredential {
+  id              String        @id @default(cuid())
+  system          String
+  category        VaultCategory @default(OTHER)
+  username        String
+  encIv           String // base64 AES-GCM IV
+  encTag          String // base64 AES-GCM auth tag
+  encData         String // base64 ciphertext
+  // A real (not fabricated) strength heuristic computed from the actual
+  // plaintext ONCE at write time (see lib/vault-crypto.js's caller), then
+  // stored as a plain label — lets the list view show it without ever
+  // decrypting on a bare GET.
+  strength        String        @default("Medium")
+  notes           String?
+  createdByUserId String
+  createdBy       User          @relation("VaultCredentialCreatedBy", fields: [createdByUserId], references: [id])
+  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime      @default(now())
 }

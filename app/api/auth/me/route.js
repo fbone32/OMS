@@ -5,7 +5,7 @@ async function GET(request) {
   const session = getSession(request);
   if (!session) return unauthorized();
 
-  const user = await prisma.user.findUnique({ where: { id: session.uid }, include: { employee: true } });
+  const user = await prisma.user.findUnique({ where: { id: session.uid }, include: { employee: true, client: true } });
   if (!user) return unauthorized();
 
   return new Response(
@@ -18,6 +18,8 @@ async function GET(request) {
         employeeName: user.employee ? user.employee.name : null,
         employeeBranch: user.employee ? user.employee.branch : null,
         employeeJobTitle: user.employee ? user.employee.jobTitle : null,
+        clientId: user.clientId || null,
+        clientName: user.client ? user.client.name : null,
       },
     }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }

@@ -27,6 +27,9 @@ function serialize(e) {
     emergencyContactPhone: e.emergencyContactPhone,
     emergencyContactRelation: e.emergencyContactRelation,
     active: e.active,
+    // Phase 4 (Client Portal) — which client this person is staffed to, if
+    // any. Drives the Client Portal's "your team roster".
+    clientId: e.clientId || null,
   };
 }
 
@@ -61,6 +64,9 @@ async function PATCH(request, { params }) {
   for (const f of editable) if (f in body) data[f] = body[f];
   if ('salaryGross' in body) data.salaryGross = body.salaryGross;
   if ('startDate' in body) data.startDate = new Date(body.startDate);
+  // Phase 4 (Client Portal) — Director/HR can (un)assign this person to a
+  // client's roster. `null`/'' clears the assignment.
+  if ('clientId' in body) data.clientId = body.clientId || null;
 
   const employee = await prisma.employee.update({ where: { id: params.id }, data }).catch(() => null);
   if (!employee) return json({ error: 'Not found' }, { status: 404 });
