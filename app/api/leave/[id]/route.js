@@ -1,6 +1,8 @@
 const { prisma } = require('../../../../lib/db');
 const { requireRole } = require('../../../../lib/auth');
 const { logAudit } = require('../../../../lib/audit');
+const { sendEmail } = require('../../../../lib/email');
+const { renderEmailTemplate } = require('../../../../lib/email-templates');
 const { LEAVE_DECIDE } = require('../../../../lib/roles');
 
 function json(data, init) {
@@ -66,12 +68,39 @@ async function PATCH(request, { params }) {
     scheduling = await unassignShiftsDuringLeave(leave.employeeId, leave.startDate, leave.endDate);
   }
 
+  // Notify the employee by real email if their account has one linked (an
+  // Employee row isn't guaranteed to have a User login — see Employee/User's
+  // optional 1:1 relation) — a genuine "PO/leave-approval notification" per
+  // the brief's integration requirements, using the same lib/email helper as
+  // every other notification in this app.
+  let emailSent = null;
+  const employeeUser = await prisma.user.findUnique({ where: { employeeId: leave.employeeId } });
+  if (employeeUser) {
+    const approved = decision === 'APPROVED';
+    const result = await sendEmail({
+      to: employeeUser.email,
+      subject: `Your ${leave.type.toLowerCase()} leave request was ${approved ? 'approved' : 'rejected'}`,
+      html: renderEmailTemplate('leave-decision', {
+        EMPLOYEE_FIRST_NAME: leave.employee.name.split(' ')[0],
+        DECISION_WORD: approved ? 'approved' : 'rejected',
+        BANNER_BG: approved ? '#E7F1EC' : '#FBECEC',
+        BANNER_FG: approved ? '#2E6B4F' : '#9B2C2C',
+        BANNER_LABEL: approved ? 'Approved' : 'Rejected',
+        LEAVE_TYPE: leave.type,
+        LEAVE_DATES: `${new Date(leave.startDate).toLocaleDateString('en-GB')} – ${new Date(leave.endDate).toLocaleDateString('en-GB')}`,
+        LEAVE_DAYS: `${leave.days} day${leave.days === 1 ? '' : 's'}`,
+      }),
+      text: `Your ${leave.type} leave request (${leave.days} day(s)) was ${approved ? 'approved' : 'rejected'}.`,
+    });
+    emailSent = result.ok;
+  }
+
   await logAudit({
     session,
     action: decision === 'APPROVED' ? 'LEAVE_APPROVED' : 'LEAVE_REJECTED',
     targetType: 'LeaveRequest',
     targetId: leave.id,
-    detail: { employee: leave.employee.name, scheduling },
+    detail: { employee: leave.employee.name, scheduling, emailSent },
   });
 
   return json({

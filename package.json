@@ -13,8 +13,10 @@
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "next": "^14.2.18",
+    "pdfkit": "^0.19.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "resend": "^6.18.0"
   },
   "devDependencies": {
     "prisma": "^5.22.0"

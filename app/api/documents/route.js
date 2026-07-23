@@ -35,6 +35,13 @@ function serialize(doc, session) {
     id: doc.id,
     employeeId: doc.employeeId,
     ownerName: doc.employee ? doc.employee.name : null,
+    // Phase 4 (Client Portal) — set when this doc was tagged to a specific
+    // Client (see Document.clientId); surfaced here so the internal
+    // Document Library can show which client a doc belongs to, alongside
+    // the same rows that Client's own portal login sees via
+    // app/api/portal/documents.
+    clientId: doc.clientId,
+    clientName: doc.client ? doc.client.name : null,
     category: doc.category,
     fileName: doc.fileName,
     mimeType: doc.mimeType,
@@ -58,7 +65,7 @@ async function GET(request) {
   if (errorResponse) return errorResponse;
 
   const docs = await prisma.document.findMany({
-    include: { employee: true },
+    include: { employee: true, client: true },
     orderBy: { createdAt: 'desc' },
   });
 
@@ -92,9 +99,16 @@ async function POST(request) {
   const placeholderText = body.notes || `Placeholder content for ${fileName}, uploaded by ${session.email}.`;
   const fileDataUrl = `data:text/plain;base64,${Buffer.from(placeholderText).toString('base64')}`;
 
+  let clientId = body.clientId ? String(body.clientId) : null;
+  if (clientId) {
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) return json({ error: 'clientId does not match a real client' }, { status: 400 });
+  }
+
   const doc = await prisma.document.create({
     data: {
       employeeId: body.employeeId || null,
+      clientId,
       category,
       fileName,
       mimeType: 'text/plain',
@@ -105,7 +119,7 @@ async function POST(request) {
       notes: body.notes || null,
       uploadedByUserId: session.uid,
     },
-    include: { employee: true },
+    include: { employee: true, client: true },
   });
 
   await logAudit({ session, action: 'DOCUMENT_UPLOADED', targetType: 'Document', targetId: doc.id, detail: { fileName, category } });

@@ -8,13 +8,15 @@
 // enforces a deal can only ever be converted once). Optionally also creates
 // the Client's first portal login (Role=CLIENT User), if a portalEmail is
 // supplied — same generated-temp-password mechanism as
-// app/api/employees/onboard, since there's no email infra to send it any
-// other way (relayed by hand by whoever runs this, same stopgap as onboarding).
+// app/api/employees/onboard, now ALSO real-emailed to that portal contact
+// (via lib/email) instead of only being relayed by hand.
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../../../../../../lib/db');
 const { requireRole } = require('../../../../../../lib/auth');
 const { logAudit } = require('../../../../../../lib/audit');
+const { sendEmail } = require('../../../../../../lib/email');
+const { renderEmailTemplate } = require('../../../../../../lib/email-templates');
 const { SALES_MANAGE } = require('../../../../../../lib/roles');
 
 function json(data, init) {
@@ -128,6 +130,26 @@ async function POST(request, { params }) {
     return json({ error: 'Could not convert this deal. Please try again.' }, { status: 500 });
   }
 
+  let portalEmailSent = null;
+  if (result.portalUser) {
+    const origin = request.headers.get('origin') || '';
+    const emailResult = await sendEmail({
+      to: result.portalUser.email,
+      subject: `Your ${result.client.name} Client Portal access`,
+      html: renderEmailTemplate('portal-invite', {
+        CLIENT_NAME: result.client.name,
+        USER_EMAIL: result.portalUser.email,
+        TEMP_PASSWORD: temporaryPassword,
+        SIGN_IN_URL: origin || 'https://openbaseafrica.com',
+      }),
+      text: `Welcome to the OBA Client Portal. Email: ${result.portalUser.email} · Temporary password: ${temporaryPassword}.`,
+    });
+    portalEmailSent = emailResult.ok;
+    if (!emailResult.ok) {
+      console.error(`[sales/deals/convert] portal invite email not sent to ${result.portalUser.email}: ${emailResult.error}`);
+    }
+  }
+
   await logAudit({
     session,
     action: 'DEAL_CONVERTED_TO_CLIENT',
@@ -139,6 +161,7 @@ async function POST(request, { params }) {
       contractId: result.contract.id,
       jobOpeningId: result.jobOpening.id,
       portalUserId: result.portalUser ? result.portalUser.id : null,
+      portalEmailSent,
       // Never include the password itself in the audit trail.
     },
   });
@@ -152,6 +175,7 @@ async function POST(request, { params }) {
       // Only ever visible here, once — same handling as onboarding's own
       // temporary password.
       temporaryPassword,
+      portalEmailSent,
     },
     { status: 201 }
   );

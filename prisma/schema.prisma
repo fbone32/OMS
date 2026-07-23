@@ -204,6 +204,10 @@ model User {
   bankLinesMatched        BankStatementLine[] @relation("BankLineMatchedBy")
   taxFilingsFiled         TaxFiling[]         @relation("TaxFilingFiledBy")
   vaultCredentialsCreated VaultCredential[]   @relation("VaultCredentialCreatedBy")
+  invoicesCreated         Invoice[]              @relation("InvoiceCreatedBy")
+  invoiceTaxSettingsUpdated InvoiceTaxSettings[] @relation("InvoiceTaxSettingsUpdatedBy")
+  supportRequestsCreated  ClientSupportRequest[]  @relation("SupportRequestCreatedBy")
+  supportMessagesAuthored ClientSupportMessage[] @relation("SupportMessageAuthor")
 }
 
 model Employee {
@@ -254,6 +258,15 @@ model Document {
   id               String           @id @default(cuid())
   employeeId       String? // null = company-wide document (SOP, policy, client contract), not tied to one person
   employee         Employee?        @relation(fields: [employeeId], references: [id])
+  // Phase 4 (Client Portal) — set when this document belongs to a specific
+  // Client (their MSA, SLA schedule, data protection addendum, etc.),
+  // matching the existing Employee.clientId pattern: optional, additive,
+  // never required. Company-wide docs (employeeId AND clientId both null)
+  // and personal employee docs are unaffected. Surfaced to that Client's
+  // portal login via app/api/portal/documents — never through the general
+  // internal /api/documents route's own access rules changing.
+  clientId         String?
+  client           Client?          @relation(fields: [clientId], references: [id])
   category         DocumentCategory
   fileName         String
   mimeType         String
@@ -734,6 +747,9 @@ model Client {
   staff       Employee[]
   contracts   Contract[]
   portalUsers User[]
+  invoices    Invoice[]
+  documents   Document[]
+  supportRequests ClientSupportRequest[]
 }
 
 model Deal {
@@ -815,6 +831,8 @@ model Contract {
   createdBy            User?          @relation("ContractCreatedBy", fields: [createdByUserId], references: [id])
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
+
+  invoices Invoice[]
 }
 
 enum ExpenseSource {
@@ -919,4 +937,156 @@ model VaultCredential {
   createdBy       User          @relation("VaultCredentialCreatedBy", fields: [createdByUserId], references: [id])
   updatedAt       DateTime      @updatedAt
   createdAt       DateTime      @default(now())
+}
+
+// ============== Invoices (brief section 3A) ==============
+// Real billing register generated from real Client + Contract data (Phase
+// 4), replacing the client-side-only mock the Invoices screen used to run
+// on. Only DRAFT/SENT/PAID are ever actually persisted/written by an actor
+// (see app/api/invoices/[id]/status — a real, role-gated, audited state
+// machine: DRAFT -> SENT -> PAID). OVERDUE is deliberately NOT a fourth
+// state a human clicks into — it's derived at read time from
+// (status === SENT && dueDate < now), exactly the same pattern this
+// codebase already uses for Contract.status's RENEWAL_DUE/EXPIRED (see
+// app/api/contracts's renewalStatus()) — an invoice that's overdue doesn't
+// stop being "sent, unpaid", it just becomes late, and the moment it's
+// actually paid the real status transition is still SENT -> PAID. Kept in
+// the enum anyway so the shape matches the brief's literal status list.
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+}
+
+model Invoice {
+  id              String            @id @default(cuid())
+  clientId        String
+  client          Client            @relation(fields: [clientId], references: [id])
+  // Optional — set when generated off a specific Contract (the common case:
+  // billing a client's existing retainer), left null for a one-off/ad-hoc
+  // invoice raised directly against the client with no linked agreement.
+  contractId      String?
+  contract        Contract?         @relation(fields: [contractId], references: [id])
+  period          String // e.g. "2026-07" — the billing period this invoice covers
+  currency        String            @default("$")
+  // Denormalized SUBTOTAL (sum of lineItems' amounts, pre-tax), recomputed
+  // server-side on every write (never trust a client-supplied total) — see
+  // app/api/invoices. Real tax due on top of this is the vat/nhil/getfund/
+  // covidLevy fields below; totalAmount is the actual grand total to collect.
+  amount          Decimal           @db.Decimal(12, 2)
+  // Whether this invoice is treated as an export of services (VAT/levy
+  // exempt) vs. standard-rated. Defaulted at creation time from
+  // Client.currency === '$' as a starting-point signal (a USD-billed client
+  // is presumptively an international/export engagement) but always an
+  // explicit, overridable choice made by Accountant/Director when raising
+  // the invoice (see app/api/invoices POST) — never silently inferred with
+  // no way to correct it.
+  taxExempt       Boolean           @default(false)
+  // Real tax breakdown, computed from the InvoiceTaxSettings row in effect
+  // at creation time and SNAPSHOTTED here (same pattern as Payslip snapshots
+  // PayrollSettings' rates) so a later edit to InvoiceTaxSettings never
+  // silently changes the amount already invoiced to a client. All zero when
+  // taxExempt is true.
+  vatAmount       Decimal           @default(0) @db.Decimal(12, 2)
+  nhilAmount      Decimal           @default(0) @db.Decimal(12, 2)
+  getfundAmount   Decimal           @default(0) @db.Decimal(12, 2)
+  covidLevyAmount Decimal           @default(0) @db.Decimal(12, 2)
+  // amount + vatAmount + nhilAmount + getfundAmount + covidLevyAmount (or
+  // just amount when taxExempt) — the real amount actually due, shown as
+  // "Total due" on the invoice/PDF/email, NOT `amount` alone.
+  totalAmount     Decimal           @db.Decimal(12, 2)
+  status          InvoiceStatus     @default(DRAFT)
+  dueDate         DateTime?
+  sentAt          DateTime?
+  paidAt          DateTime?
+  createdByUserId String?
+  createdBy       User?             @relation("InvoiceCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  lineItems InvoiceLineItem[]
+
+  @@index([clientId])
+}
+
+model InvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Decimal @default(1) @db.Decimal(10, 2)
+  unitPrice   Decimal @db.Decimal(12, 2)
+  amount      Decimal @db.Decimal(12, 2) // quantity * unitPrice, computed server-side
+}
+
+// Real, editable VAT/levy-rate table for invoicing — never hard-code tax
+// rates in application logic, same compliance principle (and same shape) as
+// PayrollSettings above. Ghana's real tax stack on a standard-rated invoiced
+// service is not a single VAT number — it's VAT plus several additional
+// levies (NHIL, GETFund Levy, COVID-19 Health Recovery Levy) that apply on
+// top of it. The rates below are PLACEHOLDERS pending accountant/tax-advisor
+// sign-off (see seed script + final report) — so is the computation itself:
+// this implementation applies each rate independently to the invoice
+// subtotal (a simplified, non-compounding calculation). Ghana's actual VAT
+// Flat Rate Scheme may compound these differently (e.g. VAT charged on
+// subtotal+levies rather than on the subtotal alone) — that exact order has
+// NOT been verified against current GRA guidance and must be confirmed by
+// an accountant before any real invoice's tax line is relied upon.
+model InvoiceTaxSettings {
+  id                String   @id @default(cuid())
+  vatRatePct        Decimal  @db.Decimal(5, 2) // headline VAT rate, e.g. 15.0 — PLACEHOLDER
+  nhilRatePct       Decimal  @db.Decimal(5, 2) // National Health Insurance Levy — PLACEHOLDER
+  getfundRatePct    Decimal  @db.Decimal(5, 2) // GETFund Levy — PLACEHOLDER
+  covidLevyRatePct  Decimal  @db.Decimal(5, 2) // COVID-19 Health Recovery Levy — PLACEHOLDER
+  effectiveFrom     DateTime @default(now())
+  notes             String?
+  updatedByUserId   String?
+  updatedBy         User?    @relation("InvoiceTaxSettingsUpdatedBy", fields: [updatedByUserId], references: [id])
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
+}
+
+// ============== Client Portal support requests ==============
+// A real, minimal ticket-style model for the Client Portal's "Support
+// requests" panel, replacing what was previously a client-side-only mock
+// thread. Shape deliberately mirrors Phase 3's ITTicket (title/status/who-
+// reported-it) rather than duplicating a second unrelated pattern, adapted
+// for a two-way client<->OBA conversation via ClientSupportMessage instead
+// of ITTicket's single detail/resolution fields.
+enum SupportRequestStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+model ClientSupportRequest {
+  id              String               @id @default(cuid())
+  clientId        String
+  client          Client               @relation(fields: [clientId], references: [id])
+  title           String
+  status          SupportRequestStatus @default(OPEN)
+  createdByUserId String?
+  createdBy       User?                @relation("SupportRequestCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  messages ClientSupportMessage[]
+
+  @@index([clientId])
+}
+
+model ClientSupportMessage {
+  id           String               @id @default(cuid())
+  requestId    String
+  request      ClientSupportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  authorUserId String
+  author       User                 @relation("SupportMessageAuthor", fields: [authorUserId], references: [id])
+  // true when authored by the CLIENT-role user on this thread, false when an
+  // internal OBA role (Director/Business Development) replied — drives the
+  // portal UI's left/right message alignment without re-deriving it from
+  // author.role on every render.
+  fromClient   Boolean
+  body         String
+  createdAt    DateTime             @default(now())
 }

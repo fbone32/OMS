@@ -9,6 +9,18 @@ const nextConfig = {
       { source: '/', destination: '/index.html' },
     ];
   },
+  // pdfkit (real invoice PDF generation — see lib/invoice-pdf.js) reads its
+  // built-in font metrics (.afm) files from disk, relative to its own
+  // package directory, at runtime. Webpack's default bundling of API routes
+  // inlines the module and loses that relative path, causing an ENOENT for
+  // data/Helvetica.afm in the bundled output. Marking it external keeps
+  // pdfkit as a normal `require()` against node_modules at runtime instead,
+  // so its own file lookups work unmodified — same category of "opt this
+  // dependency out of bundling" fix Next.js's own docs recommend for
+  // libraries that read files relative to themselves (e.g. sharp, canvas).
+  experimental: {
+    serverComponentsExternalPackages: ['pdfkit'],
+  },
 };
 
 module.exports = nextConfig;

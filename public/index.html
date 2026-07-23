@@ -783,9 +783,12 @@
               <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
                 <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Documents &amp; SOPs</div>
                 <sc-for list="{{ docs }}" as="d" hint-placeholder-count="4">
-                  <div style="padding:10px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;font-size:12.5px;">
+                  <div style="padding:10px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;">
                     <span style="font-weight:600;color:#1F2A37;">{{ d.name }}</span>
-                    <span style="color:#9AA4B0;font-weight:500;font-size:11px;white-space:nowrap;">{{ d.date }}</span>
+                    <span style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+                      <span style="color:#9AA4B0;font-weight:500;font-size:11px;white-space:nowrap;">{{ d.date }}</span>
+                      <button onClick="{{ d.download }}" style="background:#FFFFFF;border:1px solid #D8DFE7;color:#0D2B4E;font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap;">↓</button>
+                    </span>
                   </div>
                 </sc-for>
                 <sc-if value="{{ docsEmpty }}" hint-placeholder-val="{{ false }}">
@@ -812,25 +815,12 @@
               </div>
             </div>
 
-            <!-- Training + support -->
+            <!-- Support (Training progress deliberately removed from the
+                 Client Portal — see renderVals()'s comment near
+                 "portalSupport" for why: it was internal staff training
+                 data with no genuine client-facing equivalent, not a real
+                 per-client metric worth keeping even honestly labeled.) -->
             <div style="display:flex;flex-direction:column;gap:14px;">
-              <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
-                <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Training progress</div>
-                <div style="padding:14px 18px;display:flex;flex-direction:column;gap:12px;">
-                  <sc-for list="{{ training }}" as="t" hint-placeholder-count="3">
-                    <div>
-                      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px;"><span style="color:#1F2A37;font-weight:600;">{{ t.name }}</span><span style="color:#0D2B4E;font-weight:800;">{{ t.pct }}</span></div>
-                      <div style="height:6px;background:#EEF1F4;border-radius:99px;overflow:hidden;"><div style="height:100%;width:{{ t.pct }};background:#0D2B4E;border-radius:99px;"></div></div>
-                    </div>
-                  </sc-for>
-                  <sc-if value="{{ trainingEmpty }}" hint-placeholder-val="{{ false }}">
-                    <div style="text-align:center;padding:20px 8px;">
-                      <div style="font-size:12.5px;font-weight:700;color:#0D2B4E;">No cohorts in training</div>
-                      <div style="font-size:11.5px;color:#9AA4B0;font-weight:500;margin-top:3px;line-height:1.5;">Onboarding and course progress show here once your team starts.</div>
-                    </div>
-                  </sc-if>
-                </div>
-              </div>
               <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
                 <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;">
                   <span style="font-size:13.5px;font-weight:700;color:#0D2B4E;">Support requests</span>
@@ -1117,7 +1107,7 @@
                       <div style="margin-top:8px;background:#FBF3DF;border:1px solid #E8D3A0;border-radius:7px;padding:9px 11px;">
                         <div style="font-size:11px;color:#8A6508;font-weight:700;">Temporary password — shown once, share it with {{ a.name }} directly:</div>
                         <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;font-weight:800;color:#0D2B4E;margin-top:4px;user-select:all;">{{ a.tempPassword }}</div>
-                        <div style="font-size:10.5px;color:#9A7A2E;font-weight:600;margin-top:5px;">Login email: {{ a.email }} · There's no auto-email yet — this will not be shown again.</div>
+                        <div style="font-size:10.5px;color:#9A7A2E;font-weight:600;margin-top:5px;">Login email: {{ a.email }} · {{ a.emailStatusMsg }} — this will not be shown again.</div>
                       </div>
                     </sc-if>
                   </div>
@@ -1868,24 +1858,34 @@
         <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:14px;align-items:start;">
           <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-top:3px solid #C8960C;border-radius:10px;overflow:hidden;">
             <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">New invoice</div>
+            <sc-if value="{{ invoicesManage }}" hint-placeholder-val="{{ true }}">
             <div style="padding:16px 18px;">
               <label style="display:block;font-size:11px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">CLIENT</label>
-              <div style="border:1px solid #EEF1F4;background:#F8FAFC;border-radius:7px;padding:10px 12px;font-size:12.5px;font-weight:700;color:#0D2B4E;margin-bottom:12px;">{{ invClientLabel }}</div>
+              <select value="{{ invClientId }}" onChange="{{ onInvClientId }}" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;background-color:#FFFFFF;margin-bottom:12px;">
+                <option value="">Choose client…</option>
+                <sc-for list="{{ invClientOpts }}" as="co" hint-placeholder-count="2"><option value="{{ co.value }}">{{ co.label }}</option></sc-for>
+              </select>
               <label style="display:block;font-size:11px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">DESCRIPTION</label>
               <input value="{{ invDesc }}" onChange="{{ onInvDesc }}" placeholder="e.g. Support team · August (retainer)" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;outline-color:#C8960C;margin-bottom:12px;">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                 <div>
-                  <label style="display:block;font-size:11px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">AMOUNT (USD)</label>
-                  <input value="{{ invAmount }}" onChange="{{ onInvAmount }}" placeholder="28,400" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;outline-color:#C8960C;">
+                  <label style="display:block;font-size:11px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">AMOUNT</label>
+                  <input value="{{ invAmount }}" onChange="{{ onInvAmount }}" placeholder="28400" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;outline-color:#C8960C;">
                 </div>
                 <div>
                   <label style="display:block;font-size:11px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">DUE DATE</label>
-                  <input value="{{ invDue }}" onChange="{{ onInvDue }}" placeholder="25 Aug 2026" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;outline-color:#C8960C;">
+                  <input value="{{ invDue }}" onChange="{{ onInvDue }}" placeholder="YYYY-MM-DD" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;outline-color:#C8960C;">
                 </div>
               </div>
               <button onClick="{{ sendInvoice }}" style="width:100%;margin-top:14px;background:#C8960C;color:#FFFFFF;border:none;font-size:13px;font-weight:700;padding:12px;border-radius:8px;cursor:pointer;" style-hover="background:#B5860A;">Generate &amp; send to client</button>
               <div style="font-size:11px;color:#9AA4B0;font-weight:500;margin-top:8px;line-height:1.5;">Sent invoices appear instantly in the client's portal and in the outstanding total below.</div>
             </div>
+            </sc-if>
+            <sc-if value="{{ invoicesViewOnly }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:20px 18px;text-align:center;">
+                <div style="font-size:12.5px;color:#6B7684;font-weight:500;line-height:1.6;">Your role has view-only access to Invoices. Accountant or Director can generate and send new invoices.</div>
+              </div>
+            </sc-if>
           </div>
           <div style="display:flex;flex-direction:column;gap:14px;">
             <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:12px;padding:18px;display:flex;align-items:center;gap:22px;">
@@ -1923,6 +1923,7 @@
                   </div>
                   <div style="display:flex;align-items:center;gap:8px;">
                     <button onClick="{{ iv.view }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:10.5px;font-weight:700;padding:6px 11px;border-radius:6px;cursor:pointer;">View</button>
+                    <button onClick="{{ iv.downloadPdf }}" style="background:#FFFFFF;border:1px solid #D8DFE7;color:#0D2B4E;font-size:10.5px;font-weight:700;padding:6px 11px;border-radius:6px;cursor:pointer;">↓ PDF</button>
                     <sc-if value="{{ iv.canAct }}" hint-placeholder-val="{{ true }}">
                       <button onClick="{{ iv.remind }}" style="background:#FFFFFF;border:1px solid #D8DFE7;color:#0D2B4E;font-size:10.5px;font-weight:700;padding:6px 11px;border-radius:6px;cursor:pointer;">Remind</button>
                       <button onClick="{{ iv.markPaid }}" style="background:#2E6B4F;color:#FFFFFF;border:none;font-size:10.5px;font-weight:700;padding:6px 11px;border-radius:6px;cursor:pointer;">Mark paid</button>
@@ -2097,7 +2098,9 @@
               <div style="display:flex;justify-content:flex-end;margin-top:14px;">
                 <div style="width:240px;">
                   <div style="display:flex;justify-content:space-between;font-size:12px;color:#4A5563;padding:5px 0;"><span>Subtotal</span><span style="font-weight:600;color:#1F2A37;">{{ invoiceView.subtotal }}</span></div>
-                  <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#4A5563;padding:5px 0;"><span>VAT (0% · export of services)</span><span style="font-weight:600;color:#1F2A37;">{{ invoiceView.vat }}</span></div>
+                  <sc-for list="{{ invoiceView.taxRows }}" as="tr" hint-placeholder-count="1">
+                    <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#4A5563;padding:5px 0;"><span>{{ tr.label }}</span><span style="font-weight:600;color:#1F2A37;">{{ tr.amount }}</span></div>
+                  </sc-for>
                   <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:800;color:#0D2B4E;padding:9px 0 0 0;border-top:2px solid #0D2B4E;margin-top:5px;"><span>Total due</span><span>{{ invoiceView.total }}</span></div>
                 </div>
               </div>
@@ -3283,6 +3286,12 @@ class Component extends StreamableLogic {
       return '·';
     };
     this.fmt = (n) => Math.round(n).toLocaleString('en-US');
+    // Shared invoice status -> color/label maps (used by both the internal
+    // Invoices screen and the Client Portal's own invoices list further
+    // below in renderVals) — hoisted here as instance properties so neither
+    // usage depends on execution order inside renderVals().
+    this.INVOICE_STATUS_COLOR = { DRAFT: ['#F0F2F5', '#4A5563'], SENT: ['#FBF3DF', '#8A6508'], PAID: ['#E6F0EB', '#2E6B4F'], OVERDUE: ['#FBECEC', '#9B2C2C'] };
+    this.INVOICE_STATUS_LABEL = { DRAFT: 'Draft', SENT: 'Sent', PAID: 'Paid', OVERDUE: 'Overdue' };
     // Live "HH:MM" for a given IANA timezone, from a millisecond timestamp
     // (state.clockTick, ticked every second in componentDidMount).
     this.fmtClock = (ts, timeZone) => {
@@ -3589,8 +3598,10 @@ class Component extends StreamableLogic {
 
       twofaOpen: false, twofaDone: false, twofaCode: '',
 
-      invoicesList: this.data.invoices,
-      invDesc: '', invAmount: '', invDue: '',
+      // Real data from /api/invoices (Phase: Invoices) — replaces the old
+      // client-side-only invoicesList mock entirely.
+      apiInvoices: [], apiPortalInvoices: [],
+      invClientId: '', invDesc: '', invAmount: '', invDue: '',
       invoiceOpen: false, invoiceViewId: null,
 
       kpiPeriodIdx: 0,
@@ -3613,8 +3624,11 @@ class Component extends StreamableLogic {
       drTickets: '', drEsc: '', drText: '',
       lvType: 'Annual', lvFrom: '', lvTo: '',
       repType: 'Equipment', repText: '',
+      // Real data from /api/portal/documents and /api/portal/support —
+      // Training progress is deliberately not represented here (removed,
+      // not faked — see the isPortal HTML's comment on this).
       reqDraft: '',
-      requests: this.data.requests,
+      apiPortalDocuments: [], apiPortalSupport: [], openSupportIds: {}, supportReplyDrafts: {},
       empPrivacyMsg: '',
       dailyReportsExtra: [],
 
@@ -3742,10 +3756,16 @@ class Component extends StreamableLogic {
     // Client Portal — everyone who can see it gets fresh staffing/QA data.
     if ((roleId === 'director' || roleId === 'bd' || roleId === 'advisor' || roleId === 'client') && s.activeScreen === 'portal') {
       this.refreshPortal();
+      this.refreshPortalInvoices();
+      this.refreshPortalDocuments();
+      this.refreshPortalSupport();
     }
-    // Finance — Director/Accountant see fresh P&L/ledger/reconciliation data.
-    if ((roleId === 'director' || roleId === 'accountant') && s.activeScreen === 'invoices') {
-      this.refreshFinance();
+    // Invoices/Finance — Director/Accountant/HR see fresh invoices; the P&L/
+    // ledger/bank-rec/tax-calendar sub-tabs are Director/Accountant only
+    // (server-side FINANCE_VIEW), so HR only ever needs the invoices refetch.
+    if ((roleId === 'director' || roleId === 'accountant' || roleId === 'hr') && s.activeScreen === 'invoices') {
+      this.refreshInvoices();
+      if (roleId !== 'hr') this.refreshFinance();
     }
     // Contracts register.
     if ((roleId === 'director' || roleId === 'accountant' || roleId === 'hr' || roleId === 'bd') && s.activeScreen === 'contracts') {
@@ -3862,9 +3882,17 @@ class Component extends StreamableLogic {
     }
     if (id === 'director' || id === 'bd' || id === 'advisor' || id === 'client') {
       this.refreshPortal();
+      this.refreshPortalInvoices();
+      this.refreshPortalDocuments();
+      this.refreshPortalSupport();
     }
     if (id === 'director' || id === 'accountant') {
       this.refreshFinance();
+    }
+    // Invoices — Director/Accountant/HR per lib/roles.js INVOICES_VIEW
+    // (HR's nav already includes the Invoices screen — see this.ROLES).
+    if (id === 'director' || id === 'accountant' || id === 'hr') {
+      this.refreshInvoices();
     }
     if (id === 'director' || id === 'accountant' || id === 'hr' || id === 'bd') {
       this.refreshContracts();
@@ -3919,6 +3947,12 @@ class Component extends StreamableLogic {
   }
   refreshContracts() { this.apiGet('/api/contracts').then((d) => d && this.setState({ apiContracts: d.contracts || [] })); }
   refreshVault() { this.apiGet('/api/vault').then((d) => d && this.setState({ apiVault: d.credentials || [] })); }
+  refreshInvoices() { this.apiGet('/api/invoices').then((d) => d && this.setState({ apiInvoices: d.invoices || [] })); }
+  refreshPortalInvoices() {
+    const s = this.state;
+    const qs = (s.currentRoleId !== 'client' && s.portalClientSel) ? ('?clientId=' + encodeURIComponent(s.portalClientSel)) : '';
+    this.apiGet('/api/portal/invoices' + qs).then((d) => d && this.setState({ apiPortalInvoices: d.invoices || [] }));
+  }
 
   // ================= static demo data =================
   buildStaticData() {
@@ -4004,13 +4038,6 @@ class Component extends StreamableLogic {
         { id: 'v6', system: 'AWS console', cat: 'Software', user: 'root-oba-it', pass: 'Aw$0perations1', owner: 'Nana Adjei', rotated: '9 Feb 2026', strength: 'Strong', stBg: '#E6F0EB', stColor: '#2E6B4F', revealed: false }
       ],
 
-      invoices: [
-        { id: 'INV-2026-041', clientId: 'zanzu', amount: '$28,400', due: 'Due 25 Aug 2026', status: 'Sent', stBg: '#FBF3DF', stColor: '#8A6508', canAct: true },
-        { id: 'INV-2026-040', clientId: 'primecare', amount: '$16,900', due: 'Due 18 Aug 2026', status: 'Overdue', stBg: '#FBECEC', stColor: '#B23B3B', canAct: true },
-        { id: 'INV-2026-039', clientId: 'nova', amount: '$9,750', due: 'Paid 2 Aug 2026', status: 'Paid', stBg: '#E6F0EB', stColor: '#2E6B4F', canAct: false },
-        { id: 'INV-2026-038', clientId: 'baobab', amount: '$21,300', due: 'Due 30 Aug 2026', status: 'Sent', stBg: '#FBF3DF', stColor: '#8A6508', canAct: true }
-      ],
-
       payRows: employees.slice(0, 9).map((e, i) => {
         const gross = 2400 + (i % 5) * 350;
         const ssnit = Math.round(gross * 0.055);
@@ -4041,23 +4068,6 @@ class Component extends StreamableLogic {
         { id: 'l2', name: 'Kobby Ansah', type: 'Sick', dates: '22 Jul', days: 1, branch: 'Kumasi', balanceNote: '11 days left', pending: true },
         { id: 'l3', name: 'Esi Owusu', type: 'Compassionate', dates: '15–16 Jul', days: 2, branch: 'Accra HQ', balanceNote: '4 days left', pending: false, decision: 'APPROVED', decBg: '#E6F0EB', decColor: '#2E6B4F' },
         { id: 'l4', name: 'Isaac Adjei', type: 'Annual', dates: '01–03 Jul', days: 3, branch: 'Takoradi', balanceNote: '6 days left', pending: false, decision: 'REJECTED', decBg: '#FBECEC', decColor: '#B23B3B' }
-      ],
-
-      requests: [
-        {
-          id: 'r1', title: 'Add two more agents for the holiday surge', status: 'OPEN', stBg: '#FBF3DF', stColor: '#8A6508', date: '18 Jul', open: false, replyDraft: '',
-          thread: [
-            { who: 'ZANZU TELECOM', text: "We're expecting a 30% call volume increase for the August promo — can we get 2 extra agents?", align: 'flex-start', bg: '#F0F2F5', color: '#1F2A37', border: '#E3E7EC' },
-            { who: 'OBA OPS', text: "On it — reviewing headcount, will confirm coverage by Friday.", align: 'flex-end', bg: '#0D2B4E', color: '#FFFFFF', border: '#0D2B4E' }
-          ]
-        },
-        {
-          id: 'r2', title: 'Update SOP for refund escalations', status: 'RESOLVED', stBg: '#E6F0EB', stColor: '#2E6B4F', date: '11 Jul', open: false, replyDraft: '',
-          thread: [
-            { who: 'ZANZU TELECOM', text: 'Please update the refund SOP to include the new threshold.', align: 'flex-start', bg: '#F0F2F5', color: '#1F2A37', border: '#E3E7EC' },
-            { who: 'OBA OPS', text: 'Done — new SOP is live in your Documents tab.', align: 'flex-end', bg: '#0D2B4E', color: '#FFFFFF', border: '#0D2B4E' }
-          ]
-        }
       ],
 
       salesCols: [
@@ -4242,12 +4252,15 @@ class Component extends StreamableLogic {
             name: data.employee.name, role: data.employee.jobTitle, branch: data.employee.branch,
             status: 'ACCOUNT CREATED', stBg: '#E6F0EB', stColor: '#2E6B4F',
             email: data.user.email, tempPassword: data.temporaryPassword, hasTempPassword: true,
+            emailStatusMsg: data.emailSent ? 'Welcome email sent' : 'Welcome email NOT sent (check RESEND_API_KEY) — share this by hand',
           },
           ...s.pendingAccounts,
         ],
         naName: '', naEmail: '', naGhCard: '',
       }));
-      this.toast('Account created — share the temporary password shown below with ' + data.employee.name);
+      this.toast(data.emailSent
+        ? 'Account created — welcome email sent to ' + data.employee.name
+        : 'Account created — email NOT sent, share the temporary password shown below with ' + data.employee.name);
     });
   }
   selectEmployee(id) { this.setState({ selEmployeeId: id }); }
@@ -4402,14 +4415,23 @@ class Component extends StreamableLogic {
       this.closeDeal();
       const d = res.data;
       let msg = `Converted to client "${d.client.name}" · contract + recruitment brief created`;
-      if (d.temporaryPassword) msg += ` · portal login ${d.portalUser.email} / ${d.temporaryPassword}`;
+      if (d.temporaryPassword) {
+        msg += d.portalEmailSent
+          ? ` · portal invite emailed to ${d.portalUser.email}`
+          : ` · portal login ${d.portalUser.email} / ${d.temporaryPassword} (email NOT sent — check RESEND_API_KEY)`;
+      }
       this.toast(msg);
     });
   }
 
   // ---- client portal ----
   onPortalClientSel(e) {
-    this.setState({ portalClientSel: e && e.target ? e.target.value : e }, () => this.refreshPortal());
+    this.setState({ portalClientSel: e && e.target ? e.target.value : e }, () => {
+      this.refreshPortal();
+      this.refreshPortalInvoices();
+      this.refreshPortalDocuments();
+      this.refreshPortalSupport();
+    });
   }
   downloadPortalReport() {
     const s = this.state;
@@ -4507,7 +4529,10 @@ class Component extends StreamableLogic {
     this.apiSend('/api/contracts/' + id + '/remind', 'POST', {}).then((res) => {
       if (!res.ok) { this.toast(res.data.error || 'Could not send reminder'); return; }
       this.refreshContracts();
-      this.toast('Renewal reminder logged');
+      const d = res.data;
+      if (!d.recipientCount) this.toast('Reminder logged — no email on file for this counterparty (e.g. a vendor)');
+      else if (d.emailSent) this.toast('Renewal reminder emailed');
+      else this.toast('Reminder logged — email NOT sent (check RESEND_API_KEY)');
     });
   }
 
@@ -4627,24 +4652,73 @@ class Component extends StreamableLogic {
   verifyTwofa() { this.setState({ twofaDone: true }); }
   loadMoreAudit() { this.setState(s => ({ auditShowCount: s.auditShowCount + 5 })); }
 
-  // ---- invoices ----
+  // ---- invoices (real data from /api/invoices) ----
+  onInvClientId(e) { this.setState({ invClientId: e.target ? e.target.value : e }); }
   onInvDesc(e) { this.setState({ invDesc: e.target ? e.target.value : e }); }
   onInvAmount(e) { this.setState({ invAmount: e.target ? e.target.value : e }); }
   onInvDue(e) { this.setState({ invDue: e.target ? e.target.value : e }); }
   sendInvoice() {
-    if (!this.state.invDesc || !this.state.invAmount) { this.toast('Fill in description and amount'); return; }
-    const id = 'INV-2026-' + (40 + this.state.invoicesList.length + 1);
-    this.setState(s => ({ invoicesList: [{ id, clientId: s.activeClient, amount: '$' + s.invAmount, due: 'Due ' + (s.invDue || 'TBD'), status: 'Sent', stBg: '#FBF3DF', stColor: '#8A6508', canAct: true }, ...s.invoicesList], invDesc: '', invAmount: '', invDue: '' }));
-    this.toast('Invoice sent to client portal');
+    const s = this.state;
+    if (!s.invClientId) { this.toast('Choose a client'); return; }
+    if (!s.invDesc || !s.invAmount) { this.toast('Fill in description and amount'); return; }
+    this.apiSend('/api/invoices', 'POST', {
+      clientId: s.invClientId, description: s.invDesc, amount: Number(s.invAmount),
+      dueDate: s.invDue || undefined, send: true,
+    }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not create invoice'); return; }
+      this.setState({ invDesc: '', invAmount: '', invDue: '' });
+      this.refreshInvoices();
+      const sentOk = data.emailSent && data.emailSent.ok;
+      this.toast(sentOk
+        ? 'Invoice generated and emailed to the client'
+        : 'Invoice generated · not emailed (no portal contact on file or RESEND_API_KEY not configured) — it still shows in their portal');
+    });
   }
   openInvoice(id) { this.setState({ invoiceOpen: true, invoiceViewId: id }); }
   closeInvoice() { this.setState({ invoiceOpen: false }); }
-  invRemind(id) { this.toast('Reminder sent'); }
-  invMarkPaid(id) { this.setState(s => ({ invoicesList: s.invoicesList.map(i => i.id === id ? { ...i, status: 'Paid', stBg: '#E6F0EB', stColor: '#2E6B4F', canAct: false } : i) })); }
+  invRemind(id) {
+    this.apiSend('/api/invoices/' + id + '/remind', 'POST', {}).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not send reminder'); return; }
+      this.toast(data.emailSent && data.emailSent.ok ? 'Reminder emailed to the client' : 'Reminder logged · not emailed (no portal contact on file or RESEND_API_KEY not configured)');
+    });
+  }
+  invMarkPaid(id) {
+    this.apiSend('/api/invoices/' + id + '/status', 'PATCH', { status: 'PAID' }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not mark this invoice paid'); return; }
+      this.refreshInvoices();
+      this.toast('Invoice marked paid');
+    });
+  }
   payInvoice(id) { this.setState({ payOpen: true, payInvoiceId: id }); }
   closePay() { this.setState({ payOpen: false }); }
-  confirmPay() { this.setState({ payOpen: false }); this.toast('Payment received (demo)'); this.invMarkPaid(this.state.payInvoiceId); }
+  confirmPay() {
+    // No real payment gateway (Stripe/etc.) is wired up — this stays an
+    // illustrative "pay" UI, but it is now HONEST about that instead of
+    // silently flipping the invoice to Paid client-side: marking an invoice
+    // Paid is a real, role-gated, audited server transition (Accountant/
+    // Director only — see app/api/invoices/[id]/status), which a CLIENT
+    // session is deliberately not permitted to call directly.
+    this.setState({ payOpen: false });
+    this.toast('Thanks — your payment will be confirmed by our finance team and the invoice status updated shortly.');
+  }
   onPayCardNo() {} onPayCvc() {} onPayExp() {}
+  // Real, branded PDF (see app/api/invoices/[id]/pdf) — a same-origin
+  // top-level navigation so the session cookie is sent automatically and
+  // the server's Content-Disposition: attachment header triggers a real
+  // browser download without any blob/fetch plumbing. Routes to the
+  // Client-Portal-scoped endpoint for a CLIENT session (the internal one is
+  // role-gated to INVOICES_VIEW, which excludes CLIENT), and to the
+  // internal endpoint for every staff role viewing the same shared modal
+  // from the Invoices screen.
+  downloadInvoicePdf(id) {
+    if (this.state.currentRoleId === 'client') { this.portalDownloadInvoicePdf(id); return; }
+    window.open('/api/invoices/' + id + '/pdf', '_blank');
+  }
+  portalDownloadInvoicePdf(id) {
+    const s = this.state;
+    const qs = (s.currentRoleId !== 'client' && s.portalClientSel) ? ('?clientId=' + encodeURIComponent(s.portalClientSel)) : '';
+    window.open('/api/portal/invoices/' + id + '/pdf' + qs, '_blank');
+  }
 
   // ---- payroll ----
   exportBankFile() { this.toast('Bank file exported'); }
@@ -4764,22 +4838,49 @@ class Component extends StreamableLogic {
   empDataExport() { this.setState({ empPrivacyMsg: 'Your data export request was submitted · you will receive it by email within 30 days.' }); }
   empDataDelete() { this.setState({ empPrivacyMsg: 'Deletion request received · HR will contact you to confirm.' }); }
 
-  // ---- client portal (support requests) ----
+  // ---- client portal documents + support requests (real data) ----
+  refreshPortalDocuments() {
+    const s = this.state;
+    const qs = (s.currentRoleId !== 'client' && s.portalClientSel) ? ('?clientId=' + encodeURIComponent(s.portalClientSel)) : '';
+    this.apiGet('/api/portal/documents' + qs).then((d) => d && this.setState({ apiPortalDocuments: d.documents || [] }));
+  }
+  refreshPortalSupport() {
+    const s = this.state;
+    const qs = (s.currentRoleId !== 'client' && s.portalClientSel) ? ('?clientId=' + encodeURIComponent(s.portalClientSel)) : '';
+    this.apiGet('/api/portal/support' + qs).then((d) => d && this.setState({ apiPortalSupport: d.requests || [] }));
+  }
+  portalDocDownload(id, name) {
+    const s = this.state;
+    const qs = (s.currentRoleId !== 'client' && s.portalClientSel) ? ('?clientId=' + encodeURIComponent(s.portalClientSel)) : '';
+    fetch('/api/portal/documents/' + id + '/download' + qs, { credentials: 'same-origin' }).then(async (res) => {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { this.toast(data.error || 'Download not permitted for this document'); return; }
+      this.toast('Downloading ' + name + '…');
+    });
+  }
   onReqDraft(e) { this.setState({ reqDraft: e.target ? e.target.value : e }); }
   raiseRequest() {
     if (!this.state.reqDraft) return;
-    this.setState(s => ({ requests: [{ id: 'r' + Date.now(), title: s.reqDraft, status: 'OPEN', stBg: '#FBF3DF', stColor: '#8A6508', date: 'Today', open: false, replyDraft: '', thread: [] }, ...s.requests], reqDraft: '' }));
-    this.toast('Request sent to your OBA team');
+    this.apiSend('/api/portal/support', 'POST', { title: this.state.reqDraft }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not send your request'); return; }
+      this.setState({ reqDraft: '' });
+      this.refreshPortalSupport();
+      this.toast('Request sent to your OBA team');
+    });
   }
-  toggleRequest(id) { this.setState(s => ({ requests: s.requests.map(r => r.id === id ? { ...r, open: !r.open } : r) })); }
-  onReplyDraft(id, e) { const v = e.target ? e.target.value : e; this.setState(s => ({ requests: s.requests.map(r => r.id === id ? { ...r, replyDraft: v } : r) })); }
+  toggleRequest(id) { this.setState(s => ({ openSupportIds: { ...s.openSupportIds, [id]: !s.openSupportIds[id] } })); }
+  onReplyDraft(id, e) {
+    const v = e.target ? e.target.value : e;
+    this.setState(s => ({ supportReplyDrafts: { ...s.supportReplyDrafts, [id]: v } }));
+  }
   sendReply(id) {
-    this.setState(s => ({
-      requests: s.requests.map(r => r.id === id ? {
-        ...r, replyDraft: '',
-        thread: [...r.thread, { who: 'YOU', text: r.replyDraft, align: 'flex-start', bg: '#F0F2F5', color: '#1F2A37', border: '#E3E7EC' }]
-      } : r)
-    }));
+    const draft = (this.state.supportReplyDrafts || {})[id];
+    if (!draft) return;
+    this.apiSend('/api/portal/support/' + id + '/messages', 'POST', { body: draft }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not send your reply'); return; }
+      this.setState(s => ({ supportReplyDrafts: { ...s.supportReplyDrafts, [id]: '' } }));
+      this.refreshPortalSupport();
+    });
   }
 
   // Real openDeal/convertDeal (Phase 4) live earlier in this class, in the
@@ -4887,6 +4988,7 @@ class Component extends StreamableLogic {
       calendar: ['Calendar', 'Company-wide schedule'],
       recruit: ['Recruitment', 'Hiring funnel and pipeline'],
       sales: ['Sales & CRM', 'Deal pipeline'],
+      contracts: ['Contracts Register', 'Client, staff and vendor agreements'],
       myspace: ['My Space', 'Your profile and self-service']
     };
     const meta = SCREEN_META[s.activeScreen] || ['OBA Platform', ''];
@@ -5011,34 +5113,65 @@ class Component extends StreamableLogic {
     }));
     const portalClientsListVals = (s.apiClientsList || []).map((c) => ({ value: c.id, label: c.name }));
     const isPortalInternal = s.currentRoleId !== 'client';
-    const portalInvoices = s.invoicesList.filter(i => i.clientId === activeClientObj.id).map(i => ({
-      id: i.id, due: i.due, amount: i.amount, stBg: i.stBg, stColor: i.stColor, status: i.status,
-      view: () => this.openInvoice(i.id), download: () => this.toast('Downloading invoice…'),
-      canPay: i.status !== 'Paid', pay: () => this.payInvoice(i.id)
+    // Real data from /api/portal/invoices — already server-scoped to the
+    // right client (session.clientId for a CLIENT login, or ?clientId=
+    // portalClientSel for an internal role using the client picker), never
+    // filtered client-side against a client-supplied id.
+    const portalInvoices = (s.apiPortalInvoices || []).map((iv) => {
+      const [stBg, stColor] = this.INVOICE_STATUS_COLOR[iv.effectiveStatus] || ['#F0F2F5', '#4A5563'];
+      return {
+        id: iv.id,
+        due: iv.dueDate ? ('Due ' + new Date(iv.dueDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })) : 'No due date',
+        amount: iv.currency + this.fmt(iv.totalAmount),
+        stBg, stColor, status: this.INVOICE_STATUS_LABEL[iv.effectiveStatus] || iv.effectiveStatus,
+        view: () => this.openInvoice(iv.id), download: () => this.portalDownloadInvoicePdf(iv.id),
+        canPay: iv.status === 'SENT', pay: () => this.payInvoice(iv.id),
+      };
+    });
+    // Real data from /api/portal/documents — replaces the old static mock
+    // list entirely.
+    const fmtPortalDocDate = (dt) => new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const portalDocs = (s.apiPortalDocuments || []).map((doc) => ({
+      name: doc.fileName.replace(/\.[a-z0-9]+$/i, ''),
+      date: (doc.signed ? 'Signed ' : 'Updated ') + fmtPortalDocDate(doc.createdAt),
+      download: () => this.portalDocDownload(doc.id, doc.fileName),
     }));
-    const portalDocs = [
-      { name: 'Master Service Agreement', date: 'Signed 2 Feb 2026' },
-      { name: 'SLA Schedule A', date: 'Updated 4 Jun 2026' },
-      { name: 'Data Protection Addendum', date: 'Signed 2 Feb 2026' },
-      { name: 'SOP · Escalations', date: 'Updated 11 Jul 2026' }
-    ];
     const pipeline = [
       { flex: 3, bg: '#F0F2F5', color: '#4A5563', count: 12, label: 'APPLIED' },
       { flex: 2, bg: '#EAF0F7', color: '#0D2B4E', count: 5, label: 'INTERVIEW' },
       { flex: 1, bg: '#FBF3DF', color: '#8A6508', count: 2, label: 'OFFER' },
       { flex: 1, bg: '#E6F0EB', color: '#2E6B4F', count: 1, label: 'HIRED' }
     ];
-    const training = [
-      { name: 'Onboarding · Week 1', pct: '100%' },
-      { name: 'Product refresher', pct: '72%' },
-      { name: 'QA calibration', pct: '58%' }
-    ];
-    const requestsVals = s.requests.map(r => ({
-      title: r.title, status: r.status, stBg: r.stBg, stColor: r.stColor, date: r.date, msgCount: r.thread.length,
-      toggleLabel: r.open ? 'hide thread' : 'view thread', open: r.open, toggle: () => this.toggleRequest(r.id),
-      replyDraft: r.replyDraft, onReply: (e) => this.onReplyDraft(r.id, e), sendReply: () => this.sendReply(r.id),
-      thread: r.thread
-    }));
+    // Training progress is deliberately NOT represented in the Client
+    // Portal (see this.data / HTML comments) — TrainingCompletion in this
+    // codebase is internal staff upskilling data with no clean, honest
+    // client-facing equivalent to compute from real data, so rather than
+    // fabricate numbers or force a loose proxy metric, this panel was
+    // removed outright. Judgment call, noted here and in the final report.
+    const SUPPORT_STATUS_COLOR = { OPEN: ['#FBF3DF', '#8A6508'], IN_PROGRESS: ['#EAF0F7', '#0D2B4E'], RESOLVED: ['#E6F0EB', '#2E6B4F'] };
+    const SUPPORT_STATUS_LABEL = { OPEN: 'Open', IN_PROGRESS: 'In progress', RESOLVED: 'Resolved' };
+    const fmtSupportDate = (dt) => new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const requestsVals = (s.apiPortalSupport || []).map((r) => {
+      const [stBg, stColor] = SUPPORT_STATUS_COLOR[r.status] || ['#F0F2F5', '#4A5563'];
+      const open = !!s.openSupportIds[r.id];
+      return {
+        title: r.title, status: SUPPORT_STATUS_LABEL[r.status] || r.status, stBg, stColor,
+        date: fmtSupportDate(r.createdAt), msgCount: r.messages.length,
+        toggleLabel: open ? 'hide thread' : 'view thread', open, toggle: () => this.toggleRequest(r.id),
+        replyDraft: (s.supportReplyDrafts || {})[r.id] || '', onReply: (e) => this.onReplyDraft(r.id, e), sendReply: () => this.sendReply(r.id),
+        // Labeled/aligned by who actually wrote it (client vs. OBA staff),
+        // not viewer-relative "YOU" — this same thread is rendered both to
+        // the client themselves and to internal staff (Director/BD)
+        // previewing that client's portal, so a fixed identity-based label
+        // reads correctly for either viewer.
+        thread: r.messages.map((m) => ({
+          who: m.fromClient ? 'CLIENT' : 'OBA TEAM',
+          text: m.body,
+          align: m.fromClient ? 'flex-start' : 'flex-end',
+          bg: m.fromClient ? '#F0F2F5' : '#0D2B4E', color: m.fromClient ? '#1F2A37' : '#FFFFFF', border: m.fromClient ? '#E3E7EC' : '#0D2B4E',
+        })),
+      };
+    });
 
     // ---- shifts ----
     const ringify = (r, frac) => { const rr = this.ring(r, frac); return { ringDash: rr.dash, ringOffset: rr.offset }; };
@@ -5246,27 +5379,93 @@ class Component extends StreamableLogic {
       { who: 'Unknown', device: 'Android · Chrome', loc: 'Accra, GH', time: '06:40', result: 'BLOCKED', stBg: '#FBECEC', stColor: '#9B2C2C' }
     ];
 
-    // ---- invoices module ----
-    const invSegs = this.ringSegs(52, [
-      { frac: 0.55, color: '#C8960C', label: 'Sent', amt: '$49.7k' },
-      { frac: 0.25, color: '#9B2C2C', label: 'Overdue', amt: '$16.9k' },
-      { frac: 0.20, color: '#2E6B4F', label: 'Paid', amt: '$9.75k' }
-    ]);
-    const invDonut = invSegs;
-    const invList = s.invoicesList.map(i => {
-      const c = d.clients.find(cl => cl.id === i.clientId);
-      return { id: i.id, amount: i.amount, lines: (c ? c.name : 'Client') + ' · retainer', due: i.due, stBg: i.stBg, stColor: i.stColor, status: i.status, view: () => this.openInvoice(i.id), canAct: i.canAct, remind: () => this.invRemind(i.id), markPaid: () => this.invMarkPaid(i.id) };
-    });
-    const invViewSrc = s.invoicesList.find(i => i.id === s.invoiceViewId) || s.invoicesList[0];
-    const invClient = d.clients.find(c => c.id === (invViewSrc ? invViewSrc.clientId : '')) || d.clients[0];
-    const invoiceView = {
-      id: invViewSrc ? invViewSrc.id : '', client: invClient.name, clientAddr: invClient.region + ', Ghana',
-      issued: 'Issued 1 Aug 2026', due: invViewSrc ? invViewSrc.due : '', stBg: invViewSrc ? invViewSrc.stBg : '#EAF0F7', stColor: invViewSrc ? invViewSrc.stColor : '#0D2B4E',
-      status: invViewSrc ? invViewSrc.status : '', bank: 'Ecobank Ghana', account: '1441 2200 8890', swift: 'ECOCGHAC',
-      lines: [{ desc: 'Support team · monthly retainer', note: '24/7 coverage, ' + invClient.team + ' agents', qty: 1, rate: invViewSrc ? invViewSrc.amount : '$0', amount: invViewSrc ? invViewSrc.amount : '$0' }],
-      subtotal: invViewSrc ? invViewSrc.amount : '$0', vat: '$0', total: invViewSrc ? invViewSrc.amount : '$0',
-      download: () => this.toast('Downloading invoice…')
+    // ---- invoices module (Phase: real data from /api/invoices) ----
+    const INVOICE_STATUS_COLOR = this.INVOICE_STATUS_COLOR;
+    const INVOICE_STATUS_LABEL = this.INVOICE_STATUS_LABEL;
+    const fmtInvDate = (dt) => new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const invStatusKeys = ['SENT', 'OVERDUE', 'PAID'];
+    const invByStatus = { SENT: [], OVERDUE: [], PAID: [] };
+    s.apiInvoices.forEach((inv) => { if (invByStatus[inv.effectiveStatus]) invByStatus[inv.effectiveStatus].push(inv); });
+    // Invoices can carry different currencies (Client.currency varies) — sum
+    // per-currency rather than fabricating a cross-currency total. Uses
+    // totalAmount (post-tax, the real amount actually due), not the pre-tax
+    // subtotal.
+    const currencyTotalLabel = (arr) => {
+      const byCur = {};
+      arr.forEach((inv) => { byCur[inv.currency] = (byCur[inv.currency] || 0) + inv.totalAmount; });
+      const parts = Object.entries(byCur).map(([cur, amt]) => cur + this.fmt(amt));
+      return parts.length ? parts.join(' + ') : '—';
     };
+    const invSegTotal = invStatusKeys.reduce((sum, k) => sum + invByStatus[k].length, 0) || 1;
+    const invDonut = this.ringSegs(52, invStatusKeys.map((k) => ({
+      frac: invByStatus[k].length / invSegTotal,
+      color: INVOICE_STATUS_COLOR[k][1],
+      label: INVOICE_STATUS_LABEL[k],
+      amt: currencyTotalLabel(invByStatus[k]),
+    })));
+    const invOutstanding = currencyTotalLabel([...invByStatus.SENT, ...invByStatus.OVERDUE]);
+    const invCount = String(s.apiInvoices.length);
+    // UI-level mirror of lib/roles.js INVOICES_MANAGE (Director/Accountant) —
+    // the server is the real enforcement (see app/api/invoices*), this just
+    // avoids showing HR a "New invoice"/Remind/Mark paid action that would
+    // 403 if clicked.
+    const invoicesManage = s.currentRoleId === 'director' || s.currentRoleId === 'accountant';
+    const invoicesViewOnly = !invoicesManage;
+    const invList = s.apiInvoices.map((iv) => {
+      const [stBg, stColor] = INVOICE_STATUS_COLOR[iv.effectiveStatus] || ['#F0F2F5', '#4A5563'];
+      return {
+        id: iv.id,
+        amount: iv.currency + this.fmt(iv.totalAmount),
+        lines: (iv.clientName || 'Client') + ' · ' + iv.period,
+        due: iv.dueDate ? ('Due ' + fmtInvDate(iv.dueDate)) : 'No due date',
+        stBg, stColor, status: INVOICE_STATUS_LABEL[iv.effectiveStatus] || iv.effectiveStatus,
+        view: () => this.openInvoice(iv.id),
+        canAct: invoicesManage && iv.status === 'SENT',
+        remind: () => this.invRemind(iv.id),
+        markPaid: () => this.invMarkPaid(iv.id),
+        downloadPdf: () => this.downloadInvoicePdf(iv.id),
+      };
+    });
+    // Looked up from whichever list this session actually has loaded — the
+    // internal Invoices screen's apiInvoices for staff roles, or this
+    // session's own apiPortalInvoices for a CLIENT login viewing its own
+    // invoice from the Client Portal.
+    const invViewSrc =
+      s.apiInvoices.find((iv) => iv.id === s.invoiceViewId) ||
+      s.apiPortalInvoices.find((iv) => iv.id === s.invoiceViewId) ||
+      s.apiInvoices[0] || s.apiPortalInvoices[0] || null;
+    const invViewStColor = invViewSrc ? (INVOICE_STATUS_COLOR[invViewSrc.effectiveStatus] || ['#EAF0F7', '#0D2B4E']) : ['#EAF0F7', '#0D2B4E'];
+    // Real itemized VAT/NHIL/GETFund/COVID-levy breakdown (see
+    // lib/invoice-tax.js) — never a single hardcoded "VAT (0%)" line.
+    const buildTaxRows = (iv) => {
+      if (!iv) return [];
+      if (iv.taxExempt) return [{ label: 'VAT (0% · export of services)', amount: iv.currency + '0.00' }];
+      const rows = [
+        { label: 'VAT', amount: iv.vatAmount },
+        { label: 'NHIL', amount: iv.nhilAmount },
+        { label: 'GETFund Levy', amount: iv.getfundAmount },
+        { label: 'COVID-19 Levy', amount: iv.covidLevyAmount },
+      ];
+      return rows.map((r) => ({ label: r.label, amount: iv.currency + this.fmt(r.amount) }));
+    };
+    const invoiceView = invViewSrc ? {
+      id: invViewSrc.id, client: invViewSrc.clientName || 'Client', clientAddr: 'Period ' + invViewSrc.period,
+      issued: 'Created ' + fmtInvDate(invViewSrc.createdAt), due: invViewSrc.dueDate ? ('Due ' + fmtInvDate(invViewSrc.dueDate)) : 'No due date',
+      stBg: invViewStColor[0], stColor: invViewStColor[1], status: INVOICE_STATUS_LABEL[invViewSrc.effectiveStatus] || invViewSrc.effectiveStatus,
+      bank: 'Ecobank Ghana', account: '1441 2200 8890', swift: 'ECOCGHAC',
+      lines: invViewSrc.lineItems.map((li) => ({
+        desc: li.description, note: '', qty: li.quantity, rate: invViewSrc.currency + this.fmt(li.unitPrice), amount: invViewSrc.currency + this.fmt(li.amount),
+      })),
+      subtotal: invViewSrc.currency + this.fmt(invViewSrc.amount),
+      taxRows: buildTaxRows(invViewSrc),
+      total: invViewSrc.currency + this.fmt(invViewSrc.totalAmount),
+      download: () => this.downloadInvoicePdf(invViewSrc.id),
+    } : {
+      id: '', client: '', clientAddr: '', issued: '', due: '', stBg: '#EAF0F7', stColor: '#0D2B4E', status: '',
+      bank: 'Ecobank Ghana', account: '1441 2200 8890', swift: 'ECOCGHAC', lines: [],
+      subtotal: '$0', taxRows: [], total: '$0', download: () => this.toast('Nothing to download yet'),
+    };
+    const invClientOpts = (s.apiClientsList || []).map((c) => ({ value: c.id, label: c.name }));
 
     // ---- KPI scorecard (Phase 2 · real actuals from /api/kpi/scorecard) ----
     // AVG QA and ATTENDANCE are genuinely computed from QaAudit/Attendance
@@ -5935,12 +6134,12 @@ class Component extends StreamableLogic {
       slaRows, slaEmpty: slaRows.length === 0, qaReports, qaEmpty: qaReports.length === 0,
       portalContracts, portalContractsEmpty: portalContracts.length === 0,
       invoices: portalInvoices, invoicesEmpty: portalInvoices.length === 0,
-      docs: portalDocs, docsEmpty: false,
-      pipeline, training, trainingEmpty: false,
+      docs: portalDocs, docsEmpty: portalDocs.length === 0,
+      pipeline,
       reqDraft: s.reqDraft, onReqDraft: (e) => this.onReqDraft(e), raiseRequest: () => this.raiseRequest(),
       requests: requestsVals,
       payOpen: s.payOpen, closePay: () => this.closePay(), stop: (e) => { if (e && e.stopPropagation) e.stopPropagation(); },
-      payInvId: s.payInvoiceId || '', payInvAmt: (s.invoicesList.find(i => i.id === s.payInvoiceId) || {}).amount || '',
+      payInvId: s.payInvoiceId || '', payInvAmt: (() => { const iv = s.apiPortalInvoices.find(i => i.id === s.payInvoiceId); return iv ? (iv.currency + this.fmt(iv.totalAmount)) : ''; })(),
       payCardNo: '', onPayCardNo: () => this.onPayCardNo(), payExp: '', onPayExp: () => this.onPayExp(), payCvc: '', onPayCvc: () => this.onPayCvc(),
       confirmPay: () => this.confirmPay(),
 
@@ -5983,11 +6182,12 @@ class Component extends StreamableLogic {
       twofaOpen: s.twofaOpen, closeTwofa: () => this.closeTwofa(), twofaNotDone: !s.twofaDone, twofaDone: s.twofaDone,
       twofaCode: s.twofaCode, onTwofaCode: (e) => this.onTwofaCode(e), verifyTwofa: () => this.verifyTwofa(),
 
-      // invoices
-      invClientLabel: activeClientObj.name + ' · ' + activeClientObj.region,
+      // invoices (real data from /api/invoices)
+      invoicesManage, invoicesViewOnly,
+      invClientId: s.invClientId, onInvClientId: (e) => this.onInvClientId(e), invClientOpts,
       invDesc: s.invDesc, onInvDesc: (e) => this.onInvDesc(e), invAmount: s.invAmount, onInvAmount: (e) => this.onInvAmount(e),
       invDue: s.invDue, onInvDue: (e) => this.onInvDue(e), sendInvoice: () => this.sendInvoice(),
-      invDonut, invOutstanding: '$66.7k', invCount: String(invList.length), invList,
+      invDonut, invOutstanding, invCount, invList,
       invoiceOpen: s.invoiceOpen, closeInvoice: () => this.closeInvoice(), invoiceView,
 
       // kpi

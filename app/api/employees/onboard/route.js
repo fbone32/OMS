@@ -4,15 +4,19 @@
 // fillable later by HR through the existing employee-edit screen) AND the
 // linked User login, with a freshly generated, unique, per-person temporary
 // password. That plaintext password is returned in this response ONCE — it
-// is never logged, never stored, and (matching the forgot-password flow's
-// same no-mailer stopgap — see app/api/auth/forgot-password/route.js) never
-// emailed, since there's no email infrastructure yet. The admin who submits
-// this form is responsible for relaying it to the new hire directly.
+// is never logged, never stored — but IS now also emailed (via lib/email)
+// directly to the new hire, same real-email upgrade every other "log
+// instead of send" stopgap in this codebase got. The admin who submits this
+// form still sees the temp password once too (sendEmail fails soft, so if
+// RESEND_API_KEY isn't configured the admin relaying it by hand is still the
+// working fallback, not a broken flow).
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../../../../lib/db');
 const { requireRole } = require('../../../../lib/auth');
 const { logAudit } = require('../../../../lib/audit');
+const { sendEmail } = require('../../../../lib/email');
+const { renderEmailTemplate } = require('../../../../lib/email-templates');
 const { ACCOUNT_CREATE, ONBOARDING_ASSIGNABLE_ROLES } = require('../../../../lib/roles');
 
 function json(data, init) {
@@ -121,6 +125,24 @@ async function POST(request) {
     },
   });
 
+  const origin = request.headers.get('origin') || '';
+  const emailResult = await sendEmail({
+    to: email,
+    subject: 'Welcome to OBA Platform — your login details',
+    html: renderEmailTemplate('onboarding-welcome', {
+      USER_FIRST_NAME: name.split(' ')[0],
+      JOB_TITLE: jobTitle,
+      BRANCH: branch,
+      USER_EMAIL: email,
+      TEMP_PASSWORD: temporaryPassword,
+      SIGN_IN_URL: origin || 'https://openbaseafrica.com',
+    }),
+    text: `Welcome to OBA Platform. Email: ${email} · Temporary password: ${temporaryPassword}. Please sign in and change it as soon as possible.`,
+  });
+  if (!emailResult.ok) {
+    console.error(`[employees/onboard] welcome email not sent to ${email}: ${emailResult.error}`);
+  }
+
   return json(
     {
       employee: {
@@ -131,8 +153,12 @@ async function POST(request) {
       },
       user: { id: created.user.id, email: created.user.email, role: created.user.role },
       // Only ever visible here, once. The caller must show it to the admin
-      // now and never persist it anywhere.
+      // now and never persist it anywhere. emailSent tells the admin UI
+      // whether it also needs to relay this by hand (Resend not configured
+      // or the send failed) or whether the new hire already has it in
+      // their inbox.
       temporaryPassword,
+      emailSent: emailResult.ok,
     },
     { status: 201 }
   );

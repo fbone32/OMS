@@ -19,6 +19,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { SEED_PASSWORD } from '../lib/demo-seed-constants.js';
 import { encryptSecret } from '../lib/vault-crypto.js';
+import { computeInvoiceTax } from '../lib/invoice-tax.js';
 
 const prisma = new PrismaClient();
 
@@ -732,6 +733,147 @@ async function main() {
         notes: c.notes, createdByUserId: users.DIRECTOR.id,
       },
     });
+  }
+
+  console.log('Seeding InvoiceTaxSettings (placeholder Ghana VAT/levy rates — see notes)...');
+  // Same idempotency shape as PayrollSettings: no natural unique key, create
+  // the placeholder rates once, then leave whatever's there alone so a real
+  // Director/Accountant edit via the app is never clobbered by a re-seed.
+  let taxSettings = await prisma.invoiceTaxSettings.findFirst();
+  if (!taxSettings) {
+    taxSettings = await prisma.invoiceTaxSettings.create({
+      data: {
+        vatRatePct: 15.0,
+        nhilRatePct: 2.5,
+        getfundRatePct: 2.5,
+        covidLevyRatePct: 1.0,
+        notes:
+          'PLACEHOLDER rates for demo purposes only — illustrative Ghana VAT + NHIL + GETFund + COVID-19 Health Recovery ' +
+          'Levy figures, each applied independently to the invoice subtotal (a simplified, non-compounding calculation). ' +
+          'NOT yet signed off by an accountant or tax advisor; verify both the rates AND the compounding order against ' +
+          'current GRA guidance before relying on this for any real invoice (see lib/invoice-tax.js and the brief’s ' +
+          'own compliance note).',
+      },
+    });
+  } else {
+    console.log('InvoiceTaxSettings already exist — leaving as-is (may have been edited since seeding).');
+  }
+
+  console.log('Seeding Invoices (real Client + Contract-derived billing)...');
+  const zanzuContract = clients['Zanzu Telecom']
+    ? await prisma.contract.findFirst({ where: { clientId: clients['Zanzu Telecom'].id, type: 'CLIENT' } })
+    : null;
+  const primeCareContract = clients['PrimeCare Health']
+    ? await prisma.contract.findFirst({ where: { clientId: clients['PrimeCare Health'].id, type: 'CLIENT' } })
+    : null;
+  const lastMonthDue = new Date(today);
+  lastMonthDue.setMonth(lastMonthDue.getMonth() - 1);
+  const overdueDue = new Date(today);
+  overdueDue.setDate(overdueDue.getDate() - 4); // 4 days overdue, matches the existing dashboard's illustrative copy
+  const nextMonthDue = new Date(today);
+  nextMonthDue.setMonth(nextMonthDue.getMonth() + 1);
+  const invoiceDefs = [
+    {
+      client: 'Zanzu Telecom', contract: zanzuContract, description: 'Support team · retainer (last period)',
+      amount: 8900, currency: '$', dueDate: lastMonthDue, status: 'PAID',
+    },
+    {
+      client: 'Zanzu Telecom', contract: zanzuContract, description: 'Support team · retainer (this period)',
+      amount: 8900, currency: '$', dueDate: nextMonthDue, status: 'SENT',
+    },
+    {
+      client: 'PrimeCare Health', contract: primeCareContract, description: 'Healthcare patient support · retainer',
+      amount: 16900, currency: 'GH₵', dueDate: overdueDue, status: 'SENT', // dueDate in the past + status SENT -> shows as OVERDUE (derived, see lib/invoices.js)
+    },
+    {
+      client: 'PrimeCare Health', contract: primeCareContract, description: 'Extra weekend coverage (draft, not yet sent)',
+      amount: 2100, currency: 'GH₵', dueDate: nextMonthDue, status: 'DRAFT',
+    },
+  ];
+  for (const inv of invoiceDefs) {
+    const client = clients[inv.client];
+    if (!client) continue;
+    const exists = await prisma.invoice.findFirst({ where: { clientId: client.id, lineItems: { some: { description: inv.description } } } });
+    if (exists) continue;
+    const period = `${inv.dueDate.getFullYear()}-${String(inv.dueDate.getMonth() + 1).padStart(2, '0')}`;
+    // Same default signal as app/api/invoices POST: a USD-billed client
+    // (Zanzu Telecom) is treated as export-of-services/exempt; a GH₵-billed
+    // domestic client (PrimeCare Health) gets the real standard-rated tax
+    // breakdown — real seeded data to exercise both branches.
+    const taxExempt = inv.currency === '$';
+    const tax = computeInvoiceTax(inv.amount, taxExempt, taxSettings);
+    await prisma.invoice.create({
+      data: {
+        clientId: client.id,
+        contractId: inv.contract ? inv.contract.id : null,
+        period,
+        currency: inv.currency,
+        amount: inv.amount,
+        taxExempt,
+        vatAmount: tax.vatAmount,
+        nhilAmount: tax.nhilAmount,
+        getfundAmount: tax.getfundAmount,
+        covidLevyAmount: tax.covidLevyAmount,
+        totalAmount: tax.totalAmount,
+        status: inv.status,
+        dueDate: inv.dueDate,
+        sentAt: inv.status === 'SENT' || inv.status === 'PAID' ? new Date() : null,
+        paidAt: inv.status === 'PAID' ? new Date() : null,
+        createdByUserId: users.ACCOUNTANT.id,
+        lineItems: { create: [{ description: inv.description, quantity: 1, unitPrice: inv.amount, amount: inv.amount }] },
+      },
+    });
+  }
+
+  console.log('Seeding Client Portal documents (real Document rows scoped via Document.clientId)...');
+  const clientDocDefs = [
+    { client: 'Zanzu Telecom', category: 'CONTRACT', fileName: 'Master Service Agreement.txt', body: 'Master Service Agreement between Open Base Africa and Zanzu Telecom.', signed: true },
+    { client: 'Zanzu Telecom', category: 'CONTRACT', fileName: 'SLA Schedule A.txt', body: 'Service Level Agreement schedule — 92% target, billing helpdesk.', signed: false },
+    { client: 'PrimeCare Health', category: 'CONTRACT', fileName: 'Master Service Agreement.txt', body: 'Master Service Agreement between Open Base Africa and PrimeCare Health.', signed: true },
+    { client: 'PrimeCare Health', category: 'COMPLIANCE', fileName: 'Data Protection Addendum.txt', body: 'Data protection addendum covering patient support data handling.', signed: true },
+  ];
+  for (const doc of clientDocDefs) {
+    const client = clients[doc.client];
+    if (!client) continue;
+    const exists = await prisma.document.findFirst({ where: { clientId: client.id, fileName: doc.fileName } });
+    if (exists) continue;
+    await prisma.document.create({
+      data: {
+        clientId: client.id,
+        category: doc.category,
+        fileName: doc.fileName,
+        mimeType: 'text/plain',
+        sizeBytes: Buffer.byteLength(doc.body),
+        fileDataUrl: 'data:text/plain;base64,' + Buffer.from(doc.body).toString('base64'),
+        signed: doc.signed,
+        notes: doc.body,
+        uploadedByUserId: users.DIRECTOR.id,
+      },
+    });
+  }
+
+  console.log('Seeding Client Portal support requests (real thread, not a mock)...');
+  const zanzuPortalUser = await prisma.user.findUnique({ where: { email: 'client@zanzutelecom.example.com' } });
+  if (zanzuPortalUser && clients['Zanzu Telecom']) {
+    const existingReq = await prisma.clientSupportRequest.findFirst({
+      where: { clientId: clients['Zanzu Telecom'].id, title: 'Need an extra agent for the weekend shift' },
+    });
+    if (!existingReq) {
+      await prisma.clientSupportRequest.create({
+        data: {
+          clientId: clients['Zanzu Telecom'].id,
+          title: 'Need an extra agent for the weekend shift',
+          status: 'IN_PROGRESS',
+          createdByUserId: zanzuPortalUser.id,
+          messages: {
+            create: [
+              { authorUserId: zanzuPortalUser.id, fromClient: true, body: 'Need an extra agent for the weekend shift' },
+              { authorUserId: bd.id, fromClient: false, body: 'On it — checking coverage with the Ops Manager now.' },
+            ],
+          },
+        },
+      });
+    }
   }
 
   console.log('Seeding Finance expense ledger (manual entries)...');
