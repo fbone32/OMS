@@ -154,14 +154,23 @@ async function main() {
   const users = {};
   for (const def of userDefs) {
     const employeeId = def.employee ? employees[def.employee].id : null;
-    // email is @unique on User — a real upsert. Re-running seed refreshes
-    // role/employeeId/passwordHash to match this file rather than erroring
-    // on the second run.
-    const user = await prisma.user.upsert({
-      where: { email: def.email },
-      update: { passwordHash, role: def.role, employeeId },
-      create: { email: def.email, passwordHash, role: def.role, employeeId },
-    });
+    // employeeId is the stable identity for accounts tied to an employee —
+    // upsert on THAT (not email) so changing an account's email in this
+    // file updates the existing row in place instead of colliding with the
+    // employeeId unique constraint by trying to create a second row for
+    // the same employee. Accounts with no employee (Board Advisor) have no
+    // employeeId to key on, so those fall back to email.
+    const user = employeeId
+      ? await prisma.user.upsert({
+          where: { employeeId },
+          update: { email: def.email, passwordHash, role: def.role },
+          create: { email: def.email, passwordHash, role: def.role, employeeId },
+        })
+      : await prisma.user.upsert({
+          where: { email: def.email },
+          update: { passwordHash, role: def.role, employeeId },
+          create: { email: def.email, passwordHash, role: def.role, employeeId },
+        });
     users[def.role] = user;
   }
 
