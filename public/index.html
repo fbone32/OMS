@@ -2049,6 +2049,42 @@
             </sc-for>
           </div>
         </sc-if>
+
+        <!-- ==== Invoice Tax Settings (Phase 4 · real, audit-logged InvoiceTaxSettings row — VAT/NHIL/GETFund/COVID levy, see app/api/finance/tax-settings) ==== -->
+        <sc-if value="{{ isFinTabTaxSettings }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#FBF3DF;border:1px solid #EAD9A8;border-radius:8px;padding:12px 16px;margin-bottom:14px;font-size:12px;font-weight:600;color:#8A6508;line-height:1.6;">⚠ {{ itsNotesPreview }}</div>
+          <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;max-width:520px;">
+            <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Invoice tax rates</div>
+            <div style="padding:18px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div>
+                <label style="display:block;font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">VAT %</label>
+                <input value="{{ its_vat }}" onInput="{{ onItsVat }}" sc-camel-read-only="{{ itsReadonly }}" placeholder="15.0" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:13px;outline-color:#C8960C;background:{{ itsFieldBg }};">
+              </div>
+              <div>
+                <label style="display:block;font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">NHIL %</label>
+                <input value="{{ its_nhil }}" onInput="{{ onItsNhil }}" sc-camel-read-only="{{ itsReadonly }}" placeholder="2.5" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:13px;outline-color:#C8960C;background:{{ itsFieldBg }};">
+              </div>
+              <div>
+                <label style="display:block;font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">GETFUND %</label>
+                <input value="{{ its_getfund }}" onInput="{{ onItsGetfund }}" sc-camel-read-only="{{ itsReadonly }}" placeholder="2.5" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:13px;outline-color:#C8960C;background:{{ itsFieldBg }};">
+              </div>
+              <div>
+                <label style="display:block;font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">COVID LEVY %</label>
+                <input value="{{ its_covid }}" onInput="{{ onItsCovid }}" sc-camel-read-only="{{ itsReadonly }}" placeholder="1.0" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:13px;outline-color:#C8960C;background:{{ itsFieldBg }};">
+              </div>
+            </div>
+            <div style="padding:0 18px 18px 18px;">
+              <label style="display:block;font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">NOTES</label>
+              <input value="{{ its_notes }}" onInput="{{ onItsNotes }}" sc-camel-read-only="{{ itsReadonly }}" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12px;background:{{ itsFieldBg }};">
+            </div>
+            <div style="padding:14px 18px;border-top:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+              <span style="font-size:11px;color:#9AA4B0;font-weight:600;">{{ itsLastUpdated }}</span>
+              <sc-if value="{{ itsCanEdit }}" hint-placeholder-val="{{ false }}">
+                <button onClick="{{ saveInvoiceTaxSettings }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:12.5px;font-weight:700;padding:9px 18px;border-radius:7px;cursor:pointer;" style-hover="background:#123A69;">Save changes</button>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
         </div>
       </sc-if>
 
@@ -2704,7 +2740,12 @@
             <div><div style="font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.07em;">EMPLOYER COST</div><div style="font-size:14px;font-weight:800;color:#0D2B4E;margin-top:3px;">GH₵ 63,206</div><div style="font-size:10px;color:#6B7684;font-weight:500;">SSNIT 13% employer</div></div>
             <div><div style="font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.07em;">NET YTD (2026)</div><div style="font-size:14px;font-weight:800;color:#0D2B4E;margin-top:3px;">GH₵ 3.11M</div></div>
             <div style="flex:1;"></div>
+            <button onClick="{{ openPayrollSettings }}" style="background:#FFFFFF;border:1px solid #D8DFE7;color:#0D2B4E;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:7px;cursor:pointer;">⚙ Tax &amp; payroll settings</button>
             <button onClick="{{ exportBankFile }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:7px;cursor:pointer;" style-hover="background:#123A69;">Export bank file</button>
+          </div>
+          <div style="background:#FBF3DF;border:1px solid #EAD9A8;border-radius:8px;padding:11px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;">
+            <span style="font-size:12px;font-weight:600;color:#8A6508;line-height:1.5;">⚠ {{ psNotesPreview }}</span>
+            <button onClick="{{ openPayrollSettings }}" style="background:none;border:1px solid #C8960C;color:#8A6508;font-size:11.5px;font-weight:700;padding:6px 13px;border-radius:6px;cursor:pointer;white-space:nowrap;">Review rates</button>
           </div>
           <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;padding:16px 18px;margin-bottom:14px;">
             <div style="font-size:13.5px;font-weight:700;color:#0D2B4E;margin-bottom:14px;">Monthly net payroll · 2026 (GH₵)</div>
@@ -2765,6 +2806,72 @@
                 <div style="padding:14px 22px;border-top:1px solid #EEF1F4;display:flex;justify-content:space-between;gap:10px;">
                   <button onClick="{{ downloadPayslip }}" style="background:#FFFFFF;border:1px solid #D8DFE7;color:#0D2B4E;font-size:12px;font-weight:700;padding:9px 15px;border-radius:7px;cursor:pointer;">↓ Download PDF</button>
                   <button onClick="{{ closePaySlip }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:12.5px;font-weight:700;padding:9px 18px;border-radius:7px;cursor:pointer;" style-hover="background:#123A69;">Close</button>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- Tax & Payroll Settings — real, audit-logged PayrollSettings row
+               (SSNIT + PAYE bands). Director can edit; Accountant (and
+               anyone else who can reach the Payroll screen) sees the same
+               values read-only, matching PAYROLL_SETTINGS_EDIT server-side. -->
+          <sc-if value="{{ payrollSettingsOpen }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ closePayrollSettings }}" class="oba-modal-overlay" style="position:fixed;inset:0;z-index:220;background:rgba(13,43,78,0.45);display:flex;align-items:flex-start;justify-content:center;padding:34px 20px;overflow-y:auto;">
+              <div onClick="{{ stop }}" class="oba-modal-panel" style="width:620px;max-width:100%;background:#FFFFFF;border-radius:14px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="background:#0D2B4E;padding:20px 22px;display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <div style="font-size:17px;font-weight:800;color:#FFFFFF;">Tax &amp; payroll settings</div>
+                    <div style="font-size:12px;color:#9FB0C4;font-weight:500;margin-top:3px;">SSNIT contributions and PAYE bands used by every payslip</div>
+                  </div>
+                  <button onClick="{{ closePayrollSettings }}" style="background:rgba(255,255,255,0.1);border:none;color:#FFFFFF;font-size:14px;padding:6px 11px;border-radius:6px;cursor:pointer;">✕</button>
+                </div>
+                <div style="max-height:70vh;overflow-y:auto;">
+                  <div style="margin:18px 22px 0 22px;background:#FBF3DF;border:1px solid #EAD9A8;border-radius:8px;padding:12px 14px;font-size:12px;font-weight:600;color:#8A6508;line-height:1.6;">⚠ {{ psNotesPreview }}</div>
+                  <div style="padding:18px 22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div>
+                      <label style="display:block;font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">SSNIT · EMPLOYEE %</label>
+                      <input value="{{ ps_ssnitEmployee }}" onInput="{{ onPsSsnitEmployee }}" sc-camel-read-only="{{ psReadonly }}" placeholder="5.5" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:13px;outline-color:#C8960C;background:{{ psFieldBg }};">
+                    </div>
+                    <div>
+                      <label style="display:block;font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">SSNIT · EMPLOYER %</label>
+                      <input value="{{ ps_ssnitEmployer }}" onInput="{{ onPsSsnitEmployer }}" sc-camel-read-only="{{ psReadonly }}" placeholder="13.0" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:13px;outline-color:#C8960C;background:{{ psFieldBg }};">
+                    </div>
+                  </div>
+                  <div style="padding:0 22px 6px 22px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                      <label style="font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;">PAYE BANDS · MONTHLY GH₵, CUMULATIVE</label>
+                      <sc-if value="{{ psCanEdit }}" hint-placeholder-val="{{ false }}">
+                        <button onClick="{{ addPsBand }}" style="background:none;border:1px solid #D8DFE7;color:#0D2B4E;font-size:11px;font-weight:700;padding:5px 11px;border-radius:6px;cursor:pointer;">+ Add band</button>
+                      </sc-if>
+                    </div>
+                    <div style="border:1px solid #EEF1F4;border-radius:8px;overflow:hidden;">
+                      <div style="display:grid;grid-template-columns:1fr 1fr 40px;gap:8px;padding:8px 10px;background:#F8FAFC;font-size:10px;font-weight:800;color:#6B7684;">
+                        <span>UP TO (blank = no cap)</span><span>RATE %</span><span></span>
+                      </div>
+                      <sc-for list="{{ psBandsVals }}" as="b" hint-placeholder-count="7">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 40px;gap:8px;padding:8px 10px;border-top:1px solid #EEF1F4;align-items:center;">
+                          <input value="{{ b.upTo }}" onInput="{{ b.onUpTo }}" sc-camel-read-only="{{ psReadonly }}" placeholder="no cap" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:6px;padding:7px 9px;font-size:12.5px;background:{{ psFieldBg }};">
+                          <input value="{{ b.rate }}" onInput="{{ b.onRate }}" sc-camel-read-only="{{ psReadonly }}" placeholder="0" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:6px;padding:7px 9px;font-size:12.5px;background:{{ psFieldBg }};">
+                          <sc-if value="{{ psCanEdit }}" hint-placeholder-val="{{ false }}">
+                            <button onClick="{{ b.remove }}" style="background:none;border:1px solid #E8C9C9;color:#9B2C2C;font-size:12px;padding:6px 9px;border-radius:6px;cursor:pointer;">✕</button>
+                          </sc-if>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                  <div style="padding:14px 22px;">
+                    <label style="display:block;font-size:10.5px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:5px;">NOTES</label>
+                    <input value="{{ ps_notes }}" onInput="{{ onPsNotes }}" sc-camel-read-only="{{ psReadonly }}" style="width:100%;box-sizing:border-box;border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12px;background:{{ psFieldBg }};">
+                  </div>
+                </div>
+                <div style="padding:14px 22px;border-top:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+                  <span style="font-size:11px;color:#9AA4B0;font-weight:600;">{{ psLastUpdated }}</span>
+                  <div style="display:flex;gap:8px;">
+                    <sc-if value="{{ psCanEdit }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ savePayrollSettings }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:12.5px;font-weight:700;padding:9px 18px;border-radius:7px;cursor:pointer;" style-hover="background:#123A69;">Save changes</button>
+                    </sc-if>
+                    <button onClick="{{ closePayrollSettings }}" style="background:#F0F2F5;color:#0D2B4E;border:none;font-size:12px;font-weight:700;padding:9px 18px;border-radius:7px;cursor:pointer;">Close</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3222,6 +3329,12 @@
                 </sc-for>
               </tbody>
             </table>
+            <sc-if value="{{ contractsLoading }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:30px;text-align:center;font-size:13px;color:#9AA4B0;font-weight:500;">Loading contracts…</div>
+            </sc-if>
+            <sc-if value="{{ contractsEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:30px;text-align:center;font-size:13px;color:#9AA4B0;font-weight:500;">No contracts in the register yet.</div>
+            </sc-if>
           </div>
         </div>
       </sc-if>
@@ -3682,9 +3795,20 @@ class Component extends StreamableLogic {
       apiClientsList: [],
       apiFinancePnl: null, apiExpenses: [], apiBankLines: [], apiUnmatchedExpenses: [], apiTaxFilings: [],
       financeTab: 'invoices',
+      // Tax & Payroll Settings (PayrollSettings + InvoiceTaxSettings — real,
+      // editable, audit-logged rows behind /api/payroll/settings and
+      // /api/finance/tax-settings; see PAYROLL SETTINGS modal + Finance's
+      // "Tax Settings" tab further down). Draft fields (ps_*/its_*) hold the
+      // in-progress edit and are (re)seeded from the loaded row whenever it's
+      // opened or refreshed, so a person's in-progress typing is never
+      // clobbered by a background poll.
+      apiPayrollSettings: null, payrollSettingsOpen: false,
+      ps_ssnitEmployee: '', ps_ssnitEmployer: '', ps_payeBands: [], ps_notes: '', ps_saved: false,
+      apiInvoiceTaxSettings: null,
+      its_vat: '', its_nhil: '', its_getfund: '', its_covid: '', its_notes: '', its_saved: false,
       expCategory: '', expDesc: '', expAmount: '', expCurrency: 'GH₵',
       bankDesc: '', bankAmount: '', bankDate: '',
-      apiContracts: [],
+      apiContracts: [], apiContractsLoaded: false,
       ctType: 'CLIENT', ctTitle: '', ctClientId: '', ctEmployeeId: '', ctVendorName: '', ctValue: '', ctStart: '', ctEnd: '', ctRenewal: '',
       apiVault: [],
       vaultRevealedReal: {},
@@ -3711,34 +3835,41 @@ class Component extends StreamableLogic {
     if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null; }
   }
 
-  // Re-fetches only the data the CURRENT role + screen actually needs, so a
-  // logged-out visitor or an unrelated screen never triggers extra network
-  // traffic. Runs every ~12s while the app is open (see componentDidMount).
-  pollLiveData() {
+  // Re-fetches only the data the CURRENT role + given screen actually needs.
+  // Called two ways: (1) every ~12s while the app is open, for whichever
+  // screen is currently active (see componentDidMount + pollLiveData below),
+  // and (2) once, immediately, the moment a person navigates to a screen
+  // (see setScreen) — so a screen with real backend data (e.g. Contracts)
+  // always shows current rows the instant it opens, rather than waiting on
+  // the next poll tick. Takes `screen` as a plain argument (not read off
+  // `this.state` internally) so setScreen can call it right after
+  // requesting the nav change without depending on setState having already
+  // committed.
+  refreshScreenData(screen) {
     const s = this.state;
     if (!s.isApp || !s.sessionUser) return;
     const roleId = s.currentRoleId;
     // Attendance/clock-in visibility for the roles that manage people day to
     // day: Director (everything), Ops Manager, Supervisor.
-    if ((roleId === 'director' || roleId === 'ops' || roleId === 'supervisor') && s.activeScreen === 'attendance') {
+    if ((roleId === 'director' || roleId === 'ops' || roleId === 'supervisor') && screen === 'attendance') {
       this.apiGet('/api/attendance').then((d) => d && this.setState({ apiAttendanceToday: d.records || [] }));
     }
     // Leave approval queue — a new pending request should show up for
     // Director/HR without them having to leave the screen and come back.
-    if ((roleId === 'director' || roleId === 'hr') && s.activeScreen === 'leave') {
+    if ((roleId === 'director' || roleId === 'hr') && screen === 'leave') {
       this.refreshAllLeave();
     }
     // Recruitment pipeline — HR/Director see a new applicant without reload.
-    if ((roleId === 'director' || roleId === 'hr') && s.activeScreen === 'recruit') {
+    if ((roleId === 'director' || roleId === 'hr') && screen === 'recruit') {
       this.refreshCandidates();
     }
     // Incidents log — Ops/Supervisor/Director see a new incident live.
-    if ((roleId === 'director' || roleId === 'ops' || roleId === 'supervisor') && s.activeScreen === 'incidents') {
+    if ((roleId === 'director' || roleId === 'ops' || roleId === 'supervisor') && screen === 'incidents') {
       this.refreshIncidents();
     }
     // IT & Facilities — Director/IT see a new ticket/asset/procurement
     // request live while the screen is open.
-    if ((roleId === 'director' || roleId === 'it') && s.activeScreen === 'facilities') {
+    if ((roleId === 'director' || roleId === 'it') && screen === 'facilities') {
       this.refreshTickets();
       this.refreshAssets();
       this.refreshMaintenance();
@@ -3746,15 +3877,15 @@ class Component extends StreamableLogic {
     }
     // Board Dashboard — Director/Board Advisor see fresh company-wide
     // aggregates without a manual reload.
-    if ((roleId === 'director' || roleId === 'advisor') && s.activeScreen === 'advisor') {
+    if ((roleId === 'director' || roleId === 'advisor') && screen === 'advisor') {
       this.refreshBoardSummary();
     }
     // Sales pipeline — Director/BD see a new enquiry or stage change live.
-    if ((roleId === 'director' || roleId === 'bd') && s.activeScreen === 'sales') {
+    if ((roleId === 'director' || roleId === 'bd') && screen === 'sales') {
       this.refreshDeals();
     }
     // Client Portal — everyone who can see it gets fresh staffing/QA data.
-    if ((roleId === 'director' || roleId === 'bd' || roleId === 'advisor' || roleId === 'client') && s.activeScreen === 'portal') {
+    if ((roleId === 'director' || roleId === 'bd' || roleId === 'advisor' || roleId === 'client') && screen === 'portal') {
       this.refreshPortal();
       this.refreshPortalInvoices();
       this.refreshPortalDocuments();
@@ -3763,18 +3894,28 @@ class Component extends StreamableLogic {
     // Invoices/Finance — Director/Accountant/HR see fresh invoices; the P&L/
     // ledger/bank-rec/tax-calendar sub-tabs are Director/Accountant only
     // (server-side FINANCE_VIEW), so HR only ever needs the invoices refetch.
-    if ((roleId === 'director' || roleId === 'accountant' || roleId === 'hr') && s.activeScreen === 'invoices') {
+    if ((roleId === 'director' || roleId === 'accountant' || roleId === 'hr') && screen === 'invoices') {
       this.refreshInvoices();
-      if (roleId !== 'hr') this.refreshFinance();
+      if (roleId !== 'hr') { this.refreshFinance(); this.refreshInvoiceTaxSettings(); }
+    }
+    // Payroll — Director/Accountant see fresh payroll runs + the current
+    // tax/payroll settings (SSNIT + PAYE bands) the instant the screen opens.
+    if ((roleId === 'director' || roleId === 'accountant') && screen === 'payroll') {
+      this.refreshPayrollSettings();
     }
     // Contracts register.
-    if ((roleId === 'director' || roleId === 'accountant' || roleId === 'hr' || roleId === 'bd') && s.activeScreen === 'contracts') {
+    if ((roleId === 'director' || roleId === 'accountant' || roleId === 'hr' || roleId === 'bd') && screen === 'contracts') {
       this.refreshContracts();
     }
     // Credentials Vault.
-    if ((roleId === 'director' || roleId === 'it') && s.activeScreen === 'vault') {
+    if ((roleId === 'director' || roleId === 'it') && screen === 'vault') {
       this.refreshVault();
     }
+  }
+  // Runs every ~12s while the app is open (see componentDidMount), for
+  // whichever screen is active right now.
+  pollLiveData() {
+    this.refreshScreenData(this.state.activeScreen);
   }
 
   // ================= Phase 1 API helpers =================
@@ -3829,6 +3970,7 @@ class Component extends StreamableLogic {
     }
     if (id === 'director' || id === 'accountant') {
       this.apiGet('/api/payroll/runs').then((d) => d && this.setState({ apiPayrollRuns: d.runs || [] }));
+      this.refreshPayrollSettings();
     }
     if (user.employeeId) {
       this.apiGet('/api/leave?mine=1').then((d) => d && this.setState({ apiMyLeave: d.requests || [] }));
@@ -3888,6 +4030,7 @@ class Component extends StreamableLogic {
     }
     if (id === 'director' || id === 'accountant') {
       this.refreshFinance();
+      this.refreshInvoiceTaxSettings();
     }
     // Invoices — Director/Accountant/HR per lib/roles.js INVOICES_VIEW
     // (HR's nav already includes the Invoices screen — see this.ROLES).
@@ -3945,7 +4088,109 @@ class Component extends StreamableLogic {
     this.apiGet('/api/finance/bank-lines').then((d) => d && this.setState({ apiBankLines: d.lines || [], apiUnmatchedExpenses: d.unmatchedExpenses || [] }));
     this.apiGet('/api/finance/tax-filings').then((d) => d && this.setState({ apiTaxFilings: d.filings || [] }));
   }
-  refreshContracts() { this.apiGet('/api/contracts').then((d) => d && this.setState({ apiContracts: d.contracts || [] })); }
+  // apiContractsLoaded distinguishes "genuinely zero contracts" from "the
+  // fetch just hasn't landed yet" — without it, opening the screen a moment
+  // before this request resolves (e.g. right after login, competing with a
+  // dozen other parallel requests fired at once) would show the same "No
+  // contracts" empty state as a real empty register, which is exactly the
+  // "table isn't rendering its data" symptom this was reported as.
+  refreshContracts() { this.apiGet('/api/contracts').then((d) => d && this.setState({ apiContracts: d.contracts || [], apiContractsLoaded: true })); }
+  // ---- Payroll tax settings (SSNIT + PAYE bands) — /api/payroll/settings ----
+  // draftPayeBands: convert the API's payeBands (numbers, upTo:null for the
+  // top band) into editable string form for the band-table inputs.
+  draftPayeBands(bands) {
+    return (bands || []).map((b) => ({ upTo: b.upTo == null ? '' : String(b.upTo), rate: String(b.rate) }));
+  }
+  syncPayrollSettingsDraft(settings) {
+    if (!settings) return;
+    this.setState({
+      ps_ssnitEmployee: String(settings.ssnitEmployeeRatePct),
+      ps_ssnitEmployer: String(settings.ssnitEmployerRatePct),
+      ps_payeBands: this.draftPayeBands(settings.payeBands),
+      ps_notes: settings.notes || '',
+    });
+  }
+  refreshPayrollSettings() {
+    this.apiGet('/api/payroll/settings').then((d) => {
+      if (!d || !d.settings) return;
+      this.setState({ apiPayrollSettings: d.settings });
+      // Only overwrite the draft if the settings panel isn't mid-edit, so a
+      // background poll never clobbers someone's in-progress typing.
+      if (!this.state.payrollSettingsOpen) this.syncPayrollSettingsDraft(d.settings);
+    });
+  }
+  openPayrollSettings() {
+    if (this.state.apiPayrollSettings) this.syncPayrollSettingsDraft(this.state.apiPayrollSettings);
+    this.setState({ payrollSettingsOpen: true, ps_saved: false });
+  }
+  closePayrollSettings() { this.setState({ payrollSettingsOpen: false }); }
+  onPsField(field, e) { this.setState({ [field]: (e && e.target) ? e.target.value : e, ps_saved: false }); }
+  onPsBandField(i, field, e) {
+    const v = (e && e.target) ? e.target.value : e;
+    const bands = this.state.ps_payeBands.slice();
+    bands[i] = { ...bands[i], [field]: v };
+    this.setState({ ps_payeBands: bands, ps_saved: false });
+  }
+  addPsBand() {
+    this.setState({ ps_payeBands: [...this.state.ps_payeBands, { upTo: '', rate: '' }] });
+  }
+  removePsBand(i) {
+    const bands = this.state.ps_payeBands.slice();
+    bands.splice(i, 1);
+    this.setState({ ps_payeBands: bands });
+  }
+  savePayrollSettings() {
+    const s = this.state;
+    if (!s.ps_ssnitEmployee || !s.ps_ssnitEmployer) { this.toast('Enter both SSNIT rates'); return; }
+    if (!s.ps_payeBands.length) { this.toast('Add at least one PAYE band'); return; }
+    for (const b of s.ps_payeBands) {
+      if (b.rate === '' || isNaN(Number(b.rate))) { this.toast('Every PAYE band needs a numeric rate'); return; }
+    }
+    const payeBands = s.ps_payeBands.map((b) => ({ upTo: b.upTo === '' ? null : Number(b.upTo), rate: Number(b.rate) }));
+    this.apiSend('/api/payroll/settings', 'PATCH', {
+      ssnitEmployeeRatePct: Number(s.ps_ssnitEmployee),
+      ssnitEmployerRatePct: Number(s.ps_ssnitEmployer),
+      payeBands,
+      notes: s.ps_notes,
+    }).then((res) => {
+      if (!res.ok) { this.toast((res.data && res.data.error) || 'Could not save payroll settings'); return; }
+      this.setState({ apiPayrollSettings: res.data.settings, ps_saved: true });
+      this.syncPayrollSettingsDraft(res.data.settings);
+      this.toast('Payroll tax settings saved');
+    });
+  }
+  // ---- Invoice tax settings (VAT/NHIL/GETFund/COVID levy) — /api/finance/tax-settings ----
+  syncInvoiceTaxDraft(settings) {
+    if (!settings) return;
+    this.setState({
+      its_vat: String(settings.vatRatePct), its_nhil: String(settings.nhilRatePct),
+      its_getfund: String(settings.getfundRatePct), its_covid: String(settings.covidLevyRatePct),
+      its_notes: settings.notes || '',
+    });
+  }
+  refreshInvoiceTaxSettings() {
+    this.apiGet('/api/finance/tax-settings').then((d) => {
+      if (!d || !d.settings) return;
+      this.setState({ apiInvoiceTaxSettings: d.settings });
+      this.syncInvoiceTaxDraft(d.settings);
+    });
+  }
+  onItsField(field, e) { this.setState({ [field]: (e && e.target) ? e.target.value : e, its_saved: false }); }
+  saveInvoiceTaxSettings() {
+    const s = this.state;
+    const nums = [s.its_vat, s.its_nhil, s.its_getfund, s.its_covid];
+    if (nums.some((n) => n === '' || isNaN(Number(n)))) { this.toast('Enter a numeric rate for every levy'); return; }
+    this.apiSend('/api/finance/tax-settings', 'PATCH', {
+      vatRatePct: Number(s.its_vat), nhilRatePct: Number(s.its_nhil),
+      getfundRatePct: Number(s.its_getfund), covidLevyRatePct: Number(s.its_covid),
+      notes: s.its_notes,
+    }).then((res) => {
+      if (!res.ok) { this.toast((res.data && res.data.error) || 'Could not save invoice tax settings'); return; }
+      this.setState({ apiInvoiceTaxSettings: res.data.settings, its_saved: true });
+      this.syncInvoiceTaxDraft(res.data.settings);
+      this.toast('Invoice tax settings saved');
+    });
+  }
   refreshVault() { this.apiGet('/api/vault').then((d) => d && this.setState({ apiVault: d.credentials || [] })); }
   refreshInvoices() { this.apiGet('/api/invoices').then((d) => d && this.setState({ apiInvoices: d.invoices || [] })); }
   refreshPortalInvoices() {
@@ -4098,6 +4343,12 @@ class Component extends StreamableLogic {
 
   setScreen(key) {
     this.setState({ activeScreen: key, mobileDrawerOpen: false });
+    // Fetch this screen's real data the moment someone navigates to it,
+    // instead of only ever relying on the 12s poll tick (see
+    // refreshScreenData) — fixes the Contracts register (and any other
+    // real-data screen) showing stale/empty rows if it's opened before its
+    // first background fetch has landed.
+    this.refreshScreenData(key);
   }
 
   // ---- mobile bottom-bar / "More" drawer (phone ≤640px) ----
@@ -5739,6 +5990,32 @@ class Component extends StreamableLogic {
       net: this.fmt(paySlipSrc.netPay), employerSsnit: this.fmt(paySlipSrc.ssnitEmployer)
     } : { initials: '', name: 'No payroll run yet', role: '', gross: '0', ssnit: '0', paye: '0', hasDed: false, ded: '0', dedNote: '', net: '0', employerSsnit: '0' };
 
+    // ---- Tax & Payroll Settings (real, audit-logged PayrollSettings row —
+    // see app/api/payroll/settings). Only a Director can edit (server-side
+    // PAYROLL_SETTINGS_EDIT); anyone else who can reach the Payroll screen
+    // (Accountant) sees the same values read-only, no save button rendered.
+    const psCanEdit = !!(role && role.id === 'director');
+    const psNotesPreview = s.apiPayrollSettings ? s.apiPayrollSettings.notes : 'Loading current payroll tax settings…';
+    const psLastUpdated = s.apiPayrollSettings
+      ? 'Last updated ' + new Date(s.apiPayrollSettings.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      : '';
+    const psBandsVals = s.ps_payeBands.map((b, i) => ({
+      upTo: b.upTo, rate: b.rate,
+      onUpTo: (e) => this.onPsBandField(i, 'upTo', e), onRate: (e) => this.onPsBandField(i, 'rate', e),
+      remove: () => this.removePsBand(i)
+    }));
+
+    // ---- Invoice tax settings (VAT/NHIL/GETFund/COVID levy — real,
+    // audit-logged InvoiceTaxSettings row, see app/api/finance/tax-settings).
+    // Director AND Accountant can edit (server-side FINANCE_MANAGE); shown
+    // as its own "Tax Settings" tab in Finance, hidden from HR (who has no
+    // FINANCE_VIEW access to it server-side either).
+    const itsCanEdit = !!(role && (role.id === 'director' || role.id === 'accountant'));
+    const itsNotesPreview = s.apiInvoiceTaxSettings ? s.apiInvoiceTaxSettings.notes : 'Loading current invoice tax settings…';
+    const itsLastUpdated = s.apiInvoiceTaxSettings
+      ? 'Last updated ' + new Date(s.apiInvoiceTaxSettings.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      : '';
+
     // ---- recruitment (Phase 2 · real data from /api/recruitment/candidates) ----
     const recFunnelCounts = {
       applied: s.apiCandidates.filter(c => c.stage === 'APPLIED').length,
@@ -5937,7 +6214,11 @@ class Component extends StreamableLogic {
       { key: 'pnl', label: 'P&L' },
       { key: 'expenses', label: 'Expense Ledger' },
       { key: 'bankrec', label: 'Bank Reconciliation' },
-      { key: 'taxcal', label: 'Tax Calendar' }
+      { key: 'taxcal', label: 'Tax Calendar' },
+      // Director/Accountant only (server-side FINANCE_VIEW) — HR has no
+      // access to this tab's data, so it's left out of their tab bar rather
+      // than shown and immediately 403ing.
+      ...(role && (role.id === 'director' || role.id === 'accountant') ? [{ key: 'taxsettings', label: 'Tax Settings' }] : [])
     ];
     const financeTabs = FINANCE_TAB_DEFS.map(t => ({
       label: t.label, select: () => this.setFinanceTab(t.key),
@@ -6219,6 +6500,15 @@ class Component extends StreamableLogic {
       exportBankFile: () => this.exportBankFile(), payTrend, payRows: payRowsVals,
       paySlipOpen: s.paySlipOpen, closePaySlip: () => this.closePaySlip(), paySlip, downloadPayslip: () => this.downloadPayslip(),
 
+      // tax & payroll settings (real, audit-logged — see app/api/payroll/settings)
+      payrollSettingsOpen: s.payrollSettingsOpen,
+      openPayrollSettings: () => this.openPayrollSettings(), closePayrollSettings: () => this.closePayrollSettings(),
+      psNotesPreview, psLastUpdated, psCanEdit, psReadonly: !psCanEdit, psFieldBg: psCanEdit ? '#FFFFFF' : '#F5F7FA',
+      ps_ssnitEmployee: s.ps_ssnitEmployee, onPsSsnitEmployee: (e) => this.onPsField('ps_ssnitEmployee', e),
+      ps_ssnitEmployer: s.ps_ssnitEmployer, onPsSsnitEmployer: (e) => this.onPsField('ps_ssnitEmployer', e),
+      ps_notes: s.ps_notes, onPsNotes: (e) => this.onPsField('ps_notes', e),
+      psBandsVals, addPsBand: () => this.addPsBand(), savePayrollSettings: () => this.savePayrollSettings(),
+
       // recruitment
       recFunnel, recCols, candOpen: s.candOpen, closeCand: () => this.closeCand(), candDetail,
 
@@ -6283,7 +6573,7 @@ class Component extends StreamableLogic {
       financeTab: s.financeTab, setFinanceTab: (t) => this.setFinanceTab(t),
       isFinTabInvoices: s.financeTab === 'invoices', isFinTabPnl: s.financeTab === 'pnl',
       isFinTabExpenses: s.financeTab === 'expenses', isFinTabBankRec: s.financeTab === 'bankrec',
-      isFinTabTaxCal: s.financeTab === 'taxcal',
+      isFinTabTaxCal: s.financeTab === 'taxcal', isFinTabTaxSettings: s.financeTab === 'taxsettings',
       pnl, expensesVals, expCategory: s.expCategory, onExpCategory: (e) => this.onExpField('expCategory', e),
       expDesc: s.expDesc, onExpDesc: (e) => this.onExpField('expDesc', e),
       expAmount: s.expAmount, onExpAmount: (e) => this.onExpField('expAmount', e), addExpense: () => this.addExpense(),
@@ -6295,8 +6585,19 @@ class Component extends StreamableLogic {
       payRunLatestId: payRunLatest ? payRunLatest.id : null, payRunApprovable: !!(payRunLatest && payRunLatest.status === 'DRAFT'),
       approvePayrollRun: () => payRunLatest && this.approvePayrollRun(payRunLatest.id),
 
+      // invoice tax settings (real, audit-logged — see app/api/finance/tax-settings)
+      itsNotesPreview, itsLastUpdated, itsCanEdit, itsReadonly: !itsCanEdit, itsFieldBg: itsCanEdit ? '#FFFFFF' : '#F5F7FA',
+      its_vat: s.its_vat, onItsVat: (e) => this.onItsField('its_vat', e),
+      its_nhil: s.its_nhil, onItsNhil: (e) => this.onItsField('its_nhil', e),
+      its_getfund: s.its_getfund, onItsGetfund: (e) => this.onItsField('its_getfund', e),
+      its_covid: s.its_covid, onItsCovid: (e) => this.onItsField('its_covid', e),
+      its_notes: s.its_notes, onItsNotes: (e) => this.onItsField('its_notes', e),
+      saveInvoiceTaxSettings: () => this.saveInvoiceTaxSettings(),
+
       // contracts register (Phase 4 · real data)
-      contractsVals, ctType: s.ctType, onCtType: (e) => this.onCtField('ctType', e),
+      contractsVals, contractsEmpty: s.apiContractsLoaded && contractsVals.length === 0,
+      contractsLoading: !s.apiContractsLoaded,
+      ctType: s.ctType, onCtType: (e) => this.onCtField('ctType', e),
       ctTitle: s.ctTitle, onCtTitle: (e) => this.onCtField('ctTitle', e),
       ctClientId: s.ctClientId, onCtClientId: (e) => this.onCtField('ctClientId', e),
       ctEmployeeId: s.ctEmployeeId, onCtEmployeeId: (e) => this.onCtField('ctEmployeeId', e),
