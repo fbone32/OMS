@@ -1,6 +1,33 @@
 const { createSessionToken, sessionCookieHeader } = require('../../../../lib/auth');
 const { logAudit } = require('../../../../lib/audit');
 const { verifyCredentials } = require('../../../../lib/credentials');
+const { sendEmail } = require('../../../../lib/email');
+const { renderEmailTemplate } = require('../../../../lib/email-templates');
+const { ROLE_LABELS } = require('../../../../lib/roles');
+
+// Every successful sign-in gets a branded notification email — a simple,
+// deliberate product decision (no device-fingerprinting / "new device only"
+// complexity): EVERY successful login fires this, not just unrecognized
+// ones. Time is shown in Africa/Accra (Ghana HQ time; UTC+0 year-round, no
+// DST) labelled "GMT", matching the convention the topbar clock already
+// established (public/index.html's Accra/Seattle live clocks) rather than
+// inventing a new timestamp convention for just this email.
+function formatSignInTime(date) {
+  const datePart = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Accra',
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+  const timePart = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Africa/Accra',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+  return `${datePart}, ${timePart} GMT`;
+}
 
 function json(data, init) {
   return new Response(JSON.stringify(data), {
@@ -101,7 +128,38 @@ async function POST(request) {
     return serviceUnavailable();
   }
 
-  await logAudit({ session: { uid: user.id, email: user.email }, action: 'LOGIN_SUCCESS', targetType: 'User', targetId: user.id });
+  // Login notification email — fires on EVERY successful sign-in (no
+  // "new device only" logic, a deliberate product decision to keep this
+  // simple). sendEmail() is documented to never throw, but this is wrapped
+  // in try/catch anyway as defense in depth: a broken/misbehaving mail
+  // provider must NEVER fail or delay an otherwise-successful login. The
+  // login response below does not depend on emailResult in any way.
+  const signInTime = new Date();
+  let emailResult;
+  try {
+    emailResult = await sendEmail({
+      to: user.email,
+      subject: 'New sign-in to your Open Base Africa account',
+      html: renderEmailTemplate('login-notification', {
+        USER_FIRST_NAME: (user.employee ? user.employee.name.split(' ')[0] : user.email.split('@')[0]) || 'there',
+        USER_EMAIL: user.email,
+        USER_ROLE: ROLE_LABELS[user.role] || user.role,
+        SIGNIN_TIME: formatSignInTime(signInTime),
+      }),
+      text: `New sign-in to your OBA Platform account (${user.email}) at ${formatSignInTime(signInTime)}. If this wasn't you, contact IT & Facilities immediately.`,
+    });
+  } catch (err) {
+    console.error('[auth/login] login-notification email threw unexpectedly:', err);
+    emailResult = { ok: false, error: String((err && err.message) || err) };
+  }
+
+  await logAudit({
+    session: { uid: user.id, email: user.email },
+    action: 'LOGIN_SUCCESS',
+    targetType: 'User',
+    targetId: user.id,
+    detail: { emailSent: emailResult.ok },
+  });
 
   return json({ user: publicUser(user) }, {
     status: 200,
