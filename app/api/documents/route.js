@@ -41,6 +41,11 @@ function serialize(doc, session) {
     createdAt: doc.createdAt,
     mine: !!(session.employeeId && doc.employeeId === session.employeeId),
     canDownload: canDownload(doc, session),
+    // SOP Library versioning (Phase 2) — real on every document, most
+    // visible on company-wide category=SOP rows where a Director/HR upload
+    // of a new version (see POST /api/documents/:id/version) increments this.
+    version: doc.version,
+    supersedesId: doc.supersedesId,
   };
 }
 

@@ -1,7 +1,13 @@
 const { prisma } = require('../../../lib/db');
 const { requireRole, getSession, unauthorized } = require('../../../lib/auth');
 const { logAudit } = require('../../../lib/audit');
-const { EMPLOYEES_READ, EMPLOYEES_WRITE } = require('../../../lib/roles');
+const { EMPLOYEES_READ, EMPLOYEES_WRITE, INCIDENTS_LOG, QA_ENTRY, TRAINING_RECORD } = require('../../../lib/roles');
+
+// Roles allowed to see the minimal "picker" shape (?basic=1) — anyone who
+// needs to attribute a Phase 2 record (incident/QA audit/training
+// completion) to an employee, without granting them the full directory
+// (salary/banking/national ID) that EMPLOYEES_READ implies.
+const BASIC_PICKER_ROLES = Array.from(new Set([...EMPLOYEES_READ, ...INCIDENTS_LOG, ...QA_ENTRY, ...TRAINING_RECORD]));
 
 function json(data, init) {
   return new Response(JSON.stringify(data), {
@@ -40,6 +46,21 @@ async function GET(request) {
     if (!session.employeeId) return json({ employees: [] });
     const e = await prisma.employee.findUnique({ where: { id: session.employeeId } });
     return json({ employees: e ? [serialize(e)] : [] });
+  }
+
+  // Minimal picker shape for Phase 2 forms (log an incident / QA audit /
+  // training completion) — real names+ids, deliberately no salary/banking/
+  // national ID fields, and open to a wider role set than the full
+  // directory below.
+  if (url.searchParams.get('basic') === '1') {
+    const { errorResponse: basicError } = requireRole(request, BASIC_PICKER_ROLES);
+    if (basicError) return basicError;
+    const employees = await prisma.employee.findMany({
+      where: { active: true },
+      select: { id: true, name: true, jobTitle: true, branch: true },
+      orderBy: { name: 'asc' },
+    });
+    return json({ employees });
   }
 
   const { errorResponse } = requireRole(request, EMPLOYEES_READ);

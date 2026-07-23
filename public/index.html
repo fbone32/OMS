@@ -1621,7 +1621,7 @@
                     <circle cx="70" cy="70" r="52" style="fill:none;stroke:{{ s.color }};stroke-width:16px;stroke-dasharray:{{ s.dash }};stroke-dashoffset:{{ s.offset }};"></circle>
                   </sc-for>
                 </g>
-                <text x="70" y="66" text-anchor="middle" style="font-size:22px;font-weight:800;fill:#0D2B4E;">7</text>
+                <text x="70" y="66" text-anchor="middle" style="font-size:22px;font-weight:800;fill:#0D2B4E;">{{ incTotalCount }}</text>
                 <text x="70" y="84" text-anchor="middle" style="font-size:8px;font-weight:700;fill:#9AA4B0;letter-spacing:0.06em;">THIS MONTH</text>
               </svg>
               <div style="flex:1;display:flex;flex-direction:column;gap:9px;">
@@ -2276,7 +2276,7 @@
               <g transform="rotate(-90 70 70)">
                 <circle cx="70" cy="70" r="52" style="fill:none;stroke:#C8960C;stroke-width:14px;stroke-linecap:round;stroke-dasharray:{{ trainRing.dash }};stroke-dashoffset:{{ trainRing.offset }};"></circle>
               </g>
-              <text x="70" y="66" text-anchor="middle" style="font-size:26px;font-weight:800;fill:#0D2B4E;">71%</text>
+              <text x="70" y="66" text-anchor="middle" style="font-size:26px;font-weight:800;fill:#0D2B4E;">{{ trainRing.pct }}</text>
               <text x="70" y="85" text-anchor="middle" style="font-size:8px;font-weight:700;fill:#9AA4B0;letter-spacing:0.06em;">AVG COMPLETION</text>
             </svg>
             <div style="flex:1;min-width:220px;">
@@ -2324,7 +2324,7 @@
                 <g transform="rotate(-90 70 70)">
                   <circle cx="70" cy="70" r="52" style="fill:none;stroke:#2E6B4F;stroke-width:14px;stroke-linecap:round;stroke-dasharray:{{ qaGauge.ringDash }};stroke-dashoffset:{{ qaGauge.ringOffset }};"></circle>
                 </g>
-                <text x="70" y="66" text-anchor="middle" style="font-size:26px;font-weight:800;fill:#0D2B4E;">93.1</text>
+                <text x="70" y="66" text-anchor="middle" style="font-size:26px;font-weight:800;fill:#0D2B4E;">{{ qaGauge.avg }}</text>
                 <text x="70" y="86" text-anchor="middle" style="font-size:8px;font-weight:700;fill:#9AA4B0;letter-spacing:0.08em;">AVG QA SCORE</text>
               </svg>
               <div>
@@ -2585,7 +2585,7 @@
       <!-- ======== 7. RECRUITMENT ======== -->
       <sc-if value="{{ isRecruit }}" hint-placeholder-val="{{ false }}">
         <div>
-          <div style="background:#E6F0EB;border:1px solid #BFD8CC;border-radius:8px;padding:11px 16px;margin-bottom:14px;font-size:12.5px;font-weight:600;color:#2E6B4F;">● Live feed connected · applications flow in from the OBA job board automatically</div>
+          <div style="background:#E6F0EB;border:1px solid #BFD8CC;border-radius:8px;padding:11px 16px;margin-bottom:14px;font-size:12.5px;font-weight:600;color:#2E6B4F;">● Live pipeline · every candidate below is a real record — stage changes and hires save immediately</div>
           <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:12px;padding:16px 18px;margin-bottom:14px;">
             <div style="font-size:13.5px;font-weight:700;color:#0D2B4E;margin-bottom:14px;">Hiring funnel · this month</div>
             <div style="display:flex;flex-direction:column;gap:9px;">
@@ -3068,7 +3068,7 @@ class Component extends StreamableLogic {
         landing: 'shifts', canCreateAccounts: false, canRequestProc: false, procApprover: false,
         nav: [
           { heading: 'OPERATIONS', items: ['shifts', 'scheduling', 'attendance', 'incidents', 'workforce'] },
-          { heading: 'QUALITY', items: ['qa'] },
+          { heading: 'QUALITY & PERFORMANCE', items: ['qa', 'kpi'] },
           { heading: 'ME', items: ['myspace'] }
         ]
       },
@@ -3114,7 +3114,8 @@ class Component extends StreamableLogic {
         userName: 'Yaw Asante', userSub: 'Supervisor · Own team attendance', greeting: 'Good day',
         landing: 'attendance', canCreateAccounts: false, canRequestProc: false, procApprover: false,
         nav: [
-          { heading: 'OPERATIONS', items: ['attendance'] },
+          { heading: 'OPERATIONS', items: ['attendance', 'incidents'] },
+          { heading: 'PEOPLE & QUALITY', items: ['qa', 'training'] },
           { heading: 'ME', items: ['myspace'] }
         ]
       }
@@ -3282,7 +3283,17 @@ class Component extends StreamableLogic {
       apiPayrollRuns: [],
       apiMyPayslips: [],
       apiRoster: null,
-      apiMyRoster: []
+      apiMyRoster: [],
+
+      // ---- Phase 2 real-backend state (fetched from /api/...) ----
+      apiCandidates: [],
+      apiEmployeesBasic: [],
+      apiIncidents: [],
+      apiQaAudits: [],
+      apiTrainCourses: [],
+      apiTrainCohorts: [],
+      apiKpiScorecard: null,
+      incName: '', incType: 'Lateness', incDetail: ''
     };
   }
 
@@ -3321,6 +3332,14 @@ class Component extends StreamableLogic {
     // Director/HR without them having to leave the screen and come back.
     if ((roleId === 'director' || roleId === 'hr') && s.activeScreen === 'leave') {
       this.refreshAllLeave();
+    }
+    // Recruitment pipeline — HR/Director see a new applicant without reload.
+    if ((roleId === 'director' || roleId === 'hr') && s.activeScreen === 'recruit') {
+      this.refreshCandidates();
+    }
+    // Incidents log — Ops/Supervisor/Director see a new incident live.
+    if ((roleId === 'director' || roleId === 'ops' || roleId === 'supervisor') && s.activeScreen === 'incidents') {
+      this.refreshIncidents();
     }
   }
 
@@ -3386,12 +3405,42 @@ class Component extends StreamableLogic {
     if (id === 'director' || id === 'ops') {
       this.fetchRoster(this.BRANCH_NAMES[0]);
     }
+
+    // ---- Phase 2 (Operations & Performance) ----
+    if (id === 'director' || id === 'hr') {
+      this.refreshCandidates();
+    }
+    if (id === 'director' || id === 'ops' || id === 'supervisor') {
+      this.refreshIncidents();
+      // Minimal id+name+branch picker for the "Log an incident" form — a
+      // Supervisor/Ops Manager isn't in EMPLOYEES_READ (the full directory),
+      // so this real-but-narrow endpoint (see app/api/employees?basic=1)
+      // gives them just enough to attribute an incident to a real employee.
+      this.apiGet('/api/employees?basic=1').then((d) => d && this.setState({ apiEmployeesBasic: d.employees || [] }));
+    }
+    if (id === 'director' || id === 'ops' || id === 'supervisor') {
+      this.refreshQaAudits();
+    }
+    if (id === 'director' || id === 'ops') {
+      this.refreshKpiScorecard();
+    }
+    // Training is broadly viewable (own progress matters to everyone).
+    this.refreshTrainingCatalogue();
   }
 
   refreshMyLeave() { this.apiGet('/api/leave?mine=1').then((d) => d && this.setState({ apiMyLeave: d.requests || [] })); }
   refreshAllLeave() { this.apiGet('/api/leave').then((d) => d && this.setState({ apiLeaveAll: d.requests || [] })); }
   refreshDocuments() { this.apiGet('/api/documents').then((d) => d && this.setState({ apiDocuments: d.documents || [] })); }
   refreshMyAttendance() { this.apiGet('/api/attendance?mine=1').then((d) => d && this.setState({ apiMyAttendance: (d.records && d.records[0]) || null })); }
+
+  // ---- Phase 2 API helpers ----
+  refreshCandidates() { this.apiGet('/api/recruitment/candidates').then((d) => d && this.setState({ apiCandidates: d.candidates || [] })); }
+  refreshIncidents() { this.apiGet('/api/incidents').then((d) => d && this.setState({ apiIncidents: d.incidents || [] })); }
+  refreshQaAudits() { this.apiGet('/api/qa/audits').then((d) => d && this.setState({ apiQaAudits: d.audits || [] })); }
+  refreshKpiScorecard() { this.apiGet('/api/kpi/scorecard').then((d) => d && this.setState({ apiKpiScorecard: d })); }
+  refreshTrainingCatalogue() {
+    this.apiGet('/api/training/courses').then((d) => d && this.setState({ apiTrainCourses: d.courses || [], apiTrainCohorts: d.cohorts || [] }));
+  }
 
   // ================= static demo data =================
   buildStaticData() {
@@ -3778,12 +3827,31 @@ class Component extends StreamableLogic {
   }
   schTap() {}
 
-  // ---- attendance / incidents ----
+  // ---- attendance / incidents (Phase 2 · real data via /api/incidents) ----
   onIncName(e) { this.setState({ incName: e.target ? e.target.value : e }); }
   onIncType(e) { this.setState({ incType: e.target ? e.target.value : e }); }
   onIncDetail(e) { this.setState({ incDetail: e.target ? e.target.value : e }); }
-  logIncident() { this.toast('Incident logged'); this.setState({ incDetail: '' }); }
-  incidentClose(id) { this.setState(s => ({ incidentsClosed: { ...(s.incidentsClosed || {}), [id]: true } })); }
+  logIncident() {
+    const s = this.state;
+    const picker = s.apiEmployeesBasic.length ? s.apiEmployeesBasic : s.apiEmployees;
+    const employee = picker.find(e => e.name === s.incName) || picker[0] || null;
+    if (!employee || !s.incDetail) { this.toast('Pick an employee and describe what happened'); return; }
+    const TYPE_MAP = { 'Lateness': 'LATENESS', 'Unapproved absence': 'UNAPPROVED_ABSENCE', 'QA breach': 'QA_BREACH', 'Conduct': 'CONDUCT', 'Safety': 'SAFETY' };
+    const type = TYPE_MAP[s.incType] || 'OTHER';
+    this.apiSend('/api/incidents', 'POST', { employeeId: employee.id, type, detail: s.incDetail }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not log incident'); return; }
+      this.toast('Incident logged');
+      this.setState({ incDetail: '' });
+      this.refreshIncidents();
+    });
+  }
+  incidentClose(id) {
+    this.apiSend('/api/incidents/' + id, 'PATCH', { status: 'CLOSED' }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not close incident'); return; }
+      this.toast('Incident closed');
+      this.refreshIncidents();
+    });
+  }
   issueAssign(id) { this.setState(s => ({ issuesAssigned: { ...(s.issuesAssigned || {}), [id]: true } })); }
   issueResolve(id) { this.setState(s => ({ issuesResolved: { ...(s.issuesResolved || {}), [id]: true } })); }
   reportAck(id) { this.setState(s => ({ reportsAcked: { ...(s.reportsAcked || {}), [id]: true } })); }
@@ -3856,25 +3924,36 @@ class Component extends StreamableLogic {
     this.toast('Credential saved');
   }
 
-  // ---- recruitment ----
+  // ---- recruitment (Phase 2 · real data via /api/recruitment) ----
   openCand(id) { this.setState({ candOpen: true, candId: id }); }
   closeCand() { this.setState({ candOpen: false }); }
   candAdvance(id) {
-    const order = ['applied', 'screening', 'interview', 'offer', 'hired'];
-    this.setState(s => {
-      const list = s.candidates.map(c => {
-        if (c.id !== id) return c;
-        const idx = order.indexOf(c.stage);
-        const next = order[Math.min(idx + 1, order.length - 1)];
-        return { ...c, stage: next };
+    const candidate = this.state.apiCandidates.find(c => c.id === id);
+    if (!candidate) return;
+    if (candidate.stage === 'OFFER') {
+      // One-click hire → real Employee + User login (same generated-
+      // temp-password mechanism as the Add-Employee onboarding flow).
+      this.apiSend('/api/recruitment/candidates/' + id + '/hire', 'POST', { branch: (this.state.apiEmployees[0] || {}).branch || this.BRANCH_NAMES[0] }).then(({ ok, data }) => {
+        if (!ok) { this.toast(data.error || 'Could not convert candidate to an employee'); return; }
+        this.toast('Hired · added to Employee Directory (temp password: ' + data.temporaryPassword + ')');
+        this.refreshCandidates();
+        if (this.state.currentRoleId === 'director' || this.state.currentRoleId === 'hr') this.apiGet('/api/employees').then((d) => d && this.setState({ apiEmployees: d.employees || [] }));
       });
-      return { candidates: list };
+      return;
+    }
+    this.apiSend('/api/recruitment/candidates/' + id, 'PATCH', { action: 'advance' }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not advance candidate'); return; }
+      this.toast('Candidate advanced');
+      this.refreshCandidates();
     });
-    const c = this.state.candidates.find(c => c.id === id);
-    if (c && c.stage === 'offer') this.toast('Hired · added to Employee Directory');
-    else this.toast('Candidate advanced');
   }
-  candReject(id) { this.setState(s => ({ candidates: s.candidates.filter(c => c.id !== id) })); this.toast('Candidate rejected'); }
+  candReject(id) {
+    this.apiSend('/api/recruitment/candidates/' + id, 'PATCH', { action: 'reject' }).then(({ ok, data }) => {
+      if (!ok) { this.toast(data.error || 'Could not reject candidate'); return; }
+      this.toast('Candidate rejected');
+      this.refreshCandidates();
+    });
+  }
 
   // ---- leave ----
   leaveDecide(id, status) {
@@ -4329,21 +4408,30 @@ class Component extends StreamableLogic {
       };
     });
 
-    // ---- incidents ----
-    const incSegs = this.ringSegs(52, [
-      { frac: 0.43, color: '#C8960C', label: 'Lateness', count: 3 },
-      { frac: 0.28, color: '#0D2B4E', label: 'QA breach', count: 2 },
-      { frac: 0.14, color: '#9B2C2C', label: 'Conduct', count: 1 },
-      { frac: 0.15, color: '#6B7684', label: 'Other', count: 1 }
-    ]);
+    // ---- incidents (Phase 2 · real data from /api/incidents) ----
+    const INC_TYPE_LABEL = { LATENESS: 'LATENESS', UNAPPROVED_ABSENCE: 'ABSENCE', QA_BREACH: 'QA BREACH', CONDUCT: 'CONDUCT', SAFETY: 'SAFETY' };
+    const INC_TYPE_COLOR = { LATENESS: { bg: '#FBF3DF', c: '#8A6508' }, UNAPPROVED_ABSENCE: { bg: '#FBF3DF', c: '#8A6508' }, QA_BREACH: { bg: '#EAF0F7', c: '#0D2B4E' }, CONDUCT: { bg: '#FBECEC', c: '#9B2C2C' }, SAFETY: { bg: '#FBECEC', c: '#9B2C2C' } };
+    const incEmployeePicker = s.apiEmployeesBasic.length ? s.apiEmployeesBasic : s.apiEmployees;
+    const incNames = incEmployeePicker.slice(0, 30).map(e => e.name);
+    const incCategoryCounts = {};
+    s.apiIncidents.forEach(i => { const label = INC_TYPE_LABEL[i.type] || 'OTHER'; incCategoryCounts[label] = (incCategoryCounts[label] || 0) + 1; });
+    const incTotal = s.apiIncidents.length || 1;
+    const incColorByLabel = { LATENESS: '#C8960C', ABSENCE: '#8A6508', 'QA BREACH': '#0D2B4E', CONDUCT: '#9B2C2C', SAFETY: '#9B2C2C', OTHER: '#6B7684' };
+    const incSegs = this.ringSegs(52, Object.keys(incCategoryCounts).map(label => ({ frac: incCategoryCounts[label] / incTotal, color: incColorByLabel[label] || '#6B7684', label, count: incCategoryCounts[label] })));
     const incDonut = incSegs;
-    const incNames = d.employees.slice(0, 6).map(e => e.name);
-    const incidentsClosed = s.incidentsClosed || {};
-    const incidents = [
-      { id: 'inc1', name: 'Kwesi Appiah', type: 'LATENESS', sevBg: '#FBF3DF', sevColor: '#8A6508', date: '18 Jul', detail: 'Third lateness this month, over 15 minutes.', action: 'Verbal warning issued', status: incidentsClosed.inc1 ? 'CLOSED' : 'OPEN', stBg: incidentsClosed.inc1 ? '#E6F0EB' : '#FBF3DF', stColor: incidentsClosed.inc1 ? '#2E6B4F' : '#8A6508', canClose: !incidentsClosed.inc1, close: () => this.incidentClose('inc1') },
-      { id: 'inc2', name: 'Isaac Adjei', type: 'QA BREACH', sevBg: '#EAF0F7', sevColor: '#0D2B4E', date: '15 Jul', detail: 'Did not follow refund verification script.', action: 'Coaching session booked', status: incidentsClosed.inc2 ? 'CLOSED' : 'OPEN', stBg: incidentsClosed.inc2 ? '#E6F0EB' : '#FBF3DF', stColor: incidentsClosed.inc2 ? '#2E6B4F' : '#8A6508', canClose: !incidentsClosed.inc2, close: () => this.incidentClose('inc2') },
-      { id: 'inc3', name: 'Daniel Quaye', type: 'CONDUCT', sevBg: '#FBECEC', sevColor: '#9B2C2C', date: '9 Jul', detail: 'Reported for unprofessional conduct on a call.', action: 'Case closed, written warning', status: 'CLOSED', stBg: '#E6F0EB', stColor: '#2E6B4F', canClose: false, close: () => {} }
-    ];
+    const incTotalCount = s.apiIncidents.length;
+    const fmtDateShort2 = (dt) => new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+    const incidents = s.apiIncidents.map(i => {
+      const closed = i.status === 'CLOSED';
+      const colors = INC_TYPE_COLOR[i.type] || { bg: '#F0F2F5', c: '#6B7684' };
+      return {
+        id: i.id, name: i.name, type: INC_TYPE_LABEL[i.type] || i.type,
+        sevBg: colors.bg, sevColor: colors.c, date: fmtDateShort2(i.createdAt),
+        detail: i.detail, action: i.action || (closed ? 'Case closed' : 'Awaiting action'),
+        status: i.status, stBg: closed ? '#E6F0EB' : '#FBF3DF', stColor: closed ? '#2E6B4F' : '#8A6508',
+        canClose: !closed, close: () => this.incidentClose(i.id)
+      };
+    });
 
     // ---- security ----
     const secAuditAll = [
@@ -4404,14 +4492,24 @@ class Component extends StreamableLogic {
       download: () => this.toast('Downloading invoice…')
     };
 
-    // ---- KPI scorecard ----
+    // ---- KPI scorecard (Phase 2 · real actuals from /api/kpi/scorecard) ----
+    // AVG QA and ATTENDANCE are genuinely computed from QaAudit/Attendance
+    // data below. AVG SLA and TICKETS/AGENT stay as placeholder figures —
+    // there is no Client (Phase 3/4) or ticketing data yet to compute an
+    // honest number from, so they are NOT wired to an API and are clearly
+    // static here rather than presented as real.
     const kpiPeriods = ['This month', 'This quarter', 'YTD'].map((label, i) => ({ label, select: () => this.kpiSelectPeriod(i), bg: s.kpiPeriodIdx === i ? '#0D2B4E' : 'transparent', color: s.kpiPeriodIdx === i ? '#FFFFFF' : '#6B7684' }));
     const kpiFilters = ['All branches', 'Accra HQ', 'Kumasi', 'Takoradi', 'Tema'].map((label, i) => ({ label, select: () => this.kpiSelectFilter(i), bg: s.kpiFilterIdx === i ? '#EAF0F7' : '#FFFFFF', color: s.kpiFilterIdx === i ? '#0D2B4E' : '#6B7684', border: s.kpiFilterIdx === i ? '#0D2B4E' : '#D8DFE7' }));
+    const kpiScorecard = s.apiKpiScorecard || { targets: [], actuals: {}, employeeScores: [], teamAvg: null };
+    const kpiTargetByKey = {};
+    kpiScorecard.targets.forEach(t => { kpiTargetByKey[t.metricKey] = t; });
+    const attendanceTarget = kpiTargetByKey.ATTENDANCE ? kpiTargetByKey.ATTENDANCE.targetValue + '%' : '95%';
+    const qaTarget = kpiTargetByKey.QA_SCORE ? kpiTargetByKey.QA_SCORE.targetValue : 90;
     const kpiTiles = [
-      { label: 'AVG SLA', value: '93%', color: '#0D2B4E', sub: 'target 90%' },
-      { label: 'AVG QA', value: '93.1', color: '#0D2B4E', sub: 'target 90' },
-      { label: 'ATTENDANCE', value: '94%', color: '#0D2B4E', sub: 'target 95%' },
-      { label: 'TICKETS/AGENT', value: '41', color: '#0D2B4E', sub: 'target 45' }
+      { label: 'AVG SLA', value: '93%', color: '#0D2B4E', sub: 'target 90% · placeholder, pending Phase 3/4 client data' },
+      { label: 'AVG QA', value: kpiScorecard.actuals.avgQa != null ? String(kpiScorecard.actuals.avgQa) : '—', color: '#0D2B4E', sub: 'target ' + qaTarget },
+      { label: 'ATTENDANCE', value: kpiScorecard.actuals.attendancePct != null ? kpiScorecard.actuals.attendancePct + '%' : '—', color: '#0D2B4E', sub: 'target ' + attendanceTarget },
+      { label: 'TICKETS/AGENT', value: '41', color: '#0D2B4E', sub: 'target 45 · placeholder, pending Phase 3/4 ticketing data' }
     ];
     const kpiGroupSrc = [
       { group: 'Client SLA', rows: [
@@ -4446,26 +4544,36 @@ class Component extends StreamableLogic {
       { label: 'Punctuality', w: '20%', c: '#C8960C' },
       { label: 'Conduct', w: '10%', c: '#9AA4B0' }
     ];
-    const empScores = d.employees.slice(0, 8).map((e, i) => {
-      const score = 78 + ((i * 7) % 20);
+    // Real composite score — see /api/kpi/scorecard for the exact formula
+    // (40% QA + 30% Attendance + 20% Punctuality + 10% Conduct), matching
+    // this screen's own "Score = ..." explanation text.
+    const empScores = kpiScorecard.employeeScores.map((e) => {
+      const score = e.score;
       const band = score >= 90 ? 'TOP' : score >= 80 ? 'STRONG' : 'STEADY';
       const c = score >= 90 ? '#2E6B4F' : score >= 80 ? '#0D2B4E' : '#C8960C';
-      return { name: e.name, role: e.role, branch: e.branch, initials: e.initials, score: String(score), pct: score + '%', c, bandBg: score >= 90 ? '#E6F0EB' : score >= 80 ? '#EAF0F7' : '#FBF3DF', band, open: () => this.openEmpSel(e.id) };
+      return { employeeId: e.employeeId, name: e.name, role: e.jobTitle, branch: e.branch, initials: this.initials(e.name), score: String(score), pct: score + '%', c, bandBg: score >= 90 ? '#E6F0EB' : score >= 80 ? '#EAF0F7' : '#FBF3DF', band, parts: e.parts, open: () => this.openEmpSel(e.employeeId) };
     });
-    const empSelSrc = d.employees.find(e => e.id === s.empSelId) || d.employees[0];
-    const empSelScoreObj = empScores.find(e => e.name === empSelSrc.name) || empScores[0];
-    const empSel = {
-      initials: empSelSrc.initials, name: empSelSrc.name, role: empSelSrc.role, branch: empSelSrc.branch,
+    const empSelScoreObj = empScores.find(e => e.employeeId === s.empSelId) || empScores[0] || null;
+    const empSel = empSelScoreObj ? {
+      initials: empSelScoreObj.initials, name: empSelScoreObj.name, role: empSelScoreObj.role, branch: empSelScoreObj.branch,
       score: empSelScoreObj.score, bandBg: empSelScoreObj.bandBg, band: empSelScoreObj.band, c: empSelScoreObj.c,
-      note: 'Consistent performer with strong QA scores this period.',
+      note: 'Computed from this employee’s real QA audits, attendance log and incident record.',
       parts: [
+        { label: 'QA', weight: '40%', raw: empSelScoreObj.parts.qa, c: '#0D2B4E', contrib: Math.round(empSelScoreObj.parts.qa * 0.4) },
+        { label: 'Attendance', weight: '30%', raw: empSelScoreObj.parts.attendance, c: '#2E6B4F', contrib: Math.round(empSelScoreObj.parts.attendance * 0.3) },
+        { label: 'Punctuality', weight: '20%', raw: empSelScoreObj.parts.punctuality, c: '#C8960C', contrib: Math.round(empSelScoreObj.parts.punctuality * 0.2) },
+        { label: 'Conduct', weight: '10%', raw: empSelScoreObj.parts.conduct, c: '#2E6B4F', contrib: Math.round(empSelScoreObj.parts.conduct * 0.1) }
+      ]
+    } : {
+      initials: '', name: 'No employees yet', role: '', branch: '', score: '0', bandBg: '#F0F2F5', band: '—', c: '#6B7684',
+      note: '', parts: [
         { label: 'QA', weight: '40%', raw: 94, c: '#0D2B4E', contrib: 38 },
         { label: 'Attendance', weight: '30%', raw: 96, c: '#2E6B4F', contrib: 29 },
         { label: 'Punctuality', weight: '20%', raw: 88, c: '#C8960C', contrib: 18 },
         { label: 'Conduct', weight: '10%', raw: 100, c: '#2E6B4F', contrib: 10 }
       ]
     };
-    const empTeamAvg = '89.4';
+    const empTeamAvg = kpiScorecard.teamAvg != null ? String(kpiScorecard.teamAvg) : '—';
 
     // ---- documents (Phase 1 · real data from /api/documents) ----
     const docCatList = ['All', 'Contracts', 'SOPs', 'Policies', 'IDs', 'Certificates', 'Other', 'Signed'];
@@ -4522,40 +4630,50 @@ class Component extends StreamableLogic {
       { label: 'REVEALS TODAY', value: String(Object.values(s.vaultRevealed).filter(Boolean).length), c: '#8A6508', d: 'logged to audit' }
     ];
 
-    // ---- training / qa ----
-    const trainRing = this.ring(52, 0.71);
+    // ---- training (Phase 2 · real data from /api/training/courses+completions) ----
+    const trainCourseList = s.apiTrainCourses;
+    const trainCohortList = s.apiTrainCohorts;
+    const totalLearnerSlots = trainCohortList.reduce((sum, c) => sum + c.learnerCount, 0);
+    const totalCompletedSlots = trainCohortList.reduce((sum, c) => sum + c.completedCount, 0);
+    const avgCompletionFrac = totalLearnerSlots ? totalCompletedSlots / totalLearnerSlots : 0;
+    const trainRing = { ...this.ring(52, avgCompletionFrac), pct: Math.round(avgCompletionFrac * 100) + '%' };
+    const now30 = new Date(); now30.setDate(now30.getDate() - 30);
     const trainTiles = [
-      { label: 'COURSES LIVE', value: '9', color: '#0D2B4E' },
-      { label: 'COHORTS', value: '4', color: '#0D2B4E' },
-      { label: 'COMPLETIONS (MO)', value: '38', color: '#2E6B4F' },
-      { label: 'OVERDUE', value: '6', color: '#9B2C2C' }
+      { label: 'COURSES LIVE', value: String(trainCourseList.filter(c => c.status !== 'DRAFT').length), color: '#0D2B4E' },
+      { label: 'COHORTS', value: String(trainCohortList.length), color: '#0D2B4E' },
+      { label: 'COMPLETIONS (MO)', value: String(totalCompletedSlots), color: '#2E6B4F' },
+      { label: 'IN PROGRESS', value: String(Math.max(0, totalLearnerSlots - totalCompletedSlots)), color: '#C8960C' }
     ];
-    const trainCohorts = [
-      { name: 'July onboarding cohort', pct: '84%', color: '#2E6B4F', learners: '12 learners' },
-      { name: 'QA calibration refresh', pct: '58%', color: '#C8960C', learners: '9 learners' },
-      { name: 'Team Lead upskilling', pct: '46%', color: '#C8960C', learners: '5 learners' },
-      { name: 'Data protection compliance', pct: '92%', color: '#2E6B4F', learners: '24 learners' }
-    ];
-    const trainCourses = [
-      { name: 'Customer Support Fundamentals', mods: '6 modules', dur: '4h', status: 'LIVE', stBg: '#E6F0EB', stColor: '#2E6B4F' },
-      { name: 'QA Scoring & Calibration', mods: '4 modules', dur: '2.5h', status: 'LIVE', stBg: '#E6F0EB', stColor: '#2E6B4F' },
-      { name: 'Leadership for Team Leads', mods: '8 modules', dur: '6h', status: 'LIVE', stBg: '#E6F0EB', stColor: '#2E6B4F' },
-      { name: 'Data Protection Act 843', mods: '3 modules', dur: '1.5h', status: 'MANDATORY', stBg: '#FBF3DF', stColor: '#8A6508' }
-    ];
-    const qaGaugeRing = this.ring(52, 0.93);
+    const trainCohorts = trainCohortList.map(c => ({
+      name: c.name, pct: c.pct + '%', color: c.pct >= 80 ? '#2E6B4F' : '#C8960C', learners: c.learnerCount + ' learner' + (c.learnerCount === 1 ? '' : 's')
+    }));
+    const COURSE_STATUS_COLOR = { LIVE: { bg: '#E6F0EB', c: '#2E6B4F' }, MANDATORY: { bg: '#FBF3DF', c: '#8A6508' }, DRAFT: { bg: '#F0F2F5', c: '#6B7684' } };
+    const trainCourses = trainCourseList.map(c => {
+      const colors = COURSE_STATUS_COLOR[c.status] || COURSE_STATUS_COLOR.DRAFT;
+      return { name: c.name, mods: c.modules + ' modules', dur: c.durationHours + 'h', status: c.status, stBg: colors.bg, stColor: colors.c };
+    });
+
+    // ---- QA (Phase 2 · real data from /api/qa/audits) ----
+    const avgQaScore = s.apiQaAudits.length ? s.apiQaAudits.reduce((sum, a) => sum + a.score, 0) / s.apiQaAudits.length : 0;
+    const qaGaugeRing = this.ring(52, avgQaScore / 100);
+    const qaBuckets = { excellent: 0, good: 0, coaching: 0 };
+    s.apiQaAudits.forEach(a => { if (a.score >= 90) qaBuckets.excellent++; else if (a.score >= 80) qaBuckets.good++; else qaBuckets.coaching++; });
+    const qaAuditTotal = s.apiQaAudits.length || 1;
     const qaGaugeDist = this.ringSegs(52, [
-      { frac: 0.62, color: '#2E6B4F', label: 'Excellent (90+)', count: 82 },
-      { frac: 0.28, color: '#C8960C', label: 'Good (80–89)', count: 37 },
-      { frac: 0.10, color: '#9B2C2C', label: 'Needs coaching (<80)', count: 13 }
+      { frac: qaBuckets.excellent / qaAuditTotal, color: '#2E6B4F', label: 'Excellent (90+)', count: qaBuckets.excellent },
+      { frac: qaBuckets.good / qaAuditTotal, color: '#C8960C', label: 'Good (80–89)', count: qaBuckets.good },
+      { frac: qaBuckets.coaching / qaAuditTotal, color: '#9B2C2C', label: 'Needs coaching (<80)', count: qaBuckets.coaching }
     ]);
-    const qaGauge = { ringDash: qaGaugeRing.dash, ringOffset: qaGaugeRing.offset, dist: qaGaugeDist };
-    const qaScores = d.employees.slice(0, 8).map((e, i) => {
-      const pct = 78 + ((i * 5) % 20);
+    const qaGauge = { ringDash: qaGaugeRing.dash, ringOffset: qaGaugeRing.offset, dist: qaGaugeDist, avg: Math.round(avgQaScore * 10) / 10 };
+    const qaByEmployee = {};
+    s.apiQaAudits.forEach(a => { (qaByEmployee[a.employeeId] = qaByEmployee[a.employeeId] || { name: a.name, jobTitle: a.jobTitle, scores: [] }).scores.push(a.score); });
+    const qaScores = Object.values(qaByEmployee).map(e => {
+      const pct = Math.round(e.scores.reduce((s2, v) => s2 + v, 0) / e.scores.length);
       const band = pct >= 90 ? 'Excellent' : pct >= 80 ? 'Good' : 'Coaching';
       const bandColor = pct >= 90 ? '#2E6B4F' : pct >= 80 ? '#0D2B4E' : '#C8960C';
-      return { name: e.name, role: e.role, pct: pct + '%', band, bandBg: pct >= 90 ? '#E6F0EB' : pct >= 80 ? '#EAF0F7' : '#FBF3DF', bandColor };
+      return { name: e.name, role: e.jobTitle, pct: pct + '%', band, bandBg: pct >= 90 ? '#E6F0EB' : pct >= 80 ? '#EAF0F7' : '#FBF3DF', bandColor };
     });
-    const qaAudits = d.employees.slice(0, 6).map((e, i) => ({ agent: e.name, ticket: 'TCK-' + (4200 + i), score: (86 + i) + '/100', c: (86 + i) >= 90 ? '#2E6B4F' : '#C8960C', note: i % 2 === 0 ? 'Great empathy, followed script.' : 'Missed verification step.' }));
+    const qaAudits = s.apiQaAudits.slice(0, 10).map(a => ({ agent: a.name, ticket: a.ticketRef, score: a.score + '/100', c: a.score >= 90 ? '#2E6B4F' : '#C8960C', note: a.note || '—' }));
 
     // ---- calendar ----
     const calSummary = [
@@ -4636,27 +4754,40 @@ class Component extends StreamableLogic {
       net: this.fmt(paySlipSrc.netPay), employerSsnit: this.fmt(paySlipSrc.ssnitEmployer)
     } : { initials: '', name: 'No payroll run yet', role: '', gross: '0', ssnit: '0', paye: '0', hasDed: false, ded: '0', dedNote: '', net: '0', employerSsnit: '0' };
 
-    // ---- recruitment ----
-    const recFunnelCounts = { applied: s.candidates.filter(c => c.stage === 'applied').length + 6, screening: s.candidates.filter(c => c.stage === 'screening').length + 3, interview: s.candidates.filter(c => c.stage === 'interview').length + 2, offer: s.candidates.filter(c => c.stage === 'offer').length + 1, hired: s.candidates.filter(c => c.stage === 'hired').length + 4 };
-    const recFunnelMax = Math.max(...Object.values(recFunnelCounts));
+    // ---- recruitment (Phase 2 · real data from /api/recruitment/candidates) ----
+    const recFunnelCounts = {
+      applied: s.apiCandidates.filter(c => c.stage === 'APPLIED').length,
+      screening: s.apiCandidates.filter(c => c.stage === 'SCREENING').length,
+      interview: s.apiCandidates.filter(c => c.stage === 'INTERVIEW').length,
+      offer: s.apiCandidates.filter(c => c.stage === 'OFFER').length,
+      hired: s.apiCandidates.filter(c => c.stage === 'HIRED').length,
+    };
+    const recFunnelMax = Math.max(1, ...Object.values(recFunnelCounts));
+    const recTotalApplied = Math.max(1, s.apiCandidates.length);
+    const pctOf = (n) => Math.round((n / recTotalApplied) * 100) + '%';
     const recFunnel = [
       { label: 'Applied', n: recFunnelCounts.applied, conv: '100%' },
-      { label: 'Screening', n: recFunnelCounts.screening, conv: '52%' },
-      { label: 'Interview', n: recFunnelCounts.interview, conv: '31%' },
-      { label: 'Offer', n: recFunnelCounts.offer, conv: '12%' },
-      { label: 'Hired', n: recFunnelCounts.hired, conv: '9%' }
+      { label: 'Screening', n: recFunnelCounts.screening, conv: pctOf(recFunnelCounts.screening) },
+      { label: 'Interview', n: recFunnelCounts.interview, conv: pctOf(recFunnelCounts.interview) },
+      { label: 'Offer', n: recFunnelCounts.offer, conv: pctOf(recFunnelCounts.offer) },
+      { label: 'Hired', n: recFunnelCounts.hired, conv: pctOf(recFunnelCounts.hired) }
     ].map(f => ({ ...f, width: Math.max(10, Math.round((f.n / recFunnelMax) * 100)) + '%', color: '#0D2B4E' }));
-    const STAGE_LABELS = { applied: 'APPLIED', screening: 'SCREENING', interview: 'INTERVIEW', offer: 'OFFER', hired: 'HIRED' };
-    const recCols = ['applied', 'screening', 'interview', 'offer'].map(stage => {
-      const cards = s.candidates.filter(c => c.stage === stage).map(c => ({
+    const STAGE_LABELS = { APPLIED: 'APPLIED', SCREENING: 'SCREENING', INTERVIEW: 'INTERVIEW', OFFER: 'OFFER', HIRED: 'HIRED', REJECTED: 'REJECTED' };
+    const recCols = ['APPLIED', 'SCREENING', 'INTERVIEW', 'OFFER'].map(stage => {
+      const cards = s.apiCandidates.filter(c => c.stage === stage).map(c => ({
         name: c.name, roleTitle: c.roleTitle, view: () => this.openCand(c.id),
-        canAdvance: true, advanceLabel: stage === 'offer' ? 'Mark hired →' : 'Advance →', advance: () => this.candAdvance(c.id),
+        canAdvance: true, advanceLabel: stage === 'OFFER' ? 'Mark hired →' : 'Advance →', advance: () => this.candAdvance(c.id),
         canReject: true, reject: () => this.candReject(c.id)
       }));
       return { label: STAGE_LABELS[stage], count: cards.length, cards, colEmpty: cards.length === 0 };
     });
-    const candDetailSrc = s.candidates.find(c => c.id === s.candId) || s.candidates[0];
-    const candDetail = { initials: this.initials(candDetailSrc.name), name: candDetailSrc.name, roleTitle: candDetailSrc.roleTitle, stage: STAGE_LABELS[candDetailSrc.stage], email: candDetailSrc.email, phone: candDetailSrc.phone, exp: candDetailSrc.exp, edu: candDetailSrc.edu, applied: candDetailSrc.applied, notes: candDetailSrc.notes };
+    const fmtDateShort3 = (dt) => new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const candDetailSrc = s.apiCandidates.find(c => c.id === s.candId) || s.apiCandidates[0] || null;
+    const candDetail = candDetailSrc ? {
+      initials: this.initials(candDetailSrc.name), name: candDetailSrc.name, roleTitle: candDetailSrc.roleTitle, stage: STAGE_LABELS[candDetailSrc.stage],
+      email: candDetailSrc.email, phone: candDetailSrc.phone || '—', exp: candDetailSrc.experience || '—', edu: candDetailSrc.education || '—',
+      applied: fmtDateShort3(candDetailSrc.appliedAt), notes: candDetailSrc.notes || '—'
+    } : { initials: '', name: '', roleTitle: '', stage: '', email: '', phone: '', exp: '', edu: '', applied: '', notes: '' };
 
     // ---- my space (Phase 1 · attendance/leave/payslips/schedule are real) ----
     const myAtt = s.apiMyAttendance;
@@ -4921,7 +5052,7 @@ class Component extends StreamableLogic {
       attDonut, attTrend, attRows, attEmpty: attRows.length === 0,
 
       // incidents
-      incDonut, incidents, incidentsEmpty: false,
+      incDonut, incTotalCount, incidents, incidentsEmpty: incidents.length === 0,
       incName: s.incName || incNames[0], onIncName: (e) => this.onIncName(e), incNames,
       incType: s.incType || 'Lateness', onIncType: (e) => this.onIncType(e),
       incDetail: s.incDetail || '', onIncDetail: (e) => this.onIncDetail(e), logIncident: () => this.logIncident(),

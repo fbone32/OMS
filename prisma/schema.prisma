@@ -71,6 +71,74 @@ enum PayrollRunStatus {
   PAID
 }
 
+// ---- Phase 2 (Operations & Performance) enums ----
+
+enum JobOpeningStatus {
+  OPEN
+  ON_HOLD
+  CLOSED
+}
+
+// Matches the fixed "TYPE" dropdown already in the Recruitment pipeline UI's
+// candidate stage columns (applied -> screening -> interview -> offer ->
+// hired), plus REJECTED for a candidate dropped at any stage.
+enum CandidateStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  HIRED
+  REJECTED
+}
+
+// Matches the fixed "TYPE" dropdown already in the existing Incidents "Log
+// incident" form (Lateness / Unapproved absence / QA breach / Conduct /
+// Safety) — never invent a different set, the <select> options are the
+// source of truth for what this enum must contain.
+enum IncidentType {
+  LATENESS
+  UNAPPROVED_ABSENCE
+  QA_BREACH
+  CONDUCT
+  SAFETY
+}
+
+// Not a form field in the existing UI (the "Log incident" panel has no
+// severity selector) — server-derived from IncidentType at creation time so
+// the data model captures it for real without inventing a new UI control.
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum IncidentStatus {
+  OPEN
+  CLOSED
+}
+
+enum CourseStatus {
+  LIVE
+  MANDATORY
+  DRAFT
+}
+
+enum TrainingStatus {
+  ENROLLED
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+// Only the metrics Phase 1 data can genuinely support today (attendance rate,
+// QA score). SLA / ticket volume / revenue need Client (Phase 3) and a
+// ticketing system (not yet built) — deliberately not modeled as real
+// KpiTargets to avoid fabricating a number behind a "real" label.
+enum KpiMetricKey {
+  ATTENDANCE
+  QA_SCORE
+}
+
 model User {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -90,6 +158,14 @@ model User {
   approvedPayrollRuns PayrollRun[]         @relation("PayrollApprovedBy")
   uploadedDocuments  Document[]            @relation("DocumentUploadedBy")
   updatedSettings    PayrollSettings[]     @relation("SettingsUpdatedBy")
+
+  // ---- Phase 2 (Operations & Performance) ----
+  createdJobOpenings JobOpening[]          @relation("JobOpeningCreatedBy")
+  qaAuditsGiven      QaAudit[]             @relation("QaAuditedBy")
+  incidentsOwned     Incident[]            @relation("IncidentOwner")
+  incidentsClosed    Incident[]            @relation("IncidentClosedBy")
+  trainingRecorded   TrainingCompletion[]  @relation("TrainingRecordedBy")
+  kpiTargetsUpdated  KpiTarget[]           @relation("KpiTargetUpdatedBy")
 }
 
 model Employee {
@@ -117,6 +193,12 @@ model Employee {
   leaveRequests      LeaveRequest[]
   payslips           Payslip[]
   rosterEntries      ShiftRosterEntry[]
+
+  // ---- Phase 2 (Operations & Performance) ----
+  hiredFromCandidate    Candidate?           // reverse of Candidate.convertedEmployeeId (1:1)
+  qaAudits              QaAudit[]
+  incidents             Incident[]
+  trainingCompletions   TrainingCompletion[]
 }
 
 model Document {
@@ -134,6 +216,18 @@ model Document {
   uploadedByUserId String
   uploadedBy     User              @relation("DocumentUploadedBy", fields: [uploadedByUserId], references: [id])
   createdAt      DateTime          @default(now())
+
+  // ---- SOP versioning (Phase 2) ----
+  // No dedicated "SOP Library" screen exists in the template yet (isCalendar
+  // turned out to be a shift/leave calendar, not an SOP screen) — versioning
+  // lives on the existing company-wide Document (category=SOP) so it's real
+  // data, surfaced today only inside the existing Document Library card text.
+  // version      starts at 1; supersedesId points back at the version this
+  // one replaces (a real one-to-one chain, walk supersedesId to see history).
+  version        Int               @default(1)
+  supersedesId   String?           @unique
+  supersedes     Document?         @relation("DocumentVersion", fields: [supersedesId], references: [id])
+  supersededBy   Document?         @relation("DocumentVersion")
 }
 
 model ShiftRosterEntry {
@@ -236,6 +330,136 @@ model PayrollSettings {
   updatedBy             User?    @relation("SettingsUpdatedBy", fields: [updatedByUserId], references: [id])
   updatedAt             DateTime @updatedAt
   createdAt             DateTime @default(now())
+}
+
+// ============== Phase 2 (Operations & Performance) ==============
+
+// Recruitment — job openings + candidate pipeline. HR Officer owns this
+// (Director has full access, matching the brief's role table).
+model JobOpening {
+  id              String            @id @default(cuid())
+  title           String
+  branch          String
+  status          JobOpeningStatus  @default(OPEN)
+  openings        Int               @default(1)
+  createdByUserId String
+  createdBy       User              @relation("JobOpeningCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime          @default(now())
+
+  candidates      Candidate[]
+}
+
+model Candidate {
+  id                  String          @id @default(cuid())
+  name                String
+  email               String
+  phone               String?
+  jobOpeningId        String?
+  jobOpening          JobOpening?     @relation(fields: [jobOpeningId], references: [id])
+  roleTitle           String          // denormalized display label, e.g. "Support Agent · Night shift"
+  stage               CandidateStage  @default(APPLIED)
+  experience          String?
+  education           String?
+  notes               String?
+  appliedAt           DateTime        @default(now())
+  // Set once, by the one-click "hire" conversion — creates a real Employee
+  // (+ User login, same generated-temp-password mechanism as
+  // app/api/employees/onboard) and links back here. @unique enforces a
+  // candidate can only ever be converted once.
+  convertedEmployeeId String?         @unique
+  convertedEmployee   Employee?       @relation(fields: [convertedEmployeeId], references: [id])
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+}
+
+// Quality Assurance — one row per audited ticket/interaction. Feeds both the
+// QA screen's agent scorecards/recent-audits table AND the KPI screen's
+// individual performance score (QA is 40% of that score).
+model QaAudit {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  ticketRef       String
+  score           Int      // 0-100
+  note            String?
+  auditedByUserId String
+  auditedBy       User     @relation("QaAuditedBy", fields: [auditedByUserId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+// Incidents & handover — severity, owner, resolution status.
+model Incident {
+  id             String            @id @default(cuid())
+  employeeId     String
+  employee       Employee          @relation(fields: [employeeId], references: [id])
+  type           IncidentType
+  severity       IncidentSeverity  @default(LOW)
+  detail         String
+  action         String?
+  status         IncidentStatus    @default(OPEN)
+  ownerUserId    String            // the person logging it is the default owner/follow-up contact
+  owner          User              @relation("IncidentOwner", fields: [ownerUserId], references: [id])
+  closedByUserId String?
+  closedBy       User?             @relation("IncidentClosedBy", fields: [closedByUserId], references: [id])
+  closedAt       DateTime?
+  createdAt      DateTime          @default(now())
+}
+
+// Training — course catalogue, cohorts, and per-employee completion tracking.
+model Course {
+  id            String                @id @default(cuid())
+  name          String                @unique
+  modules       Int
+  durationHours Decimal               @db.Decimal(4, 1)
+  status        CourseStatus          @default(LIVE)
+  createdAt     DateTime              @default(now())
+
+  cohorts       Cohort[]
+  completions   TrainingCompletion[]
+}
+
+model Cohort {
+  id          String                @id @default(cuid())
+  name        String                @unique
+  courseId    String?
+  course      Course?               @relation(fields: [courseId], references: [id])
+  startDate   DateTime              @default(now())
+  createdAt   DateTime              @default(now())
+
+  completions TrainingCompletion[]
+}
+
+model TrainingCompletion {
+  id               String          @id @default(cuid())
+  employeeId       String
+  employee         Employee        @relation(fields: [employeeId], references: [id])
+  courseId         String
+  course           Course          @relation(fields: [courseId], references: [id])
+  cohortId         String?
+  cohort           Cohort?         @relation(fields: [cohortId], references: [id])
+  status           TrainingStatus  @default(ENROLLED)
+  completedAt      DateTime?
+  recordedByUserId String?
+  recordedBy       User?           @relation("TrainingRecordedBy", fields: [recordedByUserId], references: [id])
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([employeeId, courseId])
+}
+
+// KPI targets — Director-editable, real target values that real actuals
+// (computed live from Attendance/QaAudit) are scored against. Only the two
+// metrics Phase 1 data can genuinely support (see KpiMetricKey comment).
+model KpiTarget {
+  id              String        @id @default(cuid())
+  metricKey       KpiMetricKey  @unique
+  label           String
+  targetValue     Decimal       @db.Decimal(6, 2)
+  unit            String        // '%' or 'pts'
+  updatedByUserId String?
+  updatedBy       User?         @relation("KpiTargetUpdatedBy", fields: [updatedByUserId], references: [id])
+  updatedAt       DateTime      @updatedAt
+  createdAt        DateTime     @default(now())
 }
 
 model AuditLogEntry {
