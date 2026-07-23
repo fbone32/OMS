@@ -1076,22 +1076,41 @@
               <div style="padding:16px 18px;">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                   <input value="{{ naName }}" onChange="{{ onNaName }}" placeholder="Full name" style="border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;outline-color:#C8960C;">
-                  <select value="{{ naRole }}" onChange="{{ onNaRole }}" style="border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;background-color:#FFFFFF;cursor:pointer;">
+                  <input value="{{ naEmail }}" onChange="{{ onNaEmail }}" placeholder="Email address" type="email" style="border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;outline-color:#C8960C;">
+                  <select value="{{ naJobTitle }}" onChange="{{ onNaJobTitle }}" style="border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;background-color:#FFFFFF;cursor:pointer;">
                     <option>Support Agent</option><option>QA Analyst</option><option>Team Lead</option><option>Supervisor</option><option>Trainer</option><option>Ops Manager</option>
                   </select>
-                  <select value="{{ naBranch }}" onChange="{{ onNaBranch }}" style="border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;background-color:#FFFFFF;cursor:pointer;">
-                    <option>Branch A</option><option>Branch B</option><option>Branch C</option><option>Branch D</option><option>Branch E</option>
+                  <select value="{{ naSysRole }}" onChange="{{ onNaSysRole }}" style="border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;background-color:#FFFFFF;cursor:pointer;">
+                    <option value="EMPLOYEE">System access: Employee</option>
+                    <option value="SUPERVISOR">System access: Supervisor</option>
+                    <option value="OPERATIONS_MANAGER">System access: Ops Manager</option>
+                    <option value="ACCOUNTANT">System access: Accountant</option>
+                    <option value="IT_FACILITIES">System access: IT &amp; Facilities</option>
+                    <option value="HR_OFFICER">System access: HR Officer</option>
+                    <option value="BUSINESS_DEVELOPMENT">System access: Business Development</option>
                   </select>
-                  <input value="{{ naGhCard }}" onChange="{{ onNaGhCard }}" placeholder="Ghana Card no." style="border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;outline-color:#C8960C;">
+                  <select value="{{ naBranch }}" onChange="{{ onNaBranch }}" style="border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;background-color:#FFFFFF;cursor:pointer;">
+                    <option>Accra HQ</option><option>Kumasi</option><option>Takoradi</option><option>Tema</option><option>Tamale</option>
+                  </select>
+                  <input value="{{ naGhCard }}" onChange="{{ onNaGhCard }}" placeholder="Ghana Card no. (optional)" style="border:1px solid #D8DFE7;border-radius:7px;padding:10px;font-size:12.5px;outline-color:#C8960C;">
                 </div>
                 <button onClick="{{ submitAccount }}" style="width:100%;margin-top:10px;background:#0D2B4E;color:#FFFFFF;border:none;font-size:12.5px;font-weight:700;padding:11px;border-radius:7px;cursor:pointer;" style-hover="background:#123A69;">Submit for account creation</button>
-                <div style="font-size:11px;color:#9AA4B0;font-weight:500;margin-top:8px;line-height:1.5;">Creates the login, employee ID and payroll record. Role decides what they can access.</div>
+                <div style="font-size:11px;color:#9AA4B0;font-weight:500;margin-top:8px;line-height:1.5;">Creates the login and employee record with a unique temporary password. Salary, banking and other financial details can be added afterwards. "System access" decides what they can see in the app — separate from job title.</div>
               </div>
               <div style="border-top:1px solid #EEF1F4;">
                 <sc-for list="{{ pendingAccounts }}" as="a" hint-placeholder-count="1">
-                  <div style="padding:11px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;">
-                    <span style="font-weight:600;color:#1F2A37;">{{ a.name }} · {{ a.role }} · {{ a.branch }}</span>
-                    <span style="background:#EAF0F7;color:#0D2B4E;font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ a.status }}</span>
+                  <div style="padding:11px 18px;border-bottom:1px solid #EEF1F4;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;">
+                      <span style="font-weight:600;color:#1F2A37;">{{ a.name }} · {{ a.role }} · {{ a.branch }}</span>
+                      <span style="background:{{ a.stBg }};color:{{ a.stColor }};font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ a.status }}</span>
+                    </div>
+                    <sc-if value="{{ a.hasTempPassword }}" hint-placeholder-val="{{ false }}">
+                      <div style="margin-top:8px;background:#FBF3DF;border:1px solid #E8D3A0;border-radius:7px;padding:9px 11px;">
+                        <div style="font-size:11px;color:#8A6508;font-weight:700;">Temporary password — shown once, share it with {{ a.name }} directly:</div>
+                        <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;font-weight:800;color:#0D2B4E;margin-top:4px;user-select:all;">{{ a.tempPassword }}</div>
+                        <div style="font-size:10.5px;color:#9A7A2E;font-weight:600;margin-top:5px;">Login email: {{ a.email }} · There's no auto-email yet — this will not be shown again.</div>
+                      </div>
+                    </sc-if>
                   </div>
                 </sc-for>
               </div>
@@ -2938,6 +2957,15 @@ class Component extends StreamableLogic {
       return '·';
     };
     this.fmt = (n) => Math.round(n).toLocaleString('en-US');
+    // Live "HH:MM" for a given IANA timezone, from a millisecond timestamp
+    // (state.clockTick, ticked every second in componentDidMount).
+    this.fmtClock = (ts, timeZone) => {
+      try {
+        return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone }).format(new Date(ts || Date.now()));
+      } catch {
+        return '--:--';
+      }
+    };
     this.ring = (r, frac) => {
       const C = 2 * Math.PI * r;
       const len = C * Math.max(0, Math.min(1, frac));
@@ -3092,6 +3120,54 @@ class Component extends StreamableLogic {
       }
     ];
 
+    // this.ROLES above was written as one entry per SEEDED demo persona
+    // (matched by exact email). Real accounts created through the "Add
+    // Employee" onboarding flow (app/api/employees/onboard) get arbitrary
+    // emails that will never match one of those — without the mapping below,
+    // any such real person logging in would silently fall through to the
+    // hardcoded "employee" persona and see Kojo Bediako's name/details
+    // instead of their own. ROLE_ENUM_TO_PERSONA picks the ROLES entry whose
+    // nav/landing/permissions match the *Prisma Role enum* on their account
+    // (which is always correct — the server sets it), and resolveRole() then
+    // overrides only the person-specific display fields (name/title/branch)
+    // with their real data from the session.
+    this.ROLE_ENUM_TO_PERSONA = {
+      DIRECTOR: 'director', HR_OFFICER: 'hr', BUSINESS_DEVELOPMENT: 'bd',
+      OPERATIONS_MANAGER: 'ops', ACCOUNTANT: 'accountant', IT_FACILITIES: 'it',
+      SUPERVISOR: 'supervisor', BOARD_ADVISOR: 'advisor', EMPLOYEE: 'employee',
+      // TRAINER/QA_ANALYST are offered as job TITLES at onboarding, not as
+      // distinct system-access roles — an account with either as its Prisma
+      // Role gets the base Employee persona's nav/permissions.
+      TRAINER: 'employee', QA_ANALYST: 'employee',
+    };
+    this.ROLE_LABELS = {
+      DIRECTOR: 'Director', HR_OFFICER: 'HR Officer', BUSINESS_DEVELOPMENT: 'Business Development',
+      OPERATIONS_MANAGER: 'Ops Manager', ACCOUNTANT: 'Accountant', IT_FACILITIES: 'IT & Facilities',
+      SUPERVISOR: 'Supervisor', TRAINER: 'Trainer', QA_ANALYST: 'QA Analyst', EMPLOYEE: 'Employee',
+      CLIENT: 'Client', BOARD_ADVISOR: 'Board Advisor',
+    };
+    // Resolves the logged-in session (from /api/auth/login or /api/auth/me)
+    // to a ROLES entry: an exact email match for the original demo personas
+    // (unchanged behavior), otherwise a synthetic entry built from the
+    // matching persona's nav/landing/permissions plus this real person's own
+    // name/job title/branch/email — never another employee's identity.
+    this.resolveRole = (user) => {
+      const exact = this.ROLES.find(r => r.email === user.email);
+      if (exact) return exact;
+      const personaId = this.ROLE_ENUM_TO_PERSONA[user.role] || 'employee';
+      const template = this.ROLES.find(r => r.id === personaId) || this.ROLES.find(r => r.id === 'employee');
+      const roleLabel = this.ROLE_LABELS[user.role] || template.role;
+      const primary = user.employeeJobTitle || roleLabel;
+      const userSub = user.employeeBranch ? `${primary} · ${user.employeeBranch}` : primary;
+      return {
+        ...template,
+        email: user.email,
+        role: roleLabel,
+        userName: user.employeeName || user.email,
+        userSub,
+      };
+    };
+
     // Real branch list backing the Phase 1 Scheduling/Attendance/Employees
     // screens (matches the 5 branches seeded into Postgres).
     this.BRANCH_NAMES = ['Accra HQ', 'Kumasi', 'Takoradi', 'Tema', 'Tamale'];
@@ -3116,6 +3192,7 @@ class Component extends StreamableLogic {
       // ---- session ----
       currentRoleId: null,
       activeScreen: 'command',
+      clockTick: Date.now(), // ticks every second (componentDidMount) so the topbar Accra/Seattle clocks are genuinely live
       showToast: false,
       toastMsg: '',
       mobileDrawerOpen: false,
@@ -3137,7 +3214,7 @@ class Component extends StreamableLogic {
       advSuggName: '', advSuggRegion: '', advSuggNote: '',
 
       pendingAccounts: this.data.pendingAccounts,
-      naName: '', naRole: 'Support Agent', naBranch: 'Accra HQ', naGhCard: '',
+      naName: '', naEmail: '', naJobTitle: 'Support Agent', naSysRole: 'EMPLOYEE', naBranch: 'Accra HQ', naGhCard: '',
       selEmployeeId: this.data.employees[0].id,
 
       itProcure: this.data.itProcure,
@@ -3211,9 +3288,41 @@ class Component extends StreamableLogic {
 
   componentDidMount() {
     this.restoreSession();
+    // Live topbar clock — ticks once a second so Accra/Seattle time reads as
+    // an actual clock, not a value frozen at page load.
+    this._clockTimer = setInterval(() => this.setState({ clockTick: Date.now() }), 1000);
+    // Lightweight polling so a supervisor/manager's Attendance view (and the
+    // Director/HR Leave queue) reflects real activity — e.g. someone else
+    // clocking in — without a manual reload. Vercel's serverless hosting
+    // isn't a good fit for a persistent WebSocket/SSE connection, so a short
+    // interval re-fetch while the relevant screen is open is the practical
+    // choice here (see pollLiveData for exactly which role/screen combos).
+    this._pollTimer = setInterval(() => this.pollLiveData(), 12000);
   }
 
-  componentWillUnmount() {}
+  componentWillUnmount() {
+    if (this._clockTimer) { clearInterval(this._clockTimer); this._clockTimer = null; }
+    if (this._pollTimer) { clearInterval(this._pollTimer); this._pollTimer = null; }
+  }
+
+  // Re-fetches only the data the CURRENT role + screen actually needs, so a
+  // logged-out visitor or an unrelated screen never triggers extra network
+  // traffic. Runs every ~12s while the app is open (see componentDidMount).
+  pollLiveData() {
+    const s = this.state;
+    if (!s.isApp || !s.sessionUser) return;
+    const roleId = s.currentRoleId;
+    // Attendance/clock-in visibility for the roles that manage people day to
+    // day: Director (everything), Ops Manager, Supervisor.
+    if ((roleId === 'director' || roleId === 'ops' || roleId === 'supervisor') && s.activeScreen === 'attendance') {
+      this.apiGet('/api/attendance').then((d) => d && this.setState({ apiAttendanceToday: d.records || [] }));
+    }
+    // Leave approval queue — a new pending request should show up for
+    // Director/HR without them having to leave the screen and come back.
+    if ((roleId === 'director' || roleId === 'hr') && s.activeScreen === 'leave') {
+      this.refreshAllLeave();
+    }
+  }
 
   // ================= Phase 1 API helpers =================
   apiGet(path) {
@@ -3241,7 +3350,7 @@ class Component extends StreamableLogic {
   }
 
   applySession(user) {
-    const role = this.ROLES.find(r => r.email === user.email) || this.ROLES.find(r => r.id === 'employee');
+    const role = this.resolveRole(user);
     this.setState({
       isLogin: false, isApp: true, currentRoleId: role.id, activeScreen: role.landing,
       sessionUser: user, authChecked: true
@@ -3348,9 +3457,10 @@ class Component extends StreamableLogic {
         };
       }),
 
-      pendingAccounts: [
-        { name: 'Efua Owusu-Boateng', role: 'Support Agent', branch: 'Kumasi', status: 'AWAITING GHANA CARD' }
-      ],
+      // Real accounts created this session via submitAccount() populate this
+      // list (see below) — no more placeholder/fake entries now that
+      // onboarding actually creates a real Employee + User via the backend.
+      pendingAccounts: [],
 
       itProcure: [
         { id: 'pc1', item: '5 × monitors', cost: 'GH₵ 6,200', reason: 'New Accra HQ desks', canDecide: true, showBadge: false, status: 'Pending', stBg: '#FBF3DF', stColor: '#8A6508' },
@@ -3515,7 +3625,7 @@ class Component extends StreamableLogic {
         this.setState({ loginErr: true, loginErrMsg: msg, loading: false });
         return;
       }
-      const matchedRole = this.ROLES.find(r => r.email === data.user.email) || this.ROLES.find(r => r.id === 'employee');
+      const matchedRole = this.resolveRole(data.user);
       this.setState({
         isLogin: false, isApp: true, currentRoleId: matchedRole.id, activeScreen: matchedRole.landing,
         loginPw: '', loginErr: false, loginPwVisible: false, loading: false, sessionUser: data.user, roleHint: null
@@ -3580,15 +3690,38 @@ class Component extends StreamableLogic {
   advAccept(name) { this.toast('Approved · added to client pipeline'); }
   advDismiss(name) { this.toast('Suggestion dismissed'); }
 
-  // ---- workforce ----
+  // ---- workforce: real "Add Employee" onboarding ----
   onNaName(e) { this.setState({ naName: e.target ? e.target.value : e }); }
-  onNaRole(e) { this.setState({ naRole: e.target ? e.target.value : e }); }
+  onNaEmail(e) { this.setState({ naEmail: e.target ? e.target.value : e }); }
+  onNaJobTitle(e) { this.setState({ naJobTitle: e.target ? e.target.value : e }); }
+  onNaSysRole(e) { this.setState({ naSysRole: e.target ? e.target.value : e }); }
   onNaBranch(e) { this.setState({ naBranch: e.target ? e.target.value : e }); }
   onNaGhCard(e) { this.setState({ naGhCard: e.target ? e.target.value : e }); }
   submitAccount() {
-    if (!this.state.naName) { this.toast('Enter a full name'); return; }
-    this.setState(s => ({ pendingAccounts: [...s.pendingAccounts, { name: s.naName, role: s.naRole, branch: s.naBranch, status: 'CREATING ACCOUNT' }], naName: '', naGhCard: '' }));
-    this.toast('Account creation submitted');
+    if (this.state.naSubmitting) return; // guard against double-submit while the request is in flight
+    const { naName, naEmail, naJobTitle, naSysRole, naBranch, naGhCard } = this.state;
+    if (!naName.trim()) { this.toast('Enter a full name'); return; }
+    if (!naEmail.trim()) { this.toast('Enter an email address'); return; }
+    this.setState({ naSubmitting: true });
+    this.apiSend('/api/employees/onboard', 'POST', {
+      name: naName.trim(), email: naEmail.trim(), jobTitle: naJobTitle, role: naSysRole,
+      branch: naBranch, nationalId: naGhCard ? naGhCard.trim() : undefined,
+    }).then(({ ok, data }) => {
+      this.setState({ naSubmitting: false });
+      if (!ok) { this.toast((data && data.error) || 'Could not create the account'); return; }
+      this.setState(s => ({
+        pendingAccounts: [
+          {
+            name: data.employee.name, role: data.employee.jobTitle, branch: data.employee.branch,
+            status: 'ACCOUNT CREATED', stBg: '#E6F0EB', stColor: '#2E6B4F',
+            email: data.user.email, tempPassword: data.temporaryPassword, hasTempPassword: true,
+          },
+          ...s.pendingAccounts,
+        ],
+        naName: '', naEmail: '', naGhCard: '',
+      }));
+      this.toast('Account created — share the temporary password shown below with ' + data.employee.name);
+    });
   }
   selectEmployee(id) { this.setState({ selEmployeeId: id }); }
 
@@ -3830,7 +3963,13 @@ class Component extends StreamableLogic {
   renderVals() {
     const s = this.state;
     const d = this.data;
-    const role = this.ROLES.find(r => r.id === s.currentRoleId) || null;
+    // Re-resolve from the actual session every render (not just once at
+    // login) so a real onboarded person's own name/job title/branch always
+    // shows here — looking this up by bare `currentRoleId` alone would only
+    // ever find the matching demo persona's template identity (e.g. always
+    // "Kojo Bediako" for any EMPLOYEE-role account that isn't that one
+    // seeded user).
+    const role = s.sessionUser ? this.resolveRole(s.sessionUser) : (this.ROLES.find(r => r.id === s.currentRoleId) || null);
     const now = new Date();
     const hh = now.getHours();
     const greeting = hh < 12 ? 'Good morning' : hh < 17 ? 'Good afternoon' : 'Good evening';
@@ -4706,7 +4845,7 @@ class Component extends StreamableLogic {
       searchOpen: s.searchOpen, searchResults, searchEmpty: s.searchOpen && q.length > 0 && searchResults.length === 0,
       toggleNotif: () => this.toggleNotif(), hasUnread: s.notifUnreadCount > 0, notifUnread: String(s.notifUnreadCount),
       notifOpen: s.notifOpen, notifList, notifEmpty: notifList.length === 0, markAllRead: () => this.markAllRead(),
-      accraTime: '09:14', seattleTime: '23:14', todayStr, greeting,
+      accraTime: this.fmtClock(s.clockTick, 'Africa/Accra'), seattleTime: this.fmtClock(s.clockTick, 'America/Los_Angeles'), todayStr, greeting,
       loading: s.loading,
       screenHero,
 
@@ -4760,7 +4899,8 @@ class Component extends StreamableLogic {
 
       // workforce
       wfDonut, people, canCreateAccounts: !!(role && role.canCreateAccounts),
-      naName: s.naName, onNaName: (e) => this.onNaName(e), naRole: s.naRole, onNaRole: (e) => this.onNaRole(e),
+      naName: s.naName, onNaName: (e) => this.onNaName(e), naEmail: s.naEmail, onNaEmail: (e) => this.onNaEmail(e),
+      naJobTitle: s.naJobTitle, onNaJobTitle: (e) => this.onNaJobTitle(e), naSysRole: s.naSysRole, onNaSysRole: (e) => this.onNaSysRole(e),
       naBranch: s.naBranch, onNaBranch: (e) => this.onNaBranch(e), naGhCard: s.naGhCard, onNaGhCard: (e) => this.onNaGhCard(e),
       submitAccount: () => this.submitAccount(),
       pendingAccounts: s.pendingAccounts,

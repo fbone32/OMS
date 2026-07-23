@@ -16,6 +16,11 @@ function publicUser(user) {
     role: user.role,
     employeeId: user.employeeId,
     employeeName: user.employee ? user.employee.name : null,
+    // Matches the shape /api/auth/me returns — the frontend needs these to
+    // build a real identity for any account that isn't one of the original
+    // seeded demo personas (see Component.resolveRole in public/index.html).
+    employeeBranch: user.employee ? user.employee.branch : null,
+    employeeJobTitle: user.employee ? user.employee.jobTitle : null,
   };
 }
 

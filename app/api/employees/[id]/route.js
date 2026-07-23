@@ -18,6 +18,7 @@ function serialize(e) {
     branch: e.branch,
     startDate: e.startDate,
     salaryGross: e.salaryGross != null ? Number(e.salaryGross) : null,
+    nationalId: e.nationalId,
     bankName: e.bankName,
     bankAccountNumber: e.bankAccountNumber,
     mobileMoneyProvider: e.mobileMoneyProvider,
@@ -53,7 +54,7 @@ async function PATCH(request, { params }) {
 
   const data = {};
   const editable = [
-    'name', 'jobTitle', 'branch', 'bankName', 'bankAccountNumber',
+    'name', 'jobTitle', 'branch', 'nationalId', 'bankName', 'bankAccountNumber',
     'mobileMoneyProvider', 'mobileMoneyNumber', 'emergencyContactName',
     'emergencyContactPhone', 'emergencyContactRelation', 'active',
   ];

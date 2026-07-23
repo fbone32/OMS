@@ -98,7 +98,8 @@ model Employee {
   jobTitle                 String
   branch                   String
   startDate                DateTime
-  salaryGross              Decimal   @db.Decimal(12, 2)
+  salaryGross              Decimal?  @db.Decimal(12, 2)
+  nationalId               String?   // Ghana Card number — optional/fillable-later at onboarding, same as salary/banking
   bankName                 String?
   bankAccountNumber        String?
   mobileMoneyProvider      String?

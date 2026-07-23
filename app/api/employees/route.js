@@ -18,6 +18,7 @@ function serialize(e) {
     branch: e.branch,
     startDate: e.startDate,
     salaryGross: e.salaryGross != null ? Number(e.salaryGross) : null,
+    nationalId: e.nationalId,
     bankName: e.bankName,
     bankAccountNumber: e.bankAccountNumber,
     mobileMoneyProvider: e.mobileMoneyProvider,
@@ -58,7 +59,11 @@ async function POST(request) {
   } catch {
     return json({ error: 'Invalid JSON body' }, { status: 400 });
   }
-  const required = ['name', 'jobTitle', 'branch', 'startDate', 'salaryGross'];
+  // Only name/jobTitle/branch are required for the Employee record itself —
+  // salary/banking/national ID/emergency contact are all fillable later by
+  // HR (e.g. via the onboarding flow at POST /api/employees/onboard, which
+  // also creates the linked login). startDate defaults to today if omitted.
+  const required = ['name', 'jobTitle', 'branch'];
   for (const f of required) {
     if (!body[f] && body[f] !== 0) return json({ error: `Missing field: ${f}` }, { status: 400 });
   }
@@ -68,8 +73,9 @@ async function POST(request) {
       name: body.name,
       jobTitle: body.jobTitle,
       branch: body.branch,
-      startDate: new Date(body.startDate),
-      salaryGross: body.salaryGross,
+      startDate: body.startDate ? new Date(body.startDate) : new Date(),
+      salaryGross: body.salaryGross != null && body.salaryGross !== '' ? body.salaryGross : null,
+      nationalId: body.nationalId || null,
       bankName: body.bankName || null,
       bankAccountNumber: body.bankAccountNumber || null,
       mobileMoneyProvider: body.mobileMoneyProvider || null,
