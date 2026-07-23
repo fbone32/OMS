@@ -2,7 +2,26 @@
   "permissions": {
     "allow": [
       "mcp__Vercel__web_fetch_vercel_url",
-      "mcp__Vercel__get_project"
+      "mcp__Vercel__get_project",
+      "mcp__Vercel__get_deployment_build_logs",
+      "mcp__Vercel__get_runtime_errors",
+      "mcp__Vercel__get_runtime_logs",
+      "mcp__Vercel__list_deployments",
+      "mcp__Vercel__get_deployment",
+      "mcp__Vercel__search_vercel_documentation",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git fetch *)",
+      "Bash(git pull *)",
+      "Bash(npm install*)",
+      "Bash(npm run *)",
+      "Bash(npx prisma *)",
+      "Bash(npx next *)",
+      "Bash(node prisma/seed.mjs*)",
+      "Bash(service postgresql *)",
+      "Bash(pg_lsclusters*)",
+      "Bash(sudo -u postgres psql *)"
     ]
   }
 }
