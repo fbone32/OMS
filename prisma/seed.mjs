@@ -94,27 +94,31 @@ async function main() {
 
   console.log('Seeding employees...');
   const employeeDefs = [
-    { name: 'Ama Owusu', jobTitle: 'Director', branch: 'Accra HQ', startDate: '2019-01-06', salaryGross: 14000, bankName: 'Ecobank Ghana', bankAccountNumber: '1441220088901', emergencyContactName: 'Kofi Owusu', emergencyContactPhone: '024 111 2233', emergencyContactRelation: 'Spouse' },
-    { name: 'Efua Mensah', jobTitle: 'HR Officer', branch: 'Accra HQ', startDate: '2021-03-15', salaryGross: 6200, mobileMoneyProvider: 'MTN MoMo', mobileMoneyNumber: '024 222 3344', emergencyContactName: 'Yaa Mensah', emergencyContactPhone: '024 222 5566', emergencyContactRelation: 'Sister' },
-    { name: 'Yaw Boateng', jobTitle: 'Business Development', branch: 'Accra HQ', startDate: '2022-05-02', salaryGross: 4800, mobileMoneyProvider: 'MTN MoMo', mobileMoneyNumber: '020 333 4455', emergencyContactName: 'Efua Boateng', emergencyContactPhone: '020 333 6677', emergencyContactRelation: 'Spouse' },
-    { name: 'Kwabena Owusu', jobTitle: 'Ops Manager', branch: 'Kumasi', startDate: '2020-02-11', salaryGross: 5600, bankName: 'GCB Bank', bankAccountNumber: '2201004455', emergencyContactName: 'Adjoa Owusu', emergencyContactPhone: '027 444 5566', emergencyContactRelation: 'Spouse' },
-    { name: 'Abena Darko', jobTitle: 'Accountant', branch: 'Accra HQ', startDate: '2021-07-19', salaryGross: 5100, bankName: 'Ecobank Ghana', bankAccountNumber: '1441229900', emergencyContactName: 'Kojo Darko', emergencyContactPhone: '020 555 6677', emergencyContactRelation: 'Brother' },
-    { name: 'Nana Adjei', jobTitle: 'IT & Facilities Lead', branch: 'Accra HQ', startDate: '2022-01-10', salaryGross: 4700, mobileMoneyProvider: 'Vodafone Cash', mobileMoneyNumber: '050 666 7788', emergencyContactName: 'Esi Adjei', emergencyContactPhone: '050 666 9900', emergencyContactRelation: 'Spouse' },
-    { name: 'Yaw Asante', jobTitle: 'Supervisor', branch: 'Accra HQ', startDate: '2022-02-14', salaryGross: 3400, mobileMoneyProvider: 'MTN MoMo', mobileMoneyNumber: '024 777 8899', emergencyContactName: 'Abena Asante', emergencyContactPhone: '024 777 1122', emergencyContactRelation: 'Spouse' },
-    { name: 'Kojo Bediako', jobTitle: 'Support Agent', branch: 'Accra HQ', startDate: '2025-03-10', salaryGross: 2300, mobileMoneyProvider: 'MTN MoMo', mobileMoneyNumber: '024 888 9911', emergencyContactName: 'Ama Bediako', emergencyContactPhone: '024 888 2233', emergencyContactRelation: 'Mother' },
-    { name: 'Ama Serwaa', jobTitle: 'QA Analyst', branch: 'Accra HQ', startDate: '2024-01-15', salaryGross: 2800 },
-    { name: 'Kwame Owusu', jobTitle: 'Team Lead', branch: 'Kumasi', startDate: '2023-06-01', salaryGross: 3600 },
-    { name: 'Efua Mensah-Bonsu', jobTitle: 'Support Agent', branch: 'Takoradi', startDate: '2025-09-02', salaryGross: 2250 },
-    { name: 'Abena Boateng', jobTitle: 'Support Agent', branch: 'Tema', startDate: '2024-11-11', salaryGross: 2250 },
-    { name: 'Kwabena Darko', jobTitle: 'Trainer', branch: 'Tamale', startDate: '2023-04-20', salaryGross: 3100 },
+    { name: 'Kelvin Nana Boateng', role: 'DIRECTOR', jobTitle: 'Director', branch: 'Accra HQ', startDate: '2019-01-06', salaryGross: 14000, bankName: 'Ecobank Ghana', bankAccountNumber: '1441220088901', emergencyContactName: 'Kofi Owusu', emergencyContactPhone: '024 111 2233', emergencyContactRelation: 'Spouse' },
+    { name: 'Fred Bonney', role: 'HR_OFFICER', jobTitle: 'HR Officer', branch: 'Accra HQ', startDate: '2021-03-15', salaryGross: 6200, mobileMoneyProvider: 'MTN MoMo', mobileMoneyNumber: '024 222 3344', emergencyContactName: 'Yaa Mensah', emergencyContactPhone: '024 222 5566', emergencyContactRelation: 'Sister' },
+    { name: 'Kofi Safo', role: 'BUSINESS_DEVELOPMENT', jobTitle: 'Business Development', branch: 'Accra HQ', startDate: '2022-05-02', salaryGross: 4800, mobileMoneyProvider: 'MTN MoMo', mobileMoneyNumber: '020 333 4455', emergencyContactName: 'Efua Boateng', emergencyContactPhone: '020 333 6677', emergencyContactRelation: 'Spouse' },
+    { name: 'Kwabena Owusu', role: 'OPERATIONS_MANAGER', jobTitle: 'Ops Manager', branch: 'Kumasi', startDate: '2020-02-11', salaryGross: 5600, bankName: 'GCB Bank', bankAccountNumber: '2201004455', emergencyContactName: 'Adjoa Owusu', emergencyContactPhone: '027 444 5566', emergencyContactRelation: 'Spouse' },
+    { name: 'Abena Darko', role: 'ACCOUNTANT', jobTitle: 'Accountant', branch: 'Accra HQ', startDate: '2021-07-19', salaryGross: 5100, bankName: 'Ecobank Ghana', bankAccountNumber: '1441229900', emergencyContactName: 'Kojo Darko', emergencyContactPhone: '020 555 6677', emergencyContactRelation: 'Brother' },
+    { name: 'Nana Adjei', role: 'IT_FACILITIES', jobTitle: 'IT & Facilities Lead', branch: 'Accra HQ', startDate: '2022-01-10', salaryGross: 4700, mobileMoneyProvider: 'Vodafone Cash', mobileMoneyNumber: '050 666 7788', emergencyContactName: 'Esi Adjei', emergencyContactPhone: '050 666 9900', emergencyContactRelation: 'Spouse' },
+    { name: 'Yaw Asante', role: 'SUPERVISOR', jobTitle: 'Supervisor', branch: 'Accra HQ', startDate: '2022-02-14', salaryGross: 3400, mobileMoneyProvider: 'MTN MoMo', mobileMoneyNumber: '024 777 8899', emergencyContactName: 'Abena Asante', emergencyContactPhone: '024 777 1122', emergencyContactRelation: 'Spouse' },
+    { name: 'Kojo Bediako', role: 'EMPLOYEE', jobTitle: 'Support Agent', branch: 'Accra HQ', startDate: '2025-03-10', salaryGross: 2300, mobileMoneyProvider: 'MTN MoMo', mobileMoneyNumber: '024 888 9911', emergencyContactName: 'Ama Bediako', emergencyContactPhone: '024 888 2233', emergencyContactRelation: 'Mother' },
+    { name: 'Ama Serwaa', role: null, jobTitle: 'QA Analyst', branch: 'Accra HQ', startDate: '2024-01-15', salaryGross: 2800 },
+    { name: 'Kwame Owusu', role: null, jobTitle: 'Team Lead', branch: 'Kumasi', startDate: '2023-06-01', salaryGross: 3600 },
+    { name: 'Efua Mensah-Bonsu', role: null, jobTitle: 'Support Agent', branch: 'Takoradi', startDate: '2025-09-02', salaryGross: 2250 },
+    { name: 'Abena Boateng', role: null, jobTitle: 'Support Agent', branch: 'Tema', startDate: '2024-11-11', salaryGross: 2250 },
+    { name: 'Kwabena Darko', role: null, jobTitle: 'Trainer', branch: 'Tamale', startDate: '2023-04-20', salaryGross: 3100 },
   ];
 
-  // Employee has no @unique field in the schema (name isn't guaranteed
-  // globally unique in a real org) but within this fixed seed list names ARE
-  // unique, so find-by-name-or-create is a safe idempotency key here
-  // specifically — re-running seed reuses the existing row (and refreshes
-  // its fields to match this file) instead of creating a duplicate employee
-  // every deploy.
+  // Employee has no @unique field in the schema, so re-running this seed
+  // needs a stable way to find "the same" row across reruns even when a
+  // person's display name changes (e.g. swapping a placeholder for a real
+  // employee's real name). For the 8 employees tied to a login account,
+  // Role is that stable key: look up the User already holding that role and
+  // reuse ITS employeeId, so a rename updates the existing row in place
+  // instead of creating a second employee (which would then collide when
+  // the user-seeding step below tries to reuse the same login email).
+  // Employees with no login (role: null) fall back to matching by name,
+  // same as before — fine since those were never subject to a rename here.
   const employees = {};
   for (const def of employeeDefs) {
     const data = {
@@ -131,7 +135,16 @@ async function main() {
       emergencyContactPhone: def.emergencyContactPhone || null,
       emergencyContactRelation: def.emergencyContactRelation || null,
     };
-    const existing = await prisma.employee.findFirst({ where: { name: def.name } });
+    let existing = null;
+    if (def.role) {
+      const existingUser = await prisma.user.findFirst({ where: { role: def.role }, select: { employeeId: true } });
+      if (existingUser && existingUser.employeeId) {
+        existing = await prisma.employee.findUnique({ where: { id: existingUser.employeeId } });
+      }
+    }
+    if (!existing) {
+      existing = await prisma.employee.findFirst({ where: { name: def.name } });
+    }
     const emp = existing
       ? await prisma.employee.update({ where: { id: existing.id }, data })
       : await prisma.employee.create({ data });
@@ -141,9 +154,9 @@ async function main() {
   console.log('Seeding user accounts (all share password: ' + SEED_PASSWORD + ')...');
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
   const userDefs = [
-    { email: 'admin@openbaseafrica.com', role: 'DIRECTOR', employee: 'Ama Owusu' },
-    { email: 'efua.mensah@openbaseafrica.com', role: 'HR_OFFICER', employee: 'Efua Mensah' },
-    { email: 'info@openbaseafrica.com', role: 'BUSINESS_DEVELOPMENT', employee: 'Yaw Boateng' },
+    { email: 'admin@openbaseafrica.com', role: 'DIRECTOR', employee: 'Kelvin Nana Boateng' },
+    { email: 'openbaseafrica@gmail.com', role: 'HR_OFFICER', employee: 'Fred Bonney' },
+    { email: 'info@openbaseafrica.com', role: 'BUSINESS_DEVELOPMENT', employee: 'Kofi Safo' },
     { email: 'kwabena.owusu@openbaseafrica.com', role: 'OPERATIONS_MANAGER', employee: 'Kwabena Owusu' },
     { email: 'abena.darko@openbaseafrica.com', role: 'ACCOUNTANT', employee: 'Abena Darko' },
     { email: 'nana.adjei@openbaseafrica.com', role: 'IT_FACILITIES', employee: 'Nana Adjei' },

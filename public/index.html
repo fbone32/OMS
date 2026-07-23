@@ -3001,7 +3001,7 @@ class Component extends StreamableLogic {
     this.ROLES = [
       {
         id: 'director', email: 'admin@openbaseafrica.com', role: 'Director',
-        userName: 'Ama Owusu', userSub: 'Director · Full access', greeting: 'Good day',
+        userName: 'Kelvin Nana Boateng', userSub: 'Director · Full access', greeting: 'Good day',
         landing: 'command', canCreateAccounts: true, canRequestProc: true, procApprover: true,
         nav: [
           { heading: 'OVERVIEW', items: ['command', 'portal', 'analytics'] },
@@ -3014,8 +3014,8 @@ class Component extends StreamableLogic {
         ]
       },
       {
-        id: 'hr', email: 'efua.mensah@openbaseafrica.com', role: 'HR Officer',
-        userName: 'Efua Mensah', userSub: 'HR Officer · People & documents', greeting: 'Good day',
+        id: 'hr', email: 'openbaseafrica@gmail.com', role: 'HR Officer',
+        userName: 'Fred Bonney', userSub: 'HR Officer · People & documents', greeting: 'Good day',
         landing: 'employees', canCreateAccounts: true, canRequestProc: false, procApprover: false,
         nav: [
           { heading: 'PEOPLE', items: ['employees', 'recruit', 'leave', 'training'] },
@@ -3026,7 +3026,7 @@ class Component extends StreamableLogic {
       },
       {
         id: 'bd', email: 'info@openbaseafrica.com', role: 'Business Development',
-        userName: 'Yaw Boateng', userSub: 'Business Development · Sales & CRM', greeting: 'Good day',
+        userName: 'Kofi Safo', userSub: 'Business Development · Sales & CRM', greeting: 'Good day',
         landing: 'sales', canCreateAccounts: false, canRequestProc: false, procApprover: false,
         nav: [
           { heading: 'SALES', items: ['sales'] },
@@ -3361,9 +3361,9 @@ class Component extends StreamableLogic {
       vaultList: [
         { id: 'v1', system: 'Company bank portal', cat: 'Banking', user: 'finance.ops', pass: 'B4nk!Kv92Xz', owner: 'Abena Darko', rotated: '3 Jun 2026', strength: 'Strong', stBg: '#E6F0EB', stColor: '#2E6B4F', revealed: false },
         { id: 'v2', system: 'GRA e-filing', cat: 'Government', user: 'oba-taxadmin', pass: 'Gr@Ghana#25', owner: 'Abena Darko', rotated: '18 May 2026', strength: 'Strong', stBg: '#E6F0EB', stColor: '#2E6B4F', revealed: false },
-        { id: 'v3', system: 'SSNIT employer portal', cat: 'Government', user: 'oba-ssnit', pass: 'Ssn1t-Emp88', owner: 'Ama Owusu', rotated: '2 Jan 2026', strength: 'Medium', stBg: '#FBF3DF', stColor: '#8A6508', revealed: false },
+        { id: 'v3', system: 'SSNIT employer portal', cat: 'Government', user: 'oba-ssnit', pass: 'Ssn1t-Emp88', owner: 'Kelvin Nana Boateng', rotated: '2 Jan 2026', strength: 'Medium', stBg: '#FBF3DF', stColor: '#8A6508', revealed: false },
         { id: 'v4', system: 'Job board admin', cat: 'Software', user: 'oba.recruit', pass: 'J0bb0ard!2', owner: 'Efua Mensah-Bonsu', rotated: '11 Apr 2026', strength: 'Strong', stBg: '#E6F0EB', stColor: '#2E6B4F', revealed: false },
-        { id: 'v5', system: 'Company LinkedIn', cat: 'Social', user: 'oba.social', pass: 'link3d1nOBA', owner: 'Yaw Boateng', rotated: '29 Jun 2026', strength: 'Weak', stBg: '#FBECEC', stColor: '#B23B3B', revealed: false },
+        { id: 'v5', system: 'Company LinkedIn', cat: 'Social', user: 'oba.social', pass: 'link3d1nOBA', owner: 'Kofi Safo', rotated: '29 Jun 2026', strength: 'Weak', stBg: '#FBECEC', stColor: '#B23B3B', revealed: false },
         { id: 'v6', system: 'AWS console', cat: 'Software', user: 'root-oba-it', pass: 'Aw$0perations1', owner: 'Nana Adjei', rotated: '9 Feb 2026', strength: 'Strong', stBg: '#E6F0EB', stColor: '#2E6B4F', revealed: false }
       ],
 
@@ -4208,13 +4208,13 @@ class Component extends StreamableLogic {
 
     // ---- security ----
     const secAuditAll = [
-      { who: 'Ama Owusu', act: 'Approved payroll run · July 2026', time: '09:14', ip: '41.203.x.x' },
+      { who: 'Kelvin Nana Boateng', act: 'Approved payroll run · July 2026', time: '09:14', ip: '41.203.x.x' },
       { who: 'Nana Adjei', act: 'Revealed AWS console credential', time: '08:52', ip: '154.160.x.x' },
       { who: 'Abena Darko', act: 'Exported bank file', time: '08:30', ip: '41.203.x.x' },
       { who: 'Efua Mensah-Bonsu', act: 'Uploaded SOP · Escalations', time: '08:05', ip: '154.160.x.x' },
       { who: 'Kwabena Owusu', act: 'Published Accra HQ roster', time: '07:48', ip: '41.203.x.x' },
       { who: 'System', act: 'Blocked 2 failed sign-in attempts', time: '07:20', ip: '102.176.x.x' },
-      { who: 'Yaw Boateng', act: 'Converted deal to client · Accra Metro Utilities', time: '06:55', ip: '41.203.x.x' }
+      { who: 'Kofi Safo', act: 'Converted deal to client · Accra Metro Utilities', time: '06:55', ip: '41.203.x.x' }
     ];
     const secAudit = secAuditAll.slice(0, s.auditShowCount);
     const secControls = [
@@ -4236,7 +4236,7 @@ class Component extends StreamableLogic {
       { who: 'Former employee · S. Owusu', kind: 'Deletion request', date: '14 Jul', status: 'COMPLETED', stBg: '#E6F0EB', stColor: '#2E6B4F' }
     ];
     const secLogins = [
-      { who: 'Ama Owusu', device: 'MacBook Pro · Chrome', loc: 'Accra, GH', time: '09:14', result: 'SUCCESS', stBg: '#E6F0EB', stColor: '#2E6B4F' },
+      { who: 'Kelvin Nana Boateng', device: 'MacBook Pro · Chrome', loc: 'Accra, GH', time: '09:14', result: 'SUCCESS', stBg: '#E6F0EB', stColor: '#2E6B4F' },
       { who: 'Unknown', device: 'Windows · Firefox', loc: 'Lagos, NG', time: '07:20', result: 'BLOCKED', stBg: '#FBECEC', stColor: '#9B2C2C' },
       { who: 'Nana Adjei', device: 'ThinkPad · Edge', loc: 'Accra, GH', time: '07:02', result: 'SUCCESS', stBg: '#E6F0EB', stColor: '#2E6B4F' },
       { who: 'Abena Darko', device: 'iPhone · Safari', loc: 'Tema, GH', time: '06:58', result: 'SUCCESS', stBg: '#E6F0EB', stColor: '#2E6B4F' },
