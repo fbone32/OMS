@@ -141,9 +141,9 @@ async function main() {
   console.log('Seeding user accounts (all share password: ' + SEED_PASSWORD + ')...');
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
   const userDefs = [
-    { email: 'ama.owusu@openbaseafrica.com', role: 'DIRECTOR', employee: 'Ama Owusu' },
+    { email: 'admin@openbaseafrica.com', role: 'DIRECTOR', employee: 'Ama Owusu' },
     { email: 'efua.mensah@openbaseafrica.com', role: 'HR_OFFICER', employee: 'Efua Mensah' },
-    { email: 'yaw.boateng@openbaseafrica.com', role: 'BUSINESS_DEVELOPMENT', employee: 'Yaw Boateng' },
+    { email: 'info@openbaseafrica.com', role: 'BUSINESS_DEVELOPMENT', employee: 'Yaw Boateng' },
     { email: 'kwabena.owusu@openbaseafrica.com', role: 'OPERATIONS_MANAGER', employee: 'Kwabena Owusu' },
     { email: 'abena.darko@openbaseafrica.com', role: 'ACCOUNTANT', employee: 'Abena Darko' },
     { email: 'nana.adjei@openbaseafrica.com', role: 'IT_FACILITIES', employee: 'Nana Adjei' },
