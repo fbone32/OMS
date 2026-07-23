@@ -10,10 +10,12 @@ function json(data, init) {
   });
 }
 
+// Kept identical to app/api/documents/route.js's canDownload — see that
+// file's comment for the full rule set (incl. Phase 3 COMPLIANCE category).
 function canDownload(doc, session) {
   if (doc.signed) return false;
   if (doc.category === 'ID') return false;
-  if (doc.category === 'CONTRACT' && !doc.employeeId) {
+  if ((doc.category === 'CONTRACT' || doc.category === 'COMPLIANCE') && !doc.employeeId) {
     return session.role === 'DIRECTOR' || session.role === 'HR_OFFICER';
   }
   return true;

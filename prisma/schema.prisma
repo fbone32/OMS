@@ -37,6 +37,14 @@ enum DocumentCategory {
   CERTIFICATE
   SOP
   POLICY
+  // Phase 3 (Compliance Store) — a small, additive extension of the existing
+  // Document model rather than a parallel system: policies/contracts that
+  // are specifically compliance artifacts (data protection, regulatory,
+  // audit sign-off, etc.) get their own filterable category, but still flow
+  // through the exact same upload/view/download permission model as every
+  // other document (see lib/roles.js DOCUMENTS_UPLOAD/DOCUMENTS_VIEW and
+  // app/api/documents/[id]/download's canDownload rule).
+  COMPLIANCE
   OTHER
 }
 
@@ -149,33 +157,43 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  resetTokens        PasswordResetToken[]
-  auditEntries       AuditLogEntry[]
-  createdRosterRows  ShiftRosterEntry[]    @relation("RosterCreatedBy")
+  resetTokens         PasswordResetToken[]
+  auditEntries        AuditLogEntry[]
+  createdRosterRows   ShiftRosterEntry[]   @relation("RosterCreatedBy")
   correctedAttendance AttendanceRecord[]   @relation("AttendanceCorrectedBy")
-  decidedLeaves      LeaveRequest[]        @relation("LeaveDecidedBy")
-  createdPayrollRuns PayrollRun[]          @relation("PayrollCreatedBy")
+  decidedLeaves       LeaveRequest[]       @relation("LeaveDecidedBy")
+  createdPayrollRuns  PayrollRun[]         @relation("PayrollCreatedBy")
   approvedPayrollRuns PayrollRun[]         @relation("PayrollApprovedBy")
-  uploadedDocuments  Document[]            @relation("DocumentUploadedBy")
-  updatedSettings    PayrollSettings[]     @relation("SettingsUpdatedBy")
+  uploadedDocuments   Document[]           @relation("DocumentUploadedBy")
+  updatedSettings     PayrollSettings[]    @relation("SettingsUpdatedBy")
 
   // ---- Phase 2 (Operations & Performance) ----
-  createdJobOpenings JobOpening[]          @relation("JobOpeningCreatedBy")
-  qaAuditsGiven      QaAudit[]             @relation("QaAuditedBy")
-  incidentsOwned     Incident[]            @relation("IncidentOwner")
-  incidentsClosed    Incident[]            @relation("IncidentClosedBy")
-  trainingRecorded   TrainingCompletion[]  @relation("TrainingRecordedBy")
-  kpiTargetsUpdated  KpiTarget[]           @relation("KpiTargetUpdatedBy")
+  createdJobOpenings JobOpening[]         @relation("JobOpeningCreatedBy")
+  qaAuditsGiven      QaAudit[]            @relation("QaAuditedBy")
+  incidentsOwned     Incident[]           @relation("IncidentOwner")
+  incidentsClosed    Incident[]           @relation("IncidentClosedBy")
+  trainingRecorded   TrainingCompletion[] @relation("TrainingRecordedBy")
+  kpiTargetsUpdated  KpiTarget[]          @relation("KpiTargetUpdatedBy")
+
+  // ---- Phase 3 (Client Portal & Assets — Asset Tracking / IT & Facilities) ----
+  assetsRegistered     Asset[]              @relation("AssetRegisteredBy")
+  assetsAssigned       Asset[]              @relation("AssetAssignedBy")
+  ticketsReported      ITTicket[]           @relation("TicketReportedBy")
+  ticketsResolved      ITTicket[]           @relation("TicketResolvedBy")
+  systemStatusUpdated  SystemStatus[]       @relation("SystemStatusUpdatedBy")
+  maintenanceCreated   MaintenanceTask[]    @relation("MaintenanceCreatedBy")
+  procurementRequested ProcurementRequest[] @relation("ProcurementRequestedBy")
+  procurementDecided   ProcurementRequest[] @relation("ProcurementDecidedBy")
 }
 
 model Employee {
-  id                       String    @id @default(cuid())
+  id                       String   @id @default(cuid())
   name                     String
   jobTitle                 String
   branch                   String
   startDate                DateTime
-  salaryGross              Decimal?  @db.Decimal(12, 2)
-  nationalId               String?   // Ghana Card number — optional/fillable-later at onboarding, same as salary/banking
+  salaryGross              Decimal? @db.Decimal(12, 2)
+  nationalId               String? // Ghana Card number — optional/fillable-later at onboarding, same as salary/banking
   bankName                 String?
   bankAccountNumber        String?
   mobileMoneyProvider      String?
@@ -183,39 +201,42 @@ model Employee {
   emergencyContactName     String?
   emergencyContactPhone    String?
   emergencyContactRelation String?
-  active                   Boolean   @default(true)
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
+  active                   Boolean  @default(true)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 
-  user               User?
-  documents          Document[]
-  attendanceRecords  AttendanceRecord[]
-  leaveRequests      LeaveRequest[]
-  payslips           Payslip[]
-  rosterEntries      ShiftRosterEntry[]
+  user              User?
+  documents         Document[]
+  attendanceRecords AttendanceRecord[]
+  leaveRequests     LeaveRequest[]
+  payslips          Payslip[]
+  rosterEntries     ShiftRosterEntry[]
 
   // ---- Phase 2 (Operations & Performance) ----
-  hiredFromCandidate    Candidate?           // reverse of Candidate.convertedEmployeeId (1:1)
-  qaAudits              QaAudit[]
-  incidents             Incident[]
-  trainingCompletions   TrainingCompletion[]
+  hiredFromCandidate  Candidate? // reverse of Candidate.convertedEmployeeId (1:1)
+  qaAudits            QaAudit[]
+  incidents           Incident[]
+  trainingCompletions TrainingCompletion[]
+
+  // ---- Phase 3 (Asset Tracking) ----
+  assignedAssets Asset[]
 }
 
 model Document {
-  id             String            @id @default(cuid())
-  employeeId     String?           // null = company-wide document (SOP, policy, client contract), not tied to one person
-  employee       Employee?         @relation(fields: [employeeId], references: [id])
-  category       DocumentCategory
-  fileName       String
-  mimeType       String
-  sizeBytes      Int
-  fileDataUrl    String            @db.Text // placeholder store; real deployment would use Vercel Blob/S3
-  signed         Boolean           @default(false)
-  expiresAt      DateTime?
-  notes          String?
+  id               String           @id @default(cuid())
+  employeeId       String? // null = company-wide document (SOP, policy, client contract), not tied to one person
+  employee         Employee?        @relation(fields: [employeeId], references: [id])
+  category         DocumentCategory
+  fileName         String
+  mimeType         String
+  sizeBytes        Int
+  fileDataUrl      String           @db.Text // placeholder store; real deployment would use Vercel Blob/S3
+  signed           Boolean          @default(false)
+  expiresAt        DateTime?
+  notes            String?
   uploadedByUserId String
-  uploadedBy     User              @relation("DocumentUploadedBy", fields: [uploadedByUserId], references: [id])
-  createdAt      DateTime          @default(now())
+  uploadedBy       User             @relation("DocumentUploadedBy", fields: [uploadedByUserId], references: [id])
+  createdAt        DateTime         @default(now())
 
   // ---- SOP versioning (Phase 2) ----
   // No dedicated "SOP Library" screen exists in the template yet (isCalendar
@@ -224,10 +245,10 @@ model Document {
   // data, surfaced today only inside the existing Document Library card text.
   // version      starts at 1; supersedesId points back at the version this
   // one replaces (a real one-to-one chain, walk supersedesId to see history).
-  version        Int               @default(1)
-  supersedesId   String?           @unique
-  supersedes     Document?         @relation("DocumentVersion", fields: [supersedesId], references: [id])
-  supersededBy   Document?         @relation("DocumentVersion")
+  version      Int       @default(1)
+  supersedesId String?   @unique
+  supersedes   Document? @relation("DocumentVersion", fields: [supersedesId], references: [id])
+  supersededBy Document? @relation("DocumentVersion")
 }
 
 model ShiftRosterEntry {
@@ -249,18 +270,18 @@ model ShiftRosterEntry {
 }
 
 model AttendanceRecord {
-  id                  String            @id @default(cuid())
-  employeeId          String
-  employee            Employee         @relation(fields: [employeeId], references: [id])
-  date                DateTime
-  clockIn             DateTime?
-  clockOut            DateTime?
-  status              AttendanceStatus  @default(ON_TIME)
-  correctedByUserId   String?
-  correctedBy         User?             @relation("AttendanceCorrectedBy", fields: [correctedByUserId], references: [id])
-  correctionNote      String?
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  id                String           @id @default(cuid())
+  employeeId        String
+  employee          Employee         @relation(fields: [employeeId], references: [id])
+  date              DateTime
+  clockIn           DateTime?
+  clockOut          DateTime?
+  status            AttendanceStatus @default(ON_TIME)
+  correctedByUserId String?
+  correctedBy       User?            @relation("AttendanceCorrectedBy", fields: [correctedByUserId], references: [id])
+  correctionNote    String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@unique([employeeId, date])
 }
@@ -282,15 +303,15 @@ model LeaveRequest {
 }
 
 model PayrollRun {
-  id                String           @id @default(cuid())
-  period            String // e.g. "2026-07"
-  status            PayrollRunStatus @default(DRAFT)
-  createdByUserId   String
-  createdBy         User             @relation("PayrollCreatedBy", fields: [createdByUserId], references: [id])
-  approvedByUserId  String?
-  approvedBy        User?            @relation("PayrollApprovedBy", fields: [approvedByUserId], references: [id])
-  approvedAt        DateTime?
-  createdAt         DateTime         @default(now())
+  id               String           @id @default(cuid())
+  period           String // e.g. "2026-07"
+  status           PayrollRunStatus @default(DRAFT)
+  createdByUserId  String
+  createdBy        User             @relation("PayrollCreatedBy", fields: [createdByUserId], references: [id])
+  approvedByUserId String?
+  approvedBy       User?            @relation("PayrollApprovedBy", fields: [approvedByUserId], references: [id])
+  approvedAt       DateTime?
+  createdAt        DateTime         @default(now())
 
   payslips Payslip[]
 
@@ -298,20 +319,20 @@ model PayrollRun {
 }
 
 model Payslip {
-  id               String     @id @default(cuid())
-  payrollRunId     String
-  payrollRun       PayrollRun @relation(fields: [payrollRunId], references: [id])
-  employeeId       String
-  employee         Employee   @relation(fields: [employeeId], references: [id])
-  grossPay         Decimal    @db.Decimal(12, 2)
-  overtimePay      Decimal    @db.Decimal(12, 2) @default(0)
-  otherDeductions  Decimal    @db.Decimal(12, 2) @default(0)
-  deductionNote    String?
-  ssnitEmployee    Decimal    @db.Decimal(12, 2)
-  ssnitEmployer    Decimal    @db.Decimal(12, 2)
-  payeTax          Decimal    @db.Decimal(12, 2)
-  netPay           Decimal    @db.Decimal(12, 2)
-  createdAt        DateTime   @default(now())
+  id              String     @id @default(cuid())
+  payrollRunId    String
+  payrollRun      PayrollRun @relation(fields: [payrollRunId], references: [id])
+  employeeId      String
+  employee        Employee   @relation(fields: [employeeId], references: [id])
+  grossPay        Decimal    @db.Decimal(12, 2)
+  overtimePay     Decimal    @default(0) @db.Decimal(12, 2)
+  otherDeductions Decimal    @default(0) @db.Decimal(12, 2)
+  deductionNote   String?
+  ssnitEmployee   Decimal    @db.Decimal(12, 2)
+  ssnitEmployer   Decimal    @db.Decimal(12, 2)
+  payeTax         Decimal    @db.Decimal(12, 2)
+  netPay          Decimal    @db.Decimal(12, 2)
+  createdAt       DateTime   @default(now())
 
   @@unique([payrollRunId, employeeId])
 }
@@ -320,16 +341,16 @@ model Payslip {
 // Seeded with plausible current-ish Ghana rates; FLAGGED as placeholders
 // pending accountant/Director sign-off (see brief's compliance note).
 model PayrollSettings {
-  id                    String   @id @default(cuid())
-  ssnitEmployeeRatePct  Decimal  @db.Decimal(5, 2) // employee SSNIT contribution, e.g. 5.5
-  ssnitEmployerRatePct  Decimal  @db.Decimal(5, 2) // employer SSNIT contribution, e.g. 13.0
-  payeBands             Json     // [{ upTo: number|null, rate: number }] cumulative monthly GHS bands
-  effectiveFrom         DateTime @default(now())
-  notes                 String?
-  updatedByUserId       String?
-  updatedBy             User?    @relation("SettingsUpdatedBy", fields: [updatedByUserId], references: [id])
-  updatedAt             DateTime @updatedAt
-  createdAt             DateTime @default(now())
+  id                   String   @id @default(cuid())
+  ssnitEmployeeRatePct Decimal  @db.Decimal(5, 2) // employee SSNIT contribution, e.g. 5.5
+  ssnitEmployerRatePct Decimal  @db.Decimal(5, 2) // employer SSNIT contribution, e.g. 13.0
+  payeBands            Json // [{ upTo: number|null, rate: number }] cumulative monthly GHS bands
+  effectiveFrom        DateTime @default(now())
+  notes                String?
+  updatedByUserId      String?
+  updatedBy            User?    @relation("SettingsUpdatedBy", fields: [updatedByUserId], references: [id])
+  updatedAt            DateTime @updatedAt
+  createdAt            DateTime @default(now())
 }
 
 // ============== Phase 2 (Operations & Performance) ==============
@@ -337,39 +358,39 @@ model PayrollSettings {
 // Recruitment — job openings + candidate pipeline. HR Officer owns this
 // (Director has full access, matching the brief's role table).
 model JobOpening {
-  id              String            @id @default(cuid())
+  id              String           @id @default(cuid())
   title           String
   branch          String
-  status          JobOpeningStatus  @default(OPEN)
-  openings        Int               @default(1)
+  status          JobOpeningStatus @default(OPEN)
+  openings        Int              @default(1)
   createdByUserId String
-  createdBy       User              @relation("JobOpeningCreatedBy", fields: [createdByUserId], references: [id])
-  createdAt       DateTime          @default(now())
+  createdBy       User             @relation("JobOpeningCreatedBy", fields: [createdByUserId], references: [id])
+  createdAt       DateTime         @default(now())
 
-  candidates      Candidate[]
+  candidates Candidate[]
 }
 
 model Candidate {
-  id                  String          @id @default(cuid())
+  id                  String         @id @default(cuid())
   name                String
   email               String
   phone               String?
   jobOpeningId        String?
-  jobOpening          JobOpening?     @relation(fields: [jobOpeningId], references: [id])
-  roleTitle           String          // denormalized display label, e.g. "Support Agent · Night shift"
-  stage               CandidateStage  @default(APPLIED)
+  jobOpening          JobOpening?    @relation(fields: [jobOpeningId], references: [id])
+  roleTitle           String // denormalized display label, e.g. "Support Agent · Night shift"
+  stage               CandidateStage @default(APPLIED)
   experience          String?
   education           String?
   notes               String?
-  appliedAt           DateTime        @default(now())
+  appliedAt           DateTime       @default(now())
   // Set once, by the one-click "hire" conversion — creates a real Employee
   // (+ User login, same generated-temp-password mechanism as
   // app/api/employees/onboard) and links back here. @unique enforces a
   // candidate can only ever be converted once.
-  convertedEmployeeId String?         @unique
-  convertedEmployee   Employee?       @relation(fields: [convertedEmployeeId], references: [id])
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  convertedEmployeeId String?        @unique
+  convertedEmployee   Employee?      @relation(fields: [convertedEmployeeId], references: [id])
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
 }
 
 // Quality Assurance — one row per audited ticket/interaction. Feeds both the
@@ -380,7 +401,7 @@ model QaAudit {
   employeeId      String
   employee        Employee @relation(fields: [employeeId], references: [id])
   ticketRef       String
-  score           Int      // 0-100
+  score           Int // 0-100
   note            String?
   auditedByUserId String
   auditedBy       User     @relation("QaAuditedBy", fields: [auditedByUserId], references: [id])
@@ -389,60 +410,60 @@ model QaAudit {
 
 // Incidents & handover — severity, owner, resolution status.
 model Incident {
-  id             String            @id @default(cuid())
+  id             String           @id @default(cuid())
   employeeId     String
-  employee       Employee          @relation(fields: [employeeId], references: [id])
+  employee       Employee         @relation(fields: [employeeId], references: [id])
   type           IncidentType
-  severity       IncidentSeverity  @default(LOW)
+  severity       IncidentSeverity @default(LOW)
   detail         String
   action         String?
-  status         IncidentStatus    @default(OPEN)
-  ownerUserId    String            // the person logging it is the default owner/follow-up contact
-  owner          User              @relation("IncidentOwner", fields: [ownerUserId], references: [id])
+  status         IncidentStatus   @default(OPEN)
+  ownerUserId    String // the person logging it is the default owner/follow-up contact
+  owner          User             @relation("IncidentOwner", fields: [ownerUserId], references: [id])
   closedByUserId String?
-  closedBy       User?             @relation("IncidentClosedBy", fields: [closedByUserId], references: [id])
+  closedBy       User?            @relation("IncidentClosedBy", fields: [closedByUserId], references: [id])
   closedAt       DateTime?
-  createdAt      DateTime          @default(now())
+  createdAt      DateTime         @default(now())
 }
 
 // Training — course catalogue, cohorts, and per-employee completion tracking.
 model Course {
-  id            String                @id @default(cuid())
-  name          String                @unique
+  id            String       @id @default(cuid())
+  name          String       @unique
   modules       Int
-  durationHours Decimal               @db.Decimal(4, 1)
-  status        CourseStatus          @default(LIVE)
-  createdAt     DateTime              @default(now())
+  durationHours Decimal      @db.Decimal(4, 1)
+  status        CourseStatus @default(LIVE)
+  createdAt     DateTime     @default(now())
 
-  cohorts       Cohort[]
-  completions   TrainingCompletion[]
+  cohorts     Cohort[]
+  completions TrainingCompletion[]
 }
 
 model Cohort {
-  id          String                @id @default(cuid())
-  name        String                @unique
-  courseId    String?
-  course      Course?               @relation(fields: [courseId], references: [id])
-  startDate   DateTime              @default(now())
-  createdAt   DateTime              @default(now())
+  id        String   @id @default(cuid())
+  name      String   @unique
+  courseId  String?
+  course    Course?  @relation(fields: [courseId], references: [id])
+  startDate DateTime @default(now())
+  createdAt DateTime @default(now())
 
   completions TrainingCompletion[]
 }
 
 model TrainingCompletion {
-  id               String          @id @default(cuid())
+  id               String         @id @default(cuid())
   employeeId       String
-  employee         Employee        @relation(fields: [employeeId], references: [id])
+  employee         Employee       @relation(fields: [employeeId], references: [id])
   courseId         String
-  course           Course          @relation(fields: [courseId], references: [id])
+  course           Course         @relation(fields: [courseId], references: [id])
   cohortId         String?
-  cohort           Cohort?         @relation(fields: [cohortId], references: [id])
-  status           TrainingStatus  @default(ENROLLED)
+  cohort           Cohort?        @relation(fields: [cohortId], references: [id])
+  status           TrainingStatus @default(ENROLLED)
   completedAt      DateTime?
   recordedByUserId String?
-  recordedBy       User?           @relation("TrainingRecordedBy", fields: [recordedByUserId], references: [id])
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  recordedBy       User?          @relation("TrainingRecordedBy", fields: [recordedByUserId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   @@unique([employeeId, courseId])
 }
@@ -451,27 +472,27 @@ model TrainingCompletion {
 // (computed live from Attendance/QaAudit) are scored against. Only the two
 // metrics Phase 1 data can genuinely support (see KpiMetricKey comment).
 model KpiTarget {
-  id              String        @id @default(cuid())
-  metricKey       KpiMetricKey  @unique
+  id              String       @id @default(cuid())
+  metricKey       KpiMetricKey @unique
   label           String
-  targetValue     Decimal       @db.Decimal(6, 2)
-  unit            String        // '%' or 'pts'
+  targetValue     Decimal      @db.Decimal(6, 2)
+  unit            String // '%' or 'pts'
   updatedByUserId String?
-  updatedBy       User?         @relation("KpiTargetUpdatedBy", fields: [updatedByUserId], references: [id])
-  updatedAt       DateTime      @updatedAt
-  createdAt        DateTime     @default(now())
+  updatedBy       User?        @relation("KpiTargetUpdatedBy", fields: [updatedByUserId], references: [id])
+  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime     @default(now())
 }
 
 model AuditLogEntry {
-  id            String   @id @default(cuid())
-  actorUserId   String?
-  actor         User?    @relation(fields: [actorUserId], references: [id])
-  actorEmail    String
-  action        String
-  targetType    String
-  targetId      String?
-  detail        Json?
-  createdAt     DateTime @default(now())
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actor       User?    @relation(fields: [actorUserId], references: [id])
+  actorEmail  String
+  action      String
+  targetType  String
+  targetId    String?
+  detail      Json?
+  createdAt   DateTime @default(now())
 }
 
 model PasswordResetToken {
@@ -482,4 +503,138 @@ model PasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+}
+
+// ============== Phase 3 (Client Portal & Assets) ==============
+// Client Portal itself is explicitly OUT of scope for this phase (it needs a
+// real Client entity that only gets created by the Sales & CRM "convert deal
+// to client" flow — Phase 4, not built yet) — see lib/roles.js's comment on
+// this. The models below are the parts of Phase 3 that stand on their own:
+// Asset Tracking and IT & Facilities (ticketing / systems / maintenance /
+// procurement). The Board Dashboard and Compliance Store needed no new
+// models — they reuse KpiTarget/Attendance/QaAudit/Incident aggregates and
+// the existing Document model (+ new COMPLIANCE category above),
+// respectively.
+
+enum AssetCondition {
+  GOOD
+  FAIR
+  NEEDS_REPAIR
+  RETIRED
+}
+
+enum AssetStatus {
+  IN_STORAGE
+  ASSIGNED
+  RETIRED
+}
+
+// Laptops/phones/equipment register — one row per physical item, tagged
+// with a unique asset tag (matches the existing "OBA-LT-0142" style already
+// shown in the Facilities screen's Asset register table).
+model Asset {
+  id                   String         @id @default(cuid())
+  name                 String
+  tag                  String         @unique
+  category             String // e.g. Laptop / Phone / Headset / Printer / Furniture — free text, matches existing UI's varied equipment types
+  branch               String
+  condition            AssetCondition @default(GOOD)
+  status               AssetStatus    @default(IN_STORAGE)
+  assignedToEmployeeId String?
+  assignedTo           Employee?      @relation(fields: [assignedToEmployeeId], references: [id])
+  assignedAt           DateTime?
+  assignedByUserId     String?
+  assignedBy           User?          @relation("AssetAssignedBy", fields: [assignedByUserId], references: [id])
+  returnedAt           DateTime? // set when the asset is returned (e.g. on employee exit) — a real "on exit" return trail, not just a status flip
+  notes                String?
+  registeredByUserId   String
+  registeredBy         User           @relation("AssetRegisteredBy", fields: [registeredByUserId], references: [id])
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+model ITTicket {
+  id               String         @id @default(cuid())
+  title            String
+  branch           String
+  priority         TicketPriority @default(MEDIUM)
+  status           TicketStatus   @default(OPEN)
+  detail           String?
+  reportedByUserId String?
+  reportedBy       User?          @relation("TicketReportedBy", fields: [reportedByUserId], references: [id])
+  startedAt        DateTime?
+  resolvedByUserId String?
+  resolvedBy       User?          @relation("TicketResolvedBy", fields: [resolvedByUserId], references: [id])
+  closedAt         DateTime?
+  createdAt        DateTime       @default(now())
+}
+
+enum SystemHealthStatus {
+  ONLINE
+  DEGRADED
+  OFFLINE
+}
+
+// "Systems uptime" — genuinely real rows that IT & Facilities updates by
+// hand (there is no real infra to poll for uptime in this deployment), so
+// the status shown is a real, IT-maintained record rather than a randomly
+// generated number pretending to be live monitoring.
+model SystemStatus {
+  id              String             @id @default(cuid())
+  name            String             @unique
+  detail          String?
+  status          SystemHealthStatus @default(ONLINE)
+  updatedByUserId String?
+  updatedBy       User?              @relation("SystemStatusUpdatedBy", fields: [updatedByUserId], references: [id])
+  updatedAt       DateTime           @updatedAt
+  createdAt       DateTime           @default(now())
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  DONE
+}
+
+model MaintenanceTask {
+  id              String            @id @default(cuid())
+  task            String
+  location        String
+  dueLabel        String // free text due date/label (e.g. "Fri 24 Jul", "3 Aug") — matches the existing UI's mixed date/relative labels
+  status          MaintenanceStatus @default(SCHEDULED)
+  createdByUserId String
+  createdBy       User              @relation("MaintenanceCreatedBy", fields: [createdByUserId], references: [id])
+  completedAt     DateTime?
+  createdAt       DateTime          @default(now())
+}
+
+enum ProcurementStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+model ProcurementRequest {
+  id                String            @id @default(cuid())
+  item              String
+  costLabel         String // free text, matches the existing "GH₵ cost" input (e.g. "GH₵ 4,000")
+  reason            String
+  status            ProcurementStatus @default(PENDING)
+  requestedByUserId String
+  requestedBy       User              @relation("ProcurementRequestedBy", fields: [requestedByUserId], references: [id])
+  decidedByUserId   String?
+  decidedBy         User?             @relation("ProcurementDecidedBy", fields: [decidedByUserId], references: [id])
+  decidedAt         DateTime?
+  createdAt         DateTime          @default(now())
 }

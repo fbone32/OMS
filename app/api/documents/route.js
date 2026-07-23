@@ -15,12 +15,16 @@ function json(data, init) {
  *  - a signed personal document is always view-only (scanned countersigned copy)
  *  - ID category documents are never downloadable (privacy)
  *  - company-wide CONTRACT docs (e.g. client MSAs) are downloadable only by Director/HR
+ *  - company-wide COMPLIANCE docs (Phase 3 Compliance Store — regulatory/
+ *    audit sign-off material) get the same access control as CONTRACT:
+ *    downloadable only by Director/HR, viewable by everyone else in
+ *    DOCUMENTS_VIEW
  *  - everything else (SOP/POLICY/CERTIFICATE/OTHER, unsigned) is downloadable by any viewer
  */
 function canDownload(doc, session) {
   if (doc.signed) return false;
   if (doc.category === 'ID') return false;
-  if (doc.category === 'CONTRACT' && !doc.employeeId) {
+  if ((doc.category === 'CONTRACT' || doc.category === 'COMPLIANCE') && !doc.employeeId) {
     return session.role === 'DIRECTOR' || session.role === 'HR_OFFICER';
   }
   return true;

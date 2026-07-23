@@ -1,13 +1,13 @@
 const { prisma } = require('../../../lib/db');
 const { requireRole, getSession, unauthorized } = require('../../../lib/auth');
 const { logAudit } = require('../../../lib/audit');
-const { EMPLOYEES_READ, EMPLOYEES_WRITE, INCIDENTS_LOG, QA_ENTRY, TRAINING_RECORD } = require('../../../lib/roles');
+const { EMPLOYEES_READ, EMPLOYEES_WRITE, INCIDENTS_LOG, QA_ENTRY, TRAINING_RECORD, ASSETS_MANAGE } = require('../../../lib/roles');
 
 // Roles allowed to see the minimal "picker" shape (?basic=1) — anyone who
-// needs to attribute a Phase 2 record (incident/QA audit/training
-// completion) to an employee, without granting them the full directory
-// (salary/banking/national ID) that EMPLOYEES_READ implies.
-const BASIC_PICKER_ROLES = Array.from(new Set([...EMPLOYEES_READ, ...INCIDENTS_LOG, ...QA_ENTRY, ...TRAINING_RECORD]));
+// needs to attribute a Phase 2/3 record (incident/QA audit/training
+// completion/asset assignment) to an employee, without granting them the
+// full directory (salary/banking/national ID) that EMPLOYEES_READ implies.
+const BASIC_PICKER_ROLES = Array.from(new Set([...EMPLOYEES_READ, ...INCIDENTS_LOG, ...QA_ENTRY, ...TRAINING_RECORD, ...ASSETS_MANAGE]));
 
 function json(data, init) {
   return new Response(JSON.stringify(data), {

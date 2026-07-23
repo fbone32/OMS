@@ -490,6 +490,124 @@ async function main() {
     });
   }
 
+  // ============== Phase 3 (Client Portal & Assets — real parts only) ==============
+  // Client Portal itself stays mock (needs a real Client entity from the
+  // Phase 4 Sales & CRM "convert deal to client" flow) — nothing seeded here
+  // for it. Everything below is Asset Tracking / IT & Facilities.
+
+  console.log('Seeding asset register...');
+  // Asset.tag is @unique — a real upsert.
+  const assetDefs = [
+    { name: 'Dell Latitude 5440', tag: 'OBA-LT-0142', category: 'Laptop', branch: 'Kumasi', condition: 'GOOD', assignTo: 'Kwame Owusu' },
+    { name: 'iPhone SE', tag: 'OBA-PH-0088', category: 'Phone', branch: 'Accra HQ', condition: 'GOOD', assignTo: 'Ama Serwaa' },
+    { name: 'Jabra Headset', tag: 'OBA-HS-0311', category: 'Headset', branch: 'Takoradi', condition: 'NEEDS_REPAIR', assignTo: 'Kojo Bediako' },
+    { name: 'HP LaserJet Pro', tag: 'OBA-PR-0021', category: 'Printer', branch: 'Accra HQ', condition: 'FAIR', assignTo: null },
+    { name: 'Dell Latitude 5440', tag: 'OBA-LT-0203', category: 'Laptop', branch: 'Tema', condition: 'GOOD', assignTo: 'Abena Boateng' },
+    { name: 'Ergonomic chair', tag: 'OBA-FR-0450', category: 'Furniture', branch: 'Tamale', condition: 'GOOD', assignTo: null },
+  ];
+  for (const a of assetDefs) {
+    const assignedToEmployeeId = a.assignTo ? employees[a.assignTo].id : null;
+    await prisma.asset.upsert({
+      where: { tag: a.tag },
+      update: {
+        name: a.name, category: a.category, branch: a.branch, condition: a.condition,
+        status: assignedToEmployeeId ? 'ASSIGNED' : 'IN_STORAGE',
+        assignedToEmployeeId,
+        assignedAt: assignedToEmployeeId ? new Date() : null,
+        assignedByUserId: assignedToEmployeeId ? users.IT_FACILITIES.id : null,
+      },
+      create: {
+        name: a.name, tag: a.tag, category: a.category, branch: a.branch, condition: a.condition,
+        status: assignedToEmployeeId ? 'ASSIGNED' : 'IN_STORAGE',
+        assignedToEmployeeId,
+        assignedAt: assignedToEmployeeId ? new Date() : null,
+        assignedByUserId: assignedToEmployeeId ? users.IT_FACILITIES.id : null,
+        registeredByUserId: users.IT_FACILITIES.id,
+      },
+    });
+  }
+
+  console.log('Seeding IT ticket queue...');
+  // ITTicket has no natural unique key. Guard idempotency with a find-first
+  // check on `title` instead of a bare create.
+  const ticketDefs = [
+    { title: 'Wifi down · Kumasi floor 2', branch: 'Kumasi', priority: 'HIGH', status: 'OPEN' },
+    { title: 'Printer offline · Accra HQ', branch: 'Accra HQ', priority: 'MEDIUM', status: 'IN_PROGRESS' },
+    { title: 'New monitor request · Takoradi', branch: 'Takoradi', priority: 'LOW', status: 'DONE' },
+    { title: 'VPN certificate expiring', branch: 'All branches', priority: 'HIGH', status: 'OPEN' },
+  ];
+  for (const t of ticketDefs) {
+    const exists = await prisma.iTTicket.findFirst({ where: { title: t.title } });
+    if (exists) continue;
+    await prisma.iTTicket.create({
+      data: {
+        title: t.title, branch: t.branch, priority: t.priority, status: t.status,
+        reportedByUserId: users.IT_FACILITIES.id,
+        startedAt: t.status !== 'OPEN' ? new Date() : null,
+        closedAt: t.status === 'DONE' ? new Date() : null,
+        resolvedByUserId: t.status === 'DONE' ? users.IT_FACILITIES.id : null,
+      },
+    });
+  }
+
+  console.log('Seeding branch systems status...');
+  // SystemStatus.name is @unique — a real upsert.
+  const systemDefs = [
+    { name: 'Core telephony (VOIP)', detail: 'All branches', status: 'ONLINE' },
+    { name: 'CRM / ticketing', detail: 'Cloud-hosted', status: 'ONLINE' },
+    { name: 'Payroll system', detail: 'Cloud-hosted', status: 'ONLINE' },
+    { name: 'Kumasi branch wifi', detail: 'Floor 2 outage', status: 'DEGRADED' },
+    { name: 'Backup power (Accra HQ)', detail: 'Generator + UPS', status: 'ONLINE' },
+  ];
+  for (const s of systemDefs) {
+    await prisma.systemStatus.upsert({
+      where: { name: s.name },
+      update: { detail: s.detail, status: s.status },
+      create: { name: s.name, detail: s.detail, status: s.status, updatedByUserId: users.IT_FACILITIES.id },
+    });
+  }
+
+  console.log('Seeding maintenance schedule...');
+  // MaintenanceTask has no natural unique key. Guard idempotency with a
+  // find-first check on `task` + `location`.
+  const maintenanceDefs = [
+    { task: 'Generator service', location: 'Accra HQ', dueLabel: 'Fri 24 Jul', status: 'SCHEDULED' },
+    { task: 'AC servicing', location: 'Kumasi', dueLabel: 'Mon 27 Jul', status: 'SCHEDULED' },
+    { task: 'Network cabling audit', location: 'Takoradi', dueLabel: '3 Aug', status: 'SCHEDULED' },
+    { task: 'Fire extinguisher check', location: 'All branches', dueLabel: 'Completed', status: 'DONE' },
+  ];
+  for (const m of maintenanceDefs) {
+    const exists = await prisma.maintenanceTask.findFirst({ where: { task: m.task, location: m.location } });
+    if (exists) continue;
+    await prisma.maintenanceTask.create({
+      data: {
+        task: m.task, location: m.location, dueLabel: m.dueLabel, status: m.status,
+        createdByUserId: users.IT_FACILITIES.id,
+        completedAt: m.status === 'DONE' ? new Date() : null,
+      },
+    });
+  }
+
+  console.log('Seeding procurement requests...');
+  // ProcurementRequest has no natural unique key. Guard idempotency with a
+  // find-first check on `item` + `reason`.
+  const procurementDefs = [
+    { item: '5 × monitors', costLabel: 'GH₵ 6,200', reason: 'New Accra HQ desks', status: 'PENDING' },
+    { item: 'UPS backup unit', costLabel: 'GH₵ 4,800', reason: 'Kumasi power outages', status: 'APPROVED' },
+  ];
+  for (const p of procurementDefs) {
+    const exists = await prisma.procurementRequest.findFirst({ where: { item: p.item, reason: p.reason } });
+    if (exists) continue;
+    await prisma.procurementRequest.create({
+      data: {
+        item: p.item, costLabel: p.costLabel, reason: p.reason, status: p.status,
+        requestedByUserId: users.IT_FACILITIES.id,
+        decidedByUserId: p.status !== 'PENDING' ? users.DIRECTOR.id : null,
+        decidedAt: p.status !== 'PENDING' ? new Date() : null,
+      },
+    });
+  }
+
   console.log('\nSeed complete.');
   console.log(`Branches represented: ${BRANCHES.join(', ')}`);
   console.log(`All seeded accounts use password: ${SEED_PASSWORD}`);

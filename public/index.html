@@ -1205,7 +1205,8 @@
                     <th scope="col" style="text-align:left;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">ASSET</th>
                     <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">ASSIGNED TO</th>
                     <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">BRANCH</th>
-                    <th scope="col" style="text-align:left;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">CONDITION</th>
+                    <th scope="col" style="text-align:left;padding:9px 10px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;">CONDITION</th>
+                    <th scope="col" style="text-align:right;padding:9px 18px;background:#F8FAFC;color:#6B7684;font-size:10.5px;font-weight:800;letter-spacing:0.06em;border-bottom:1px solid #EEF1F4;"></th>
                   </tr></thead>
                   <tbody>
                     <sc-for list="{{ itAssets }}" as="a" hint-placeholder-count="6">
@@ -1213,19 +1214,57 @@
                         <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;font-weight:700;color:#0D2B4E;">{{ a.name }}<div style="font-size:11px;color:#9AA4B0;font-weight:500;">{{ a.tag }}</div></td>
                         <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#1F2A37;font-weight:500;">{{ a.owner }}</td>
                         <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;color:#6B7684;font-weight:500;">{{ a.branch }}</td>
-                        <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;"><span style="background:{{ a.stBg }};color:{{ a.stColor }};font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;">{{ a.condition }}</span></td>
+                        <td style="padding:10px 10px;border-bottom:1px solid #EEF1F4;"><span style="background:{{ a.stBg }};color:{{ a.stColor }};font-size:10.5px;font-weight:800;padding:3px 10px;border-radius:99px;">{{ a.condition }}</span></td>
+                        <td style="padding:10px 18px;border-bottom:1px solid #EEF1F4;text-align:right;white-space:nowrap;">
+                          <sc-if value="{{ canManageAssets }}" hint-placeholder-val="{{ false }}">
+                            <button onClick="{{ a.toggleCondition }}" style="background:#FFFFFF;color:#0D2B4E;border:1px solid #D8DFE7;font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer;margin-left:6px;">{{ a.flagLabel }}</button>
+                            <sc-if value="{{ a.isAssigned }}" hint-placeholder-val="{{ false }}">
+                              <button onClick="{{ a.returnAsset }}" style="background:#F0F2F5;color:#6B7684;border:none;font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer;margin-left:6px;">Return</button>
+                            </sc-if>
+                          </sc-if>
+                        </td>
                       </tr>
                     </sc-for>
                   </tbody>
                 </table>
-                <div style="padding:12px 18px;background:#F8FAFC;font-size:12px;font-weight:600;color:#6B7684;">Showing 6 of 214 assets · every laptop, headset and chair is tagged and tracked</div>
+                <sc-if value="{{ itAssetsEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:24px;text-align:center;font-size:12.5px;color:#9AA4B0;font-weight:500;">No assets registered yet.</div>
+                </sc-if>
+                <sc-if value="{{ canManageAssets }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:14px 18px;background:#F8FAFC;border-top:1px solid #EEF1F4;">
+                    <div style="font-size:11px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin-bottom:8px;">REGISTER A NEW ASSET</div>
+                    <div style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:8px;">
+                      <input value="{{ regAssetName }}" onChange="{{ onRegAssetName }}" placeholder="Name · e.g. Dell Latitude 5440" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 10px;font-size:12px;outline-color:#C8960C;">
+                      <input value="{{ regAssetTag }}" onChange="{{ onRegAssetTag }}" placeholder="Tag · OBA-LT-0999" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 10px;font-size:12px;outline-color:#C8960C;">
+                      <select value="{{ regAssetCategory }}" onChange="{{ onRegAssetCategory }}" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 10px;font-size:12px;background-color:#FFFFFF;cursor:pointer;">
+                        <option>Laptop</option><option>Phone</option><option>Headset</option><option>Printer</option><option>Furniture</option><option>Other</option>
+                      </select>
+                      <select value="{{ regAssetBranch }}" onChange="{{ onRegAssetBranch }}" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 10px;font-size:12px;background-color:#FFFFFF;cursor:pointer;">
+                        <option>Accra HQ</option><option>Kumasi</option><option>Takoradi</option><option>Tema</option><option>Tamale</option>
+                      </select>
+                    </div>
+                    <button onClick="{{ registerAsset }}" style="width:100%;margin-top:9px;background:#0D2B4E;color:#FFFFFF;border:none;font-size:12px;font-weight:700;padding:9px;border-radius:7px;cursor:pointer;" style-hover="background:#123A69;">Register asset</button>
+                    <div style="font-size:11px;font-weight:800;color:#9AA4B0;letter-spacing:0.05em;margin:14px 0 8px;">ASSIGN TO STAFF</div>
+                    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:8px;">
+                      <select value="{{ assignAssetSel }}" onChange="{{ onAssignAssetSel }}" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 10px;font-size:12px;background-color:#FFFFFF;cursor:pointer;">
+                        <option value="">Choose an unassigned asset…</option>
+                        <sc-for list="{{ unassignedAssetOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+                      </select>
+                      <select value="{{ assignEmployeeSel }}" onChange="{{ onAssignEmployeeSel }}" style="min-width:0;border:1px solid #D8DFE7;border-radius:7px;padding:9px 10px;font-size:12px;background-color:#FFFFFF;cursor:pointer;">
+                        <option value="">Assign to…</option>
+                        <sc-for list="{{ assetEmployeeOpts }}" as="o" hint-placeholder-count="3"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+                      </select>
+                    </div>
+                    <button onClick="{{ assetAssign }}" style="width:100%;margin-top:9px;background:#C8960C;color:#FFFFFF;border:none;font-size:12px;font-weight:700;padding:9px;border-radius:7px;cursor:pointer;" style-hover="background:#B08409;">Assign asset</button>
+                  </div>
+                </sc-if>
               </div>
             </div>
 
             <div style="display:flex;flex-direction:column;gap:14px;">
               <!-- Branch systems -->
               <div style="background:#FFFFFF;border:1px solid #E3E7EC;border-radius:10px;overflow:hidden;">
-                <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Branch systems · live</div>
+                <div style="padding:14px 18px;border-bottom:1px solid #EEF1F4;font-size:13.5px;font-weight:700;color:#0D2B4E;">Branch systems</div>
                 <sc-for list="{{ itSystems }}" as="s" hint-placeholder-count="5">
                   <div style="padding:11px 18px;border-bottom:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;gap:10px;">
                     <div>
@@ -1246,9 +1285,17 @@
                       <div style="font-weight:700;color:#0D2B4E;">{{ m.task }}</div>
                       <div style="font-size:11px;color:#6B7684;font-weight:500;margin-top:2px;">{{ m.where }}</div>
                     </div>
-                    <span style="background:{{ m.bg }};color:{{ m.color }};font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ m.when }}</span>
+                    <sc-if value="{{ m.canMarkDone }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ m.markDone }}" style="background:{{ m.bg }};color:{{ m.color }};border:none;font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;cursor:pointer;">{{ m.when }}</button>
+                    </sc-if>
+                    <sc-if value="{{ m.isDone }}" hint-placeholder-val="{{ false }}">
+                      <span style="background:{{ m.bg }};color:{{ m.color }};font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;white-space:nowrap;">{{ m.when }}</span>
+                    </sc-if>
                   </div>
                 </sc-for>
+                <sc-if value="{{ itMaintEmpty }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:20px;text-align:center;font-size:12.5px;color:#9AA4B0;font-weight:500;">Nothing scheduled.</div>
+                </sc-if>
               </div>
 
               <!-- Procurement -->
@@ -3293,7 +3340,17 @@ class Component extends StreamableLogic {
       apiTrainCourses: [],
       apiTrainCohorts: [],
       apiKpiScorecard: null,
-      incName: '', incType: 'Lateness', incDetail: ''
+      incName: '', incType: 'Lateness', incDetail: '',
+
+      // ---- Phase 3 real-backend state (fetched from /api/...) ----
+      apiAssets: [],
+      apiTickets: [],
+      apiSystems: [],
+      apiMaintenance: [],
+      apiProcurement: [],
+      apiBoardSummary: null,
+      assignAssetSel: '', assignEmployeeSel: '',
+      regAssetName: '', regAssetTag: '', regAssetCategory: 'Laptop', regAssetBranch: 'Accra HQ'
     };
   }
 
@@ -3340,6 +3397,19 @@ class Component extends StreamableLogic {
     // Incidents log — Ops/Supervisor/Director see a new incident live.
     if ((roleId === 'director' || roleId === 'ops' || roleId === 'supervisor') && s.activeScreen === 'incidents') {
       this.refreshIncidents();
+    }
+    // IT & Facilities — Director/IT see a new ticket/asset/procurement
+    // request live while the screen is open.
+    if ((roleId === 'director' || roleId === 'it') && s.activeScreen === 'facilities') {
+      this.refreshTickets();
+      this.refreshAssets();
+      this.refreshMaintenance();
+      this.refreshProcurement();
+    }
+    // Board Dashboard — Director/Board Advisor see fresh company-wide
+    // aggregates without a manual reload.
+    if ((roleId === 'director' || roleId === 'advisor') && s.activeScreen === 'advisor') {
+      this.refreshBoardSummary();
     }
   }
 
@@ -3426,6 +3496,21 @@ class Component extends StreamableLogic {
     }
     // Training is broadly viewable (own progress matters to everyone).
     this.refreshTrainingCatalogue();
+
+    // ---- Phase 3 (Client Portal & Assets — Asset Tracking / IT & Facilities / Board Dashboard) ----
+    if (id === 'director' || id === 'it') {
+      this.refreshAssets();
+      this.refreshTickets();
+      this.refreshSystems();
+      this.refreshMaintenance();
+      this.refreshProcurement();
+      // Employee picker for "assign asset to" — same minimal shape used by
+      // Incidents/QA/Training (see app/api/employees?basic=1).
+      this.apiGet('/api/employees?basic=1').then((d) => d && this.setState({ apiEmployeesBasic: d.employees || [] }));
+    }
+    if (id === 'director' || id === 'advisor') {
+      this.refreshBoardSummary();
+    }
   }
 
   refreshMyLeave() { this.apiGet('/api/leave?mine=1').then((d) => d && this.setState({ apiMyLeave: d.requests || [] })); }
@@ -3441,6 +3526,14 @@ class Component extends StreamableLogic {
   refreshTrainingCatalogue() {
     this.apiGet('/api/training/courses').then((d) => d && this.setState({ apiTrainCourses: d.courses || [], apiTrainCohorts: d.cohorts || [] }));
   }
+
+  // ---- Phase 3 API helpers (Asset Tracking / IT & Facilities / Board Dashboard) ----
+  refreshAssets() { this.apiGet('/api/assets').then((d) => d && this.setState({ apiAssets: d.assets || [] })); }
+  refreshTickets() { this.apiGet('/api/facilities/tickets').then((d) => d && this.setState({ apiTickets: d.tickets || [] })); }
+  refreshSystems() { this.apiGet('/api/facilities/systems').then((d) => d && this.setState({ apiSystems: d.systems || [] })); }
+  refreshMaintenance() { this.apiGet('/api/facilities/maintenance').then((d) => d && this.setState({ apiMaintenance: d.tasks || [] })); }
+  refreshProcurement() { this.apiGet('/api/facilities/procurement').then((d) => d && this.setState({ apiProcurement: d.requests || [] })); }
+  refreshBoardSummary() { this.apiGet('/api/board/summary').then((d) => d && this.setState({ apiBoardSummary: d })); }
 
   // ================= static demo data =================
   buildStaticData() {
@@ -3774,19 +3867,99 @@ class Component extends StreamableLogic {
   }
   selectEmployee(id) { this.setState({ selEmployeeId: id }); }
 
-  // ---- facilities / procurement ----
+  // ---- facilities / procurement (Phase 3 — real backend) ----
   onPcItem(e) { this.setState({ pcItem: e.target ? e.target.value : e }); }
   onPcCost(e) { this.setState({ pcCost: e.target ? e.target.value : e }); }
   onPcReason(e) { this.setState({ pcReason: e.target ? e.target.value : e }); }
   submitProc() {
-    if (!this.state.pcItem) { this.toast('Describe the item first'); return; }
-    this.setState(s => ({ itProcure: [{ id: 'pc' + Date.now(), item: s.pcItem, cost: s.pcCost || 'GH₵ 0', reason: s.pcReason || '—', canDecide: true, showBadge: false, status: 'Pending', stBg: '#FBF3DF', stColor: '#8A6508' }, ...s.itProcure], pcItem: '', pcCost: '', pcReason: '' }));
-    this.toast('Request sent to the Director');
+    const s = this.state;
+    if (!s.pcItem) { this.toast('Describe the item first'); return; }
+    this.apiSend('/api/facilities/procurement', 'POST', { item: s.pcItem, costLabel: s.pcCost || 'GH₵ 0', reason: s.pcReason || '—' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not submit request'); return; }
+      this.setState({ pcItem: '', pcCost: '', pcReason: '' });
+      this.refreshProcurement();
+      this.toast('Request sent to the Director');
+    });
   }
-  procApprove(id) { this.setState(s => ({ itProcure: s.itProcure.map(p => p.id === id ? { ...p, canDecide: false, showBadge: true, status: 'Approved', stBg: '#E6F0EB', stColor: '#2E6B4F' } : p) })); }
-  procDeny(id) { this.setState(s => ({ itProcure: s.itProcure.map(p => p.id === id ? { ...p, canDecide: false, showBadge: true, status: 'Denied', stBg: '#FBECEC', stColor: '#9B2C2C' } : p) })); }
-  itStart(id) { this.toast('Ticket in progress'); }
-  itClose(id) { this.toast('Ticket marked fixed'); }
+  procApprove(id) {
+    this.apiSend('/api/facilities/procurement/' + id, 'PATCH', { status: 'APPROVED' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not approve request'); return; }
+      this.refreshProcurement();
+      this.toast('Request approved');
+    });
+  }
+  procDeny(id) {
+    this.apiSend('/api/facilities/procurement/' + id, 'PATCH', { status: 'DENIED' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not deny request'); return; }
+      this.refreshProcurement();
+      this.toast('Request denied');
+    });
+  }
+  itStart(id) {
+    this.apiSend('/api/facilities/tickets/' + id, 'PATCH', { status: 'IN_PROGRESS' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not start ticket'); return; }
+      this.refreshTickets();
+      this.toast('Ticket in progress');
+    });
+  }
+  itClose(id) {
+    this.apiSend('/api/facilities/tickets/' + id, 'PATCH', { status: 'DONE' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not close ticket'); return; }
+      this.refreshTickets();
+      this.toast('Ticket marked fixed');
+    });
+  }
+  maintMarkDone(id) {
+    this.apiSend('/api/facilities/maintenance/' + id, 'PATCH', { status: 'DONE' }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not update task'); return; }
+      this.refreshMaintenance();
+      this.toast('Maintenance task marked done');
+    });
+  }
+
+  // ---- asset register (Phase 3 — Asset Tracking) ----
+  onRegAssetName(e) { this.setState({ regAssetName: e.target ? e.target.value : e }); }
+  onRegAssetTag(e) { this.setState({ regAssetTag: e.target ? e.target.value : e }); }
+  onRegAssetCategory(e) { this.setState({ regAssetCategory: e.target ? e.target.value : e }); }
+  onRegAssetBranch(e) { this.setState({ regAssetBranch: e.target ? e.target.value : e }); }
+  registerAsset() {
+    const s = this.state;
+    if (!s.regAssetName || !s.regAssetTag) { this.toast('Enter a name and tag for the asset'); return; }
+    this.apiSend('/api/assets', 'POST', { name: s.regAssetName, tag: s.regAssetTag, category: s.regAssetCategory, branch: s.regAssetBranch }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not register asset'); return; }
+      this.setState({ regAssetName: '', regAssetTag: '' });
+      this.refreshAssets();
+      this.toast('Asset registered');
+    });
+  }
+  onAssignAssetSel(e) { this.setState({ assignAssetSel: e.target ? e.target.value : e }); }
+  onAssignEmployeeSel(e) { this.setState({ assignEmployeeSel: e.target ? e.target.value : e }); }
+  assetAssign() {
+    const s = this.state;
+    if (!s.assignAssetSel) { this.toast('Choose which asset to assign first'); return; }
+    if (!s.assignEmployeeSel) { this.toast('Choose who to assign it to first'); return; }
+    this.apiSend('/api/assets/' + s.assignAssetSel + '/assign', 'POST', { employeeId: s.assignEmployeeSel }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not assign asset'); return; }
+      this.setState({ assignAssetSel: '', assignEmployeeSel: '' });
+      this.refreshAssets();
+      this.toast('Asset assigned');
+    });
+  }
+  assetReturn(assetId) {
+    this.apiSend('/api/assets/' + assetId + '/return', 'POST', {}).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not return asset'); return; }
+      this.refreshAssets();
+      this.toast('Asset marked returned');
+    });
+  }
+  assetToggleCondition(assetId, currentCondition) {
+    const nextCondition = currentCondition === 'NEEDS_REPAIR' ? 'GOOD' : 'NEEDS_REPAIR';
+    this.apiSend('/api/assets/' + assetId, 'PATCH', { condition: nextCondition }).then((res) => {
+      if (!res.ok) { this.toast(res.data.error || 'Could not update condition'); return; }
+      this.refreshAssets();
+      this.toast(nextCondition === 'NEEDS_REPAIR' ? 'Flagged for repair' : 'Marked as good condition');
+    });
+  }
 
   // ---- analytics ----
   anExport() { this.toast('CSV exported'); }
@@ -3892,7 +4065,7 @@ class Component extends StreamableLogic {
   onDocQuery(e) { this.setState({ docQuery: e.target ? e.target.value : e }); }
   selectDocCat(cat) { this.setState({ docCatSelected: cat }); }
   docUpload() {
-    const catMap = { Contracts: 'CONTRACT', SOPs: 'SOP', Policies: 'POLICY', IDs: 'ID', Certificates: 'CERTIFICATE' };
+    const catMap = { Contracts: 'CONTRACT', SOPs: 'SOP', Policies: 'POLICY', Compliance: 'COMPLIANCE', IDs: 'ID', Certificates: 'CERTIFICATE' };
     const category = catMap[this.state.docCatSelected] || 'OTHER';
     const label = category.charAt(0) + category.slice(1).toLowerCase();
     const fileName = label + ' - ' + new Date().toLocaleDateString('en-GB') + '.txt';
@@ -4201,14 +4374,19 @@ class Component extends StreamableLogic {
     const hasAdvSuggMgmt = false;
     const advSuggMgmt = [];
 
-    // ---- advisor ----
+    // ---- advisor (Phase 3 — Board Dashboard, real aggregates from
+    // /api/board/summary wherever the underlying data genuinely exists;
+    // revenue/SLA/active-clients stay honest placeholders — there is no
+    // real Client/billing entity until Phase 4's Sales & CRM "convert deal
+    // to client" flow exists) ----
+    const board = s.apiBoardSummary;
     const advKpis = [
-      { label: 'REVENUE YTD', value: '$396k', trend: '▲ 8%', tColor: '#2E6B4F' },
-      { label: 'AVG SLA', value: '93%', trend: '▲ 1%', tColor: '#2E6B4F' },
-      { label: 'ATTENDANCE', value: '94%', trend: '▲ 0.5%', tColor: '#2E6B4F' },
-      { label: 'QA SCORE', value: '93.1', trend: '▲ 0.6', tColor: '#2E6B4F' },
+      { label: 'REVENUE YTD', value: '$396k', trend: '▲ 8% (placeholder)', tColor: '#9AA4B0' },
+      { label: 'AVG SLA', value: '93%', trend: '▲ 1% (placeholder)', tColor: '#9AA4B0' },
+      { label: 'ATTENDANCE', value: board && board.attendancePct != null ? board.attendancePct + '%' : '—', trend: '● real-time', tColor: '#2E6B4F' },
+      { label: 'QA SCORE', value: board && board.avgQa != null ? String(board.avgQa) : '—', trend: '● real-time', tColor: '#2E6B4F' },
       { label: 'ACTIVE CLIENTS', value: String(d.clients.length), trend: '● steady', tColor: '#6B7684' },
-      { label: 'HEADCOUNT', value: '132', trend: '▲ 6', tColor: '#2E6B4F' }
+      { label: 'HEADCOUNT', value: board ? String(board.headcount) : '—', trend: '● real-time', tColor: '#2E6B4F' }
     ];
     const advBoardPapers = [
       { title: 'Q2 2026 board pack', meta: 'Uploaded 5 Jul 2026', tag: 'BOARD', tagBg: '#EAF0F7', tagColor: '#0D2B4E', download: () => this.toast('Downloading PDF…') },
@@ -4576,12 +4754,12 @@ class Component extends StreamableLogic {
     const empTeamAvg = kpiScorecard.teamAvg != null ? String(kpiScorecard.teamAvg) : '—';
 
     // ---- documents (Phase 1 · real data from /api/documents) ----
-    const docCatList = ['All', 'Contracts', 'SOPs', 'Policies', 'IDs', 'Certificates', 'Other', 'Signed'];
+    const docCatList = ['All', 'Contracts', 'SOPs', 'Policies', 'Compliance', 'IDs', 'Certificates', 'Other', 'Signed'];
     const docCats = docCatList.map(label => ({ label, select: () => this.selectDocCat(label), bg: s.docCatSelected === label ? '#0D2B4E' : '#FFFFFF', color: s.docCatSelected === label ? '#FFFFFF' : '#0D2B4E', border: s.docCatSelected === label ? '#0D2B4E' : '#D8DFE7' }));
     const docAccessNote = role && (role.id === 'director' || role.id === 'hr') ? 'You can upload and manage every document in the library.' : 'View-only access. Your own signed documents are shown first.';
     const docCanUpload = !!role && (role.id === 'director' || role.id === 'hr');
-    const DOC_CAT_LABEL = { CONTRACT: 'Contracts', SOP: 'SOPs', POLICY: 'Policies', ID: 'IDs', CERTIFICATE: 'Certificates', OTHER: 'Other' };
-    const DOC_CAT_COLOR = { CONTRACT: '#0D2B4E', SOP: '#2E6B4F', POLICY: '#0D2B4E', ID: '#8A6508', CERTIFICATE: '#0D2B4E', OTHER: '#6B7684' };
+    const DOC_CAT_LABEL = { CONTRACT: 'Contracts', SOP: 'SOPs', POLICY: 'Policies', COMPLIANCE: 'Compliance', ID: 'IDs', CERTIFICATE: 'Certificates', OTHER: 'Other' };
+    const DOC_CAT_COLOR = { CONTRACT: '#0D2B4E', SOP: '#2E6B4F', POLICY: '#0D2B4E', COMPLIANCE: '#9B2C2C', ID: '#8A6508', CERTIFICATE: '#0D2B4E', OTHER: '#6B7684' };
     const fmtBytes = (n) => n > 1024 * 1024 ? (n / (1024 * 1024)).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
     const fmtDate = (dt) => new Date(dt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
     const docSrc = s.apiDocuments.map((doc) => ({
@@ -4850,35 +5028,56 @@ class Component extends StreamableLogic {
       { title: 'Welcome to the July cohort', date: '14 Jul', body: '12 new starters joined onboarding this week across all branches.' }
     ];
 
-    // ---- IT & facilities ----
-    const itTickets = [
-      { priority: 'HIGH', prBg: '#FBECEC', prColor: '#9B2C2C', title: 'Wifi down · Kumasi floor 2', meta: 'Reported 07:40 · Kumasi', isOpen: true, canStart: true, inProgress: false, done: false, start: () => this.itStart('t1'), close: () => this.itClose('t1') },
-      { priority: 'MEDIUM', prBg: '#FBF3DF', prColor: '#8A6508', title: 'Printer offline · Accra HQ', meta: 'Reported yesterday · Accra HQ', isOpen: true, canStart: false, inProgress: true, done: false, start: () => this.itStart('t2'), close: () => this.itClose('t2') },
-      { priority: 'LOW', prBg: '#F0F2F5', prColor: '#6B7684', title: 'New monitor request · Takoradi', meta: 'Reported 3 days ago', isOpen: false, canStart: false, inProgress: false, done: true, start: () => {}, close: () => {} },
-      { priority: 'HIGH', prBg: '#FBECEC', prColor: '#9B2C2C', title: 'VPN certificate expiring', meta: 'Reported today · all branches', isOpen: true, canStart: true, inProgress: false, done: false, start: () => this.itStart('t4'), close: () => this.itClose('t4') }
-    ];
-    const itAssets = [
-      { name: 'Dell Latitude 5440', tag: 'OBA-LT-0142', owner: 'Kwame Owusu', branch: 'Kumasi', condition: 'Good', stBg: '#E6F0EB', stColor: '#2E6B4F' },
-      { name: 'iPhone SE', tag: 'OBA-PH-0088', owner: 'Ama Serwaa', branch: 'Accra HQ', condition: 'Good', stBg: '#E6F0EB', stColor: '#2E6B4F' },
-      { name: 'Jabra Headset', tag: 'OBA-HS-0311', owner: 'Kwesi Appiah', branch: 'Takoradi', condition: 'Needs repair', stBg: '#FBF3DF', stColor: '#8A6508' },
-      { name: 'HP LaserJet Pro', tag: 'OBA-PR-0021', owner: 'Front desk', branch: 'Accra HQ', condition: 'Fair', stBg: '#FBF3DF', stColor: '#8A6508' },
-      { name: 'Dell Latitude 5440', tag: 'OBA-LT-0203', owner: 'Abena Boateng', branch: 'Tema', condition: 'Good', stBg: '#E6F0EB', stColor: '#2E6B4F' },
-      { name: 'Ergonomic chair', tag: 'OBA-FR-0450', owner: 'Floor stock', branch: 'Tamale', condition: 'Good', stBg: '#E6F0EB', stColor: '#2E6B4F' }
-    ];
-    const itSystems = [
-      { name: 'Core telephony (VOIP)', detail: 'All branches', color: '#2E6B4F', status: 'ONLINE' },
-      { name: 'CRM / ticketing', detail: 'Cloud-hosted', color: '#2E6B4F', status: 'ONLINE' },
-      { name: 'Payroll system', detail: 'Cloud-hosted', color: '#2E6B4F', status: 'ONLINE' },
-      { name: 'Kumasi branch wifi', detail: 'Floor 2 outage', color: '#9B2C2C', status: 'DEGRADED' },
-      { name: 'Backup power (Accra HQ)', detail: 'Generator + UPS', color: '#2E6B4F', status: 'ONLINE' }
-    ];
-    const itMaint = [
-      { task: 'Generator service', where: 'Accra HQ', bg: '#FBF3DF', color: '#8A6508', when: 'Fri 24 Jul' },
-      { task: 'AC servicing', where: 'Kumasi', bg: '#FBF3DF', color: '#8A6508', when: 'Mon 27 Jul' },
-      { task: 'Network cabling audit', where: 'Takoradi', bg: '#EAF0F7', color: '#0D2B4E', when: '3 Aug' },
-      { task: 'Fire extinguisher check', where: 'All branches', bg: '#E6F0EB', color: '#2E6B4F', when: 'Completed' }
-    ];
-    const itProcureVals = s.itProcure.map(p => ({ item: p.item, cost: p.cost, reason: p.reason, canDecide: p.canDecide, approve: () => this.procApprove(p.id), deny: () => this.procDeny(p.id), showBadge: p.showBadge, stBg: p.stBg, stColor: p.stColor, status: p.status }));
+    // ---- IT & facilities (Phase 3 — real data from /api/facilities/*, /api/assets) ----
+    const TICKET_PRIORITY_COLOR = { HIGH: { bg: '#FBECEC', color: '#9B2C2C' }, MEDIUM: { bg: '#FBF3DF', color: '#8A6508' }, LOW: { bg: '#F0F2F5', color: '#6B7684' } };
+    const fmtRelTime = (dt) => {
+      const mins = Math.round((Date.now() - new Date(dt).getTime()) / 60000);
+      if (mins < 60) return mins <= 1 ? 'just now' : mins + ' min ago';
+      const hrs = Math.round(mins / 60);
+      if (hrs < 24) return hrs + 'h ago';
+      return Math.round(hrs / 24) + 'd ago';
+    };
+    const itTickets = s.apiTickets.map((t) => {
+      const pr = TICKET_PRIORITY_COLOR[t.priority] || TICKET_PRIORITY_COLOR.LOW;
+      return {
+        priority: t.priority, prBg: pr.bg, prColor: pr.color, title: t.title,
+        meta: 'Reported ' + fmtRelTime(t.createdAt) + ' · ' + t.branch,
+        isOpen: t.status !== 'DONE', canStart: t.status === 'OPEN', inProgress: t.status === 'IN_PROGRESS', done: t.status === 'DONE',
+        start: () => this.itStart(t.id), close: () => this.itClose(t.id)
+      };
+    });
+    const ASSET_CONDITION_LABEL = { GOOD: 'Good', FAIR: 'Fair', NEEDS_REPAIR: 'Needs repair', RETIRED: 'Retired' };
+    const ASSET_CONDITION_COLOR = { GOOD: { bg: '#E6F0EB', color: '#2E6B4F' }, FAIR: { bg: '#FBF3DF', color: '#8A6508' }, NEEDS_REPAIR: { bg: '#FBECEC', color: '#9B2C2C' }, RETIRED: { bg: '#F0F2F5', color: '#6B7684' } };
+    const itAssets = s.apiAssets.map((a) => {
+      const cc = ASSET_CONDITION_COLOR[a.condition] || ASSET_CONDITION_COLOR.GOOD;
+      return {
+        id: a.id, name: a.name, tag: a.tag, owner: a.assignedToName || '— unassigned —', branch: a.branch,
+        condition: ASSET_CONDITION_LABEL[a.condition] || a.condition, stBg: cc.bg, stColor: cc.color,
+        isAssigned: a.status === 'ASSIGNED', isRetired: a.status === 'RETIRED',
+        returnAsset: () => this.assetReturn(a.id),
+        flagLabel: a.condition === 'NEEDS_REPAIR' ? 'Mark good' : 'Flag issue',
+        toggleCondition: () => this.assetToggleCondition(a.id, a.condition)
+      };
+    });
+    const unassignedAssetOpts = s.apiAssets.filter((a) => a.status === 'IN_STORAGE').map((a) => ({ value: a.id, label: a.name + ' · ' + a.tag }));
+    const assetEmployeeOpts = (s.apiEmployeesBasic || []).map((e) => ({ value: e.id, label: e.name }));
+    const SYS_STATUS_COLOR = { ONLINE: '#2E6B4F', DEGRADED: '#C8960C', OFFLINE: '#9B2C2C' };
+    const itSystems = s.apiSystems.map((sys) => ({ name: sys.name, detail: sys.detail || '', color: SYS_STATUS_COLOR[sys.status] || '#6B7684', status: sys.status }));
+    const itMaint = s.apiMaintenance.map((m) => ({
+      task: m.task, where: m.location,
+      bg: m.status === 'DONE' ? '#E6F0EB' : '#FBF3DF', color: m.status === 'DONE' ? '#2E6B4F' : '#8A6508',
+      when: m.status === 'DONE' ? 'Completed' : m.dueLabel,
+      canMarkDone: m.status !== 'DONE', isDone: m.status === 'DONE', markDone: () => this.maintMarkDone(m.id)
+    }));
+    const PROC_STATUS_COLOR = { PENDING: { bg: '#FBF3DF', color: '#8A6508' }, APPROVED: { bg: '#E6F0EB', color: '#2E6B4F' }, DENIED: { bg: '#FBECEC', color: '#9B2C2C' } };
+    const itProcureVals = s.apiProcurement.map((p) => {
+      const pc = PROC_STATUS_COLOR[p.status] || PROC_STATUS_COLOR.PENDING;
+      return {
+        item: p.item, cost: p.costLabel, reason: p.reason, canDecide: !!(role && role.procApprover) && p.status === 'PENDING',
+        approve: () => this.procApprove(p.id), deny: () => this.procDeny(p.id),
+        showBadge: p.status !== 'PENDING' || !(role && role.procApprover), stBg: pc.bg, stColor: pc.color, status: p.status
+      };
+    });
 
     // ---- analytics ----
     const anPeriodLabels = ['Month', 'Quarter', 'YTD'];
@@ -5122,11 +5321,24 @@ class Component extends StreamableLogic {
 
       // it & facilities
       itOpenCount: String(itTickets.filter(t => t.isOpen).length), itTickets, itAssets, itSystems, itMaint,
+      itAssetsEmpty: itAssets.length === 0, itMaintEmpty: itMaint.length === 0,
       procApprover: role && role.procApprover ? 'Approver: you' : 'Approver: Director',
       canRequestProc: !!(role && role.canRequestProc),
       pcItem: s.pcItem, onPcItem: (e) => this.onPcItem(e), pcCost: s.pcCost, onPcCost: (e) => this.onPcCost(e),
       pcReason: s.pcReason, onPcReason: (e) => this.onPcReason(e), submitProc: () => this.submitProc(),
       itProcure: itProcureVals,
+
+      // asset register (Phase 3 — Asset Tracking)
+      canManageAssets: !!(role && (role.id === 'director' || role.id === 'it')),
+      regAssetName: s.regAssetName, onRegAssetName: (e) => this.onRegAssetName(e),
+      regAssetTag: s.regAssetTag, onRegAssetTag: (e) => this.onRegAssetTag(e),
+      regAssetCategory: s.regAssetCategory, onRegAssetCategory: (e) => this.onRegAssetCategory(e),
+      regAssetBranch: s.regAssetBranch, onRegAssetBranch: (e) => this.onRegAssetBranch(e),
+      registerAsset: () => this.registerAsset(),
+      assignAssetSel: s.assignAssetSel, onAssignAssetSel: (e) => this.onAssignAssetSel(e), unassignedAssetOpts,
+      assignEmployeeSel: s.assignEmployeeSel, onAssignEmployeeSel: (e) => this.onAssignEmployeeSel(e), assetEmployeeOpts,
+      assetAssign: () => this.assetAssign(),
+      hasUnassignedAssets: unassignedAssetOpts.length > 0,
 
       // analytics
       an, anExport: () => this.anExport(),
