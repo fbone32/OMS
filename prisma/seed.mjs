@@ -148,7 +148,7 @@ async function main() {
     { email: 'abena.darko@openbaseafrica.com', role: 'ACCOUNTANT', employee: 'Abena Darko' },
     { email: 'nana.adjei@openbaseafrica.com', role: 'IT_FACILITIES', employee: 'Nana Adjei' },
     { email: 'yaw.asante@openbaseafrica.com', role: 'SUPERVISOR', employee: 'Yaw Asante' },
-    { email: 'kwesi.amankwah@openbaseafrica.com', role: 'BOARD_ADVISOR', employee: null },
+    { email: 'tina@openbaseafrica.com', role: 'BOARD_ADVISOR', employee: null },
     { email: 'kojo.bediako@openbaseafrica.com', role: 'EMPLOYEE', employee: 'Kojo Bediako' },
   ];
   const users = {};
