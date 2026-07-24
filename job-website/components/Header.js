@@ -11,6 +11,20 @@ export default function Header() {
         <nav style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
           <a href="/" style={{ color: '#fff', fontSize: 13.5, fontWeight: 600 }}>Roles</a>
           <a href="/privacy" style={{ color: '#fff', fontSize: 13.5, fontWeight: 600 }}>Privacy</a>
+          <a
+            href="/admin/login"
+            style={{
+              color: '#0D2B4E',
+              background: '#C8960C',
+              fontSize: 13,
+              fontWeight: 700,
+              padding: '7px 14px',
+              borderRadius: 6,
+              textDecoration: 'none',
+            }}
+          >
+            Staff sign in
+          </a>
         </nav>
       </div>
     </header>
