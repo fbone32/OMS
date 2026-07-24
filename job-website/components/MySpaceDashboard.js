@@ -65,6 +65,10 @@ export default function MySpaceDashboard() {
   const [resendBusy, setResendBusy] = useState(false);
   const [resendMessage, setResendMessage] = useState(null);
 
+  const [codeInput, setCodeInput] = useState('');
+  const [codeBusy, setCodeBusy] = useState(false);
+  const [codeMessage, setCodeMessage] = useState(null);
+
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -147,6 +151,29 @@ export default function MySpaceDashboard() {
     }
   }
 
+  async function handleVerifyCode(e) {
+    e.preventDefault();
+    if (!codeInput.trim()) return;
+    setCodeBusy(true);
+    setCodeMessage(null);
+    try {
+      const res = await fetch('/api/account/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: codeInput.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not verify that code.');
+      setProfile((p) => ({ ...p, emailVerified: true }));
+      setCodeInput('');
+      setCodeMessage(data.alreadyVerified ? 'Your email is already verified.' : 'Email verified.');
+    } catch (err) {
+      setCodeMessage(err.message);
+    } finally {
+      setCodeBusy(false);
+    }
+  }
+
   async function handleUnsave(jobListingId) {
     setSavedJobs((jobs) => jobs.filter((j) => j.jobListingId !== jobListingId));
     await fetch(`/api/account/saved-jobs/${jobListingId}`, { method: 'DELETE' });
@@ -208,6 +235,21 @@ export default function MySpaceDashboard() {
           )}
         </div>
         {resendMessage && <div style={{ fontSize: 12.5, color: '#6B7684', marginTop: 6 }}>{resendMessage}</div>}
+
+        {!profile.emailVerified && (
+          <form onSubmit={handleVerifyCode} style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <label className="field-label" htmlFor="verify-code" style={{ margin: 0 }}>Enter the 6-digit code from your email</label>
+            <input
+              id="verify-code" className="field-input" inputMode="numeric" maxLength={6} placeholder="000000"
+              style={{ width: 100, letterSpacing: '0.2em', textAlign: 'center' }}
+              value={codeInput} onChange={(e) => setCodeInput(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            />
+            <button type="submit" className="btn btn-primary" disabled={codeBusy || codeInput.length !== 6} style={{ padding: '6px 14px', minHeight: 32, fontSize: 12.5 }}>
+              {codeBusy ? 'Checking…' : 'Verify'}
+            </button>
+          </form>
+        )}
+        {codeMessage && <div style={{ fontSize: 12.5, color: '#6B7684', marginTop: 6 }}>{codeMessage}</div>}
 
         {editingProfile ? (
           <form onSubmit={handleSaveProfile} style={{ marginTop: 14, display: 'grid', gap: 12, maxWidth: 360 }}>

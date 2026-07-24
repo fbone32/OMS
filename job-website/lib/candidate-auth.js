@@ -108,8 +108,22 @@ function generateVerificationToken() {
   return crypto.randomBytes(32).toString('base64url');
 }
 
+// Six-digit companion code, sent in the same email as the link above and
+// hashed at rest with the same function - it's just a second, shorter form
+// of the same one-time secret, not a separate credential.
+function generateVerificationCode() {
+  return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
+
 function hashVerificationToken(token) {
   return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+function verifyCodeMatches(code, codeHash) {
+  if (!code || !codeHash) return false;
+  const a = Buffer.from(hashVerificationToken(code));
+  const b = Buffer.from(codeHash);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 function unauthorized(message = 'Not authenticated') {
@@ -145,5 +159,7 @@ module.exports = {
   requireCandidate,
   unauthorized,
   generateVerificationToken,
+  generateVerificationCode,
   hashVerificationToken,
+  verifyCodeMatches,
 };

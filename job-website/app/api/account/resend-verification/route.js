@@ -2,6 +2,7 @@ const { prisma } = require('../../../../lib/db');
 const {
   requireCandidate,
   generateVerificationToken,
+  generateVerificationCode,
   hashVerificationToken,
   VERIFICATION_TOKEN_TTL_MS,
 } = require('../../../../lib/candidate-auth');
@@ -29,16 +30,18 @@ async function POST(request) {
 
   const rawToken = generateVerificationToken();
   const verificationTokenHash = hashVerificationToken(rawToken);
+  const rawCode = generateVerificationCode();
+  const verificationCodeHash = hashVerificationToken(rawCode);
   const verificationTokenExpiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
 
   await prisma.candidateAccount.update({
     where: { id: candidate.id },
-    data: { verificationTokenHash, verificationTokenExpiresAt },
+    data: { verificationTokenHash, verificationCodeHash, verificationTokenExpiresAt },
   });
 
   const base = process.env.PUBLIC_BASE_URL || 'http://localhost:3100';
   const verifyUrl = `${base}/api/account/verify?token=${rawToken}`;
-  const { subject, html, text } = candidateVerificationEmail({ name: candidate.name, verifyUrl });
+  const { subject, html, text } = candidateVerificationEmail({ name: candidate.name, verifyUrl, code: rawCode });
   const emailResult = await sendEmail({ to: candidate.email, subject, html, text });
 
   return json({ ok: true, emailSent: emailResult.ok });

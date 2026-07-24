@@ -6,6 +6,7 @@ const {
   createSessionToken,
   sessionCookieHeader,
   generateVerificationToken,
+  generateVerificationCode,
   hashVerificationToken,
   VERIFICATION_TOKEN_TTL_MS,
 } = require('../../../../lib/candidate-auth');
@@ -59,6 +60,8 @@ async function POST(request) {
   const passwordHash = await bcrypt.hash(password, 10);
   const rawToken = generateVerificationToken();
   const verificationTokenHash = hashVerificationToken(rawToken);
+  const rawCode = generateVerificationCode();
+  const verificationCodeHash = hashVerificationToken(rawCode);
   const verificationTokenExpiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
 
   let candidate;
@@ -70,6 +73,7 @@ async function POST(request) {
         email,
         passwordHash,
         verificationTokenHash,
+        verificationCodeHash,
         verificationTokenExpiresAt,
       },
     });
@@ -87,7 +91,7 @@ async function POST(request) {
   // Verification email - best-effort, never blocks/fails signup.
   const base = process.env.PUBLIC_BASE_URL || 'http://localhost:3100';
   const verifyUrl = `${base}/api/account/verify?token=${rawToken}`;
-  const { subject, html, text } = candidateVerificationEmail({ name, verifyUrl });
+  const { subject, html, text } = candidateVerificationEmail({ name, verifyUrl, code: rawCode });
   await sendEmail({ to: email, subject, html, text });
 
   const token = createSessionToken(candidate);

@@ -241,6 +241,12 @@ model CandidateAccount {
   // time, resend/re-verify just overwrites it.
   verificationTokenHash      String?   @unique
   verificationTokenExpiresAt DateTime?
+  // A short numeric code sent in the same email as the link above, for
+  // candidates who'd rather type a code than switch to their mail app and
+  // click through. Not @unique (six digits collide across accounts too
+  // often to enforce that) - verify-code only ever checks it against the
+  // signed-in candidate's own row, never looks accounts up by code.
+  verificationCodeHash       String?
 
   // "CV on file" - reused so a signed-in candidate never has to re-upload
   // per application. Exact same storage shape as JobApplication's CV fields

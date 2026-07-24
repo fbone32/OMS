@@ -24,7 +24,12 @@ async function GET(request) {
 
   await prisma.candidateAccount.update({
     where: { id: candidate.id },
-    data: { emailVerified: true, verificationTokenHash: null, verificationTokenExpiresAt: null },
+    data: {
+      emailVerified: true,
+      verificationTokenHash: null,
+      verificationCodeHash: null,
+      verificationTokenExpiresAt: null,
+    },
   });
 
   return redirectTo('/account/login?verified=1');
