@@ -127,8 +127,34 @@ function employerRejectedEmail({ companyName, reason }) {
   return { subject, html, text: `We were unable to approve your employer account registration on OBA Jobs at this time.` };
 }
 
+function candidateVerificationEmail({ name, verifyUrl }) {
+  const subject = 'Verify your email for OBA Jobs My Space';
+  const html = `
+    <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;">
+      <div style="background:#0D2B4E;padding:24px;text-align:center;">
+        <span style="color:#C8960C;font-weight:800;font-size:13px;letter-spacing:0.14em;">OPEN BASE AFRICA</span>
+      </div>
+      <div style="padding:28px 24px;color:#0D2B4E;">
+        <h2 style="margin:0 0 12px;">Hi ${escapeHtml(name)},</h2>
+        <p style="font-size:14px;line-height:1.6;color:#333;">
+          Please confirm your email address to finish setting up your OBA Jobs My Space account.
+        </p>
+        <p style="text-align:center;margin:24px 0;">
+          <a href="${verifyUrl}" style="background:#C8960C;color:#fff;font-weight:700;font-size:14px;padding:12px 22px;border-radius:8px;text-decoration:none;display:inline-block;">
+            Verify my email
+          </a>
+        </p>
+        <p style="font-size:12.5px;line-height:1.6;color:#999;">
+          This link expires in 24 hours. If you did not create this account, you can ignore this email.
+        </p>
+        <p style="font-size:13px;color:#999;margin-top:24px;">Open Base Africa HR</p>
+      </div>
+    </div>`;
+  return { subject, html, text: `Hi ${name}, verify your email for OBA Jobs My Space: ${verifyUrl}` };
+}
+
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-module.exports = { sendEmail, applicationConfirmationEmail, employerApprovedEmail, employerRejectedEmail };
+module.exports = { sendEmail, applicationConfirmationEmail, employerApprovedEmail, employerRejectedEmail, candidateVerificationEmail };

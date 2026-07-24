@@ -4,6 +4,7 @@ const { validateCvFile, validateApplication } = require('../../../../../lib/vali
 const { checkRateLimit, clientIp, pruneOldHits } = require('../../../../../lib/rate-limit');
 const { sendEmail, applicationConfirmationEmail } = require('../../../../../lib/email');
 const { pushApplication } = require('../../../../../lib/oms-sync');
+const { getSession: getCandidateSession } = require('../../../../../lib/candidate-auth');
 
 function json(data, init) {
   return new Response(JSON.stringify(data), {
@@ -59,16 +60,42 @@ async function POST(request, { params }) {
   const email = (form.get('email') || '').toString().trim().toLowerCase();
   const whyGoodFit = (form.get('whyGoodFit') || '').toString().trim();
   const cvFile = form.get('cv');
+  const useCvOnFile = (form.get('useCvOnFile') || '').toString() === '1';
 
   const { ok: fieldsOk, errors } = validateApplication({ fullName, phone, email, whyGoodFit });
   if (!fieldsOk) return json({ error: 'Please fix the highlighted fields.', fieldErrors: errors }, { status: 400 });
 
-  if (!cvFile || typeof cvFile === 'string') {
+  // Optional signed-in candidate - never required to apply. A guest with no
+  // session behaves exactly as before (must upload a CV, no linking).
+  const candidateSession = getCandidateSession(request);
+  const candidate = candidateSession
+    ? await prisma.candidateAccount.findUnique({ where: { id: candidateSession.cid } })
+    : null;
+
+  const hasNewUpload = cvFile && typeof cvFile !== 'string';
+  let cv; // { fileName, mimeType, sizeBytes, dataUrl }
+
+  if (hasNewUpload) {
+    const cvCheck = validateCvFile({ name: cvFile.name, type: cvFile.type, size: cvFile.size });
+    if (!cvCheck.ok) {
+      return json({ error: cvCheck.error, fieldErrors: { cv: cvCheck.error } }, { status: 400 });
+    }
+    cv = {
+      fileName: cvFile.name || 'cv',
+      mimeType: cvFile.type || 'application/octet-stream',
+      sizeBytes: cvFile.size,
+      dataUrl: await fileToDataUrl(cvFile),
+    };
+  } else if (candidate && useCvOnFile && candidate.cvDataUrl) {
+    // Reuse the signed-in candidate's CV on file - no re-upload needed.
+    cv = {
+      fileName: candidate.cvFileName,
+      mimeType: candidate.cvMimeType,
+      sizeBytes: candidate.cvSizeBytes,
+      dataUrl: candidate.cvDataUrl,
+    };
+  } else {
     return json({ error: 'Please attach your CV.', fieldErrors: { cv: 'CV file is required.' } }, { status: 400 });
-  }
-  const cvCheck = validateCvFile({ name: cvFile.name, type: cvFile.type, size: cvFile.size });
-  if (!cvCheck.ok) {
-    return json({ error: cvCheck.error, fieldErrors: { cv: cvCheck.error } }, { status: 400 });
   }
 
   // Duplicate-application guard: block a second application from the same
@@ -86,8 +113,6 @@ async function POST(request, { params }) {
     );
   }
 
-  const cvDataUrl = await fileToDataUrl(cvFile);
-
   let application;
   try {
     application = await prisma.jobApplication.create({
@@ -97,11 +122,12 @@ async function POST(request, { params }) {
         phone,
         email,
         whyGoodFit,
-        cvFileName: cvFile.name || 'cv',
-        cvMimeType: cvFile.type || 'application/octet-stream',
-        cvSizeBytes: cvFile.size,
-        cvDataUrl,
+        cvFileName: cv.fileName,
+        cvMimeType: cv.mimeType,
+        cvSizeBytes: cv.sizeBytes,
+        cvDataUrl: cv.dataUrl,
         ipAddress: ip,
+        candidateAccountId: candidate ? candidate.id : null,
       },
     });
   } catch (err) {
@@ -110,6 +136,21 @@ async function POST(request, { params }) {
     }
     console.error('[apply] failed to create application', err);
     return json({ error: 'Something went wrong saving your application. Please try again.' }, { status: 500 });
+  }
+
+  // A signed-in candidate uploading a fresh CV for this application also
+  // updates their CV-on-file, so their next application reuses the latest
+  // version without any extra step.
+  if (candidate && hasNewUpload) {
+    await prisma.candidateAccount.update({
+      where: { id: candidate.id },
+      data: {
+        cvFileName: cv.fileName,
+        cvMimeType: cv.mimeType,
+        cvSizeBytes: cv.sizeBytes,
+        cvDataUrl: cv.dataUrl,
+      },
+    });
   }
 
   // Confirmation email — best-effort, never blocks/fails the submission.

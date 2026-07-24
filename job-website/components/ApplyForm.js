@@ -18,9 +18,15 @@ function validateCvClientSide(file) {
   return null;
 }
 
-export default function ApplyForm({ jobId, jobTitle }) {
-  const [values, setValues] = useState({ fullName: '', phone: '', email: '', whyGoodFit: '' });
+export default function ApplyForm({ jobId, jobTitle, initialValues, cvOnFile }) {
+  const [values, setValues] = useState({
+    fullName: (initialValues && initialValues.fullName) || '',
+    phone: (initialValues && initialValues.phone) || '',
+    email: (initialValues && initialValues.email) || '',
+    whyGoodFit: '',
+  });
   const [cvFile, setCvFile] = useState(null);
+  const [useCvOnFile, setUseCvOnFile] = useState(!!cvOnFile);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null); // { ok, error } after submit
@@ -46,8 +52,10 @@ export default function ApplyForm({ jobId, jobTitle }) {
     if (!values.whyGoodFit.trim() || values.whyGoodFit.trim().length < 20) {
       next.whyGoodFit = 'Please tell us why you are a good fit (at least 20 characters).';
     }
-    const cvErr = validateCvClientSide(cvFile);
-    if (cvErr) next.cv = cvErr;
+    if (!useCvOnFile) {
+      const cvErr = validateCvClientSide(cvFile);
+      if (cvErr) next.cv = cvErr;
+    }
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -64,7 +72,11 @@ export default function ApplyForm({ jobId, jobTitle }) {
       fd.set('phone', values.phone.trim());
       fd.set('email', values.email.trim());
       fd.set('whyGoodFit', values.whyGoodFit.trim());
-      fd.set('cv', cvFile);
+      if (useCvOnFile) {
+        fd.set('useCvOnFile', '1');
+      } else {
+        fd.set('cv', cvFile);
+      }
       fd.set('company_website', ''); // honeypot — real candidates never see this field
 
       const res = await fetch(`/api/jobs/${jobId}/apply`, { method: 'POST', body: fd });
@@ -77,7 +89,7 @@ export default function ApplyForm({ jobId, jobTitle }) {
         setResult({ ok: true });
       }
     } catch (err) {
-      setResult({ ok: false, error: 'Network error — please check your connection and try again.' });
+      setResult({ ok: false, error: 'Network error, please check your connection and try again.' });
     } finally {
       setSubmitting(false);
     }
@@ -99,6 +111,12 @@ export default function ApplyForm({ jobId, jobTitle }) {
 
   return (
     <form onSubmit={handleSubmit} className="card" noValidate>
+      {initialValues && (
+        <div style={{ background: '#EAF0F7', color: '#0D2B4E', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+          Signed in as {initialValues.email}. Your details are prefilled below, feel free to edit them for this application.
+        </div>
+      )}
+
       {result && !result.ok && (
         <div style={{ background: '#FBEAEA', color: '#C0392B', borderRadius: 8, padding: '10px 14px', fontSize: 13.5, fontWeight: 600, marginBottom: 16 }}>
           {result.error}
@@ -141,14 +159,42 @@ export default function ApplyForm({ jobId, jobTitle }) {
         {errors.whyGoodFit && <div className="field-error">{errors.whyGoodFit}</div>}
       </div>
 
-      <div style={{ marginBottom: 8 }}>
-        <label className="field-label" htmlFor="cv">Upload CV (PDF or Word, max 4MB) *</label>
-        <input
-          id="cv" name="cv" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          onChange={handleFileChange} className={`field-input ${errors.cv ? 'has-error' : ''}`}
-        />
-        {errors.cv && <div className="field-error">{errors.cv}</div>}
-      </div>
+      {cvOnFile ? (
+        <div style={{ marginBottom: 8 }}>
+          <label className="field-label">CV *</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600 }}>
+              <input type="radio" name="cvChoice" checked={useCvOnFile} onChange={() => setUseCvOnFile(true)} />
+              Use my CV on file ({cvOnFile.fileName}, {(cvOnFile.sizeBytes / (1024 * 1024)).toFixed(1)}MB)
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, fontWeight: 600 }}>
+              <input type="radio" name="cvChoice" checked={!useCvOnFile} onChange={() => setUseCvOnFile(false)} />
+              Upload a different CV for this application
+            </label>
+          </div>
+          {!useCvOnFile && (
+            <input
+              id="cv" name="cv" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={handleFileChange} className={`field-input ${errors.cv ? 'has-error' : ''}`} style={{ marginTop: 8 }}
+            />
+          )}
+          {!useCvOnFile && (
+            <div style={{ fontSize: 11.5, color: '#6B7684', marginTop: 4 }}>
+              Uploading a new CV here also replaces your CV on file for future applications.
+            </div>
+          )}
+          {errors.cv && <div className="field-error">{errors.cv}</div>}
+        </div>
+      ) : (
+        <div style={{ marginBottom: 8 }}>
+          <label className="field-label" htmlFor="cv">Upload CV (PDF or Word, max 4MB) *</label>
+          <input
+            id="cv" name="cv" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            onChange={handleFileChange} className={`field-input ${errors.cv ? 'has-error' : ''}`}
+          />
+          {errors.cv && <div className="field-error">{errors.cv}</div>}
+        </div>
+      )}
 
       {/* Honeypot field — hidden from real users via CSS, bots that autofill
           every field will fill this and get silently ignored server-side. */}
@@ -160,7 +206,7 @@ export default function ApplyForm({ jobId, jobTitle }) {
       <p style={{ fontSize: 12, color: '#6B7684', lineHeight: 1.6, marginTop: 4 }}>
         By submitting this application, you consent to Open Base Africa processing your
         personal data for recruitment purposes in line with the Ghana Data Protection Act. See our{' '}
-        <a href="/privacy">Privacy Policy</a> — you can request deletion of your data at any time.
+        <a href="/privacy">Privacy Policy</a>, you can request deletion of your data at any time.
       </p>
 
       <button type="submit" className="btn btn-primary btn-block" disabled={submitting} style={{ marginTop: 8 }}>

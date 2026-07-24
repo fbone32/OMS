@@ -2,6 +2,11 @@ export const metadata = { title: 'Sign in - OBA Jobs' };
 
 const OPTIONS = [
   {
+    href: '/account/login',
+    label: 'Candidate',
+    desc: 'For job seekers viewing their applications, saved jobs, and My Space profile.',
+  },
+  {
     href: '/employer/login',
     label: 'Employer',
     desc: 'For approved employers managing their own job listings and applicants.',
@@ -40,6 +45,7 @@ export default function SignInPage() {
         </div>
 
         <p style={{ fontSize: 12, color: '#6B7684', marginTop: 20, marginBottom: 0 }}>
+          New candidate? <a href="/account/signup" style={{ fontWeight: 700 }}>Create a My Space account</a>.
           Not registered as an employer yet? <a href="/employers" style={{ fontWeight: 700 }}>Register your company</a>.
         </p>
       </div>

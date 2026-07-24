@@ -79,6 +79,7 @@ model JobListing {
   employerId   String?
   employer     Employer?        @relation(fields: [employerId], references: [id])
   applications JobApplication[]
+  savedBy      SavedJob[]
 
   @@index([employerId])
 }
@@ -113,6 +114,16 @@ model JobApplication {
   status         ApplicationStatus @default(NEW)
   ipAddress      String? // best-effort, spam/abuse review only, never shown to other candidates
 
+  // Phase 3: set when the applicant was signed in to a CandidateAccount at
+  // submission time. Nullable and onDelete: SetNull deliberately - deleting
+  // a candidate account must sever this link, not delete or scrub the
+  // application row itself. The submitted name/phone/email/CV/whyGoodFit are
+  // a point-in-time snapshot the employer is entitled to keep as their own
+  // recruitment record (same retention policy as any guest application);
+  // only the "this was submitted by this account" link is account-owned data.
+  candidateAccountId String?
+  candidateAccount   CandidateAccount? @relation(fields: [candidateAccountId], references: [id], onDelete: SetNull)
+
   // ---- OMS integration / retry-safe queue ----
   syncStatus       SyncStatus @default(PENDING)
   syncAttempts     Int        @default(0)
@@ -132,6 +143,7 @@ model JobApplication {
   @@unique([jobListingId, email])
   @@index([email])
   @@index([syncStatus])
+  @@index([candidateAccountId])
 }
 
 // Simple persisted rate-limit ledger for the public apply/contact endpoints.
@@ -206,4 +218,58 @@ model AdminPasswordResetToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
+}
+
+// Phase 3: candidate self-service accounts ("My Space"). Named
+// CandidateAccount (not Candidate) deliberately - this app shares the SAME
+// Postgres database/"public" schema namespace as the root OMS app (see this
+// file's header comment), and the OMS already has its own unrelated
+// Candidate model/table (its internal recruitment-pipeline record, created
+// via the OMS-sync bridge in lib/oms-sync.js). Table names don't collide
+// this way even though both represent "a person who applied for a job" in
+// their respective, fully separate apps.
+model CandidateAccount {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  phone        String?
+
+  emailVerified              Boolean   @default(false)
+  // Same "store a hash, email the raw token" pattern as
+  // AdminPasswordResetToken above - only one live token per account at a
+  // time, resend/re-verify just overwrites it.
+  verificationTokenHash      String?   @unique
+  verificationTokenExpiresAt DateTime?
+
+  // "CV on file" - reused so a signed-in candidate never has to re-upload
+  // per application. Exact same storage shape as JobApplication's CV fields
+  // (base64 data URL in a TEXT column), just nullable since a brand new
+  // account has none yet.
+  cvFileName  String?
+  cvMimeType  String?
+  cvSizeBytes Int?
+  cvDataUrl   String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications JobApplication[]
+  savedJobs    SavedJob[]
+}
+
+// Candidate's bookmarked listings. Cascade-deleted with the account (unlike
+// JobApplication.candidateAccountId above) - a saved job has no value or
+// meaning to anyone but the candidate who saved it, so there is nothing to
+// preserve once the account is gone.
+model SavedJob {
+  id                 String           @id @default(cuid())
+  candidateAccountId String
+  candidateAccount   CandidateAccount @relation(fields: [candidateAccountId], references: [id], onDelete: Cascade)
+  jobListingId       String
+  jobListing         JobListing       @relation(fields: [jobListingId], references: [id], onDelete: Cascade)
+  createdAt          DateTime         @default(now())
+
+  @@unique([candidateAccountId, jobListingId])
+  @@index([jobListingId])
 }

@@ -1,6 +1,9 @@
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { prisma } from '../../../lib/db';
 import { effectiveStatus, serializeListing, publiclyVisibleWhere } from '../../../lib/jobs';
+import { getSessionFromCookieStore } from '../../../lib/candidate-auth';
+import SaveJobButton from '../../../components/SaveJobButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +35,13 @@ export default async function JobDetailPage({ params }) {
 
   const job = serializeListing(listing);
   const accepting = job.status === 'OPEN';
+
+  const session = getSessionFromCookieStore(cookies());
+  const savedJob = session
+    ? await prisma.savedJob.findUnique({
+        where: { candidateAccountId_jobListingId: { candidateAccountId: session.cid, jobListingId: job.id } },
+      })
+    : null;
 
   const jsonLd = {
     '@context': 'https://schema.org/',
@@ -65,6 +75,9 @@ export default async function JobDetailPage({ params }) {
           <span className="badge">{job.branch}</span>
           <span className="badge">{SHIFT_LABELS[job.shift]} shift</span>
           {!accepting && <span className="badge" style={{ background: '#FBEAEA', color: '#C0392B' }}>Closed</span>}
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <SaveJobButton jobId={job.id} signedIn={!!session} initiallySaved={!!savedJob} />
         </div>
       </div>
 
