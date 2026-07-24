@@ -1,5 +1,5 @@
 const { prisma } = require('../../../../lib/db');
-const { serializeListing } = require('../../../../lib/jobs');
+const { serializeListing, publiclyVisibleWhere } = require('../../../../lib/jobs');
 
 function json(data, init) {
   return new Response(JSON.stringify(data), {
@@ -9,7 +9,8 @@ function json(data, init) {
 }
 
 async function GET(request, { params }) {
-  const listing = await prisma.jobListing.findUnique({ where: { id: params.id } });
+  // Live filter (not cached) - see lib/jobs.js publiclyVisibleWhere.
+  const listing = await prisma.jobListing.findFirst({ where: publiclyVisibleWhere({ id: params.id }) });
   if (!listing) return json({ error: 'Job not found' }, { status: 404 });
   return json({ job: serializeListing(listing) });
 }

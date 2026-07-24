@@ -1,5 +1,5 @@
 import { prisma } from '../lib/db';
-import { effectiveStatus, serializeListing } from '../lib/jobs';
+import { effectiveStatus, serializeListing, publiclyVisibleWhere } from '../lib/jobs';
 
 export const dynamic = 'force-dynamic'; // always reflect the latest listings/closing dates
 
@@ -46,7 +46,10 @@ export default async function HomePage({ searchParams }) {
   const branch = (searchParams.branch || '').trim();
   const shift = (searchParams.shift || '').trim();
 
-  const allOpen = await prisma.jobListing.findMany({ where: { status: 'OPEN' }, orderBy: { createdAt: 'desc' } });
+  const allOpen = await prisma.jobListing.findMany({
+    where: publiclyVisibleWhere({ status: 'OPEN' }),
+    orderBy: { createdAt: 'desc' },
+  });
   const openNow = allOpen.filter((l) => effectiveStatus(l) === 'OPEN');
 
   const branches = [...new Set(openNow.map((l) => l.branch))].sort();
@@ -140,7 +143,9 @@ export default async function HomePage({ searchParams }) {
                       <a href={`/jobs/${job.id}`} style={{ fontWeight: 700, color: '#0D2B4E', display: 'block' }}>
                         {job.title}
                       </a>
-                      <span style={{ color: '#6B7684', fontSize: 12.5 }}>{job.employmentType}</span>
+                      <span style={{ color: '#6B7684', fontSize: 12.5 }}>
+                        {job.postingCompany} · {job.employmentType}
+                      </span>
                     </td>
                     <td data-label="Location"><a href={`/jobs/${job.id}`}>{job.branch}</a></td>
                     <td data-label="Shift"><a href={`/jobs/${job.id}`}><span className="badge">{SHIFT_LABELS[job.shift]}</span></a></td>

@@ -1,5 +1,5 @@
 const { prisma } = require('../../../../../lib/db');
-const { isAcceptingApplications } = require('../../../../../lib/jobs');
+const { isAcceptingApplications, publiclyVisibleWhere } = require('../../../../../lib/jobs');
 const { validateCvFile, validateApplication } = require('../../../../../lib/validation');
 const { checkRateLimit, clientIp, pruneOldHits } = require('../../../../../lib/rate-limit');
 const { sendEmail, applicationConfirmationEmail } = require('../../../../../lib/email');
@@ -31,7 +31,10 @@ async function POST(request, { params }) {
   }
   pruneOldHits(); // fire-and-forget, best-effort
 
-  const listing = await prisma.jobListing.findUnique({ where: { id: params.id } });
+  // Live filter (not cached) - see lib/jobs.js publiclyVisibleWhere. Blocks
+  // applying to a listing whose owning employer has since been
+  // suspended/rejected, even via a direct/bookmarked link.
+  const listing = await prisma.jobListing.findFirst({ where: publiclyVisibleWhere({ id: params.id }) });
   if (!listing) return json({ error: 'Job not found' }, { status: 404 });
   if (!isAcceptingApplications(listing)) {
     return json({ error: 'This role is no longer accepting applications.' }, { status: 400 });

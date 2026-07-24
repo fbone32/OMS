@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import { prisma } from '../../../lib/db';
-import { effectiveStatus, serializeListing } from '../../../lib/jobs';
+import { effectiveStatus, serializeListing, publiclyVisibleWhere } from '../../../lib/jobs';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,16 +16,18 @@ function formatDate(d) {
 }
 
 export async function generateMetadata({ params }) {
-  const listing = await prisma.jobListing.findUnique({ where: { id: params.id } });
-  if (!listing) return { title: 'Role not found — OBA Careers' };
+  const listing = await prisma.jobListing.findFirst({ where: publiclyVisibleWhere({ id: params.id }) });
+  if (!listing) return { title: 'Role not found - OBA Careers' };
   return {
-    title: `${listing.title} — OBA Careers`,
+    title: `${listing.title} - OBA Careers`,
     description: listing.summary,
   };
 }
 
 export default async function JobDetailPage({ params }) {
-  const listing = await prisma.jobListing.findUnique({ where: { id: params.id } });
+  // Live filter, not a cached/denormalized flag - see lib/jobs.js
+  // publiclyVisibleWhere for why this must be evaluated on every request.
+  const listing = await prisma.jobListing.findFirst({ where: publiclyVisibleWhere({ id: params.id }) });
   if (!listing) notFound();
 
   const job = serializeListing(listing);

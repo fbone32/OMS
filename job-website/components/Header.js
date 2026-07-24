@@ -10,9 +10,10 @@ export default function Header() {
         </a>
         <nav style={{ display: 'flex', gap: 18, alignItems: 'center' }}>
           <a href="/" style={{ color: '#fff', fontSize: 13.5, fontWeight: 600 }}>Roles</a>
+          <a href="/employers" style={{ color: '#fff', fontSize: 13.5, fontWeight: 600 }}>For Employers</a>
           <a href="/privacy" style={{ color: '#fff', fontSize: 13.5, fontWeight: 600 }}>Privacy</a>
           <a
-            href="/admin/login"
+            href="/sign-in"
             style={{
               color: '#0D2B4E',
               background: '#C8960C',
@@ -23,7 +24,7 @@ export default function Header() {
               textDecoration: 'none',
             }}
           >
-            Staff sign in
+            Sign in
           </a>
         </nav>
       </div>

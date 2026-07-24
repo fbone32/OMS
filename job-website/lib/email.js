@@ -83,8 +83,52 @@ function applicationConfirmationEmail({ fullName, jobTitle, branch }) {
   return { subject, html, text: `Thanks ${fullName}! We received your application for ${jobTitle} (${branch}).` };
 }
 
+function employerApprovedEmail({ companyName }) {
+  const subject = 'Your employer account has been approved';
+  const html = `
+    <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;">
+      <div style="background:#0D2B4E;padding:24px;text-align:center;">
+        <span style="color:#C8960C;font-weight:800;font-size:13px;letter-spacing:0.14em;">OPEN BASE AFRICA</span>
+      </div>
+      <div style="padding:28px 24px;color:#0D2B4E;">
+        <h2 style="margin:0 0 12px;">Welcome, ${escapeHtml(companyName)}!</h2>
+        <p style="font-size:14px;line-height:1.6;color:#333;">
+          Your employer account on OBA Jobs has been approved. You can now sign in
+          and start posting roles for candidates to apply to.
+        </p>
+        <p style="font-size:13px;line-height:1.6;color:#666;">
+          Sign in any time from the "For Employers" link on our jobs site.
+        </p>
+        <p style="font-size:13px;color:#999;margin-top:24px;">Open Base Africa HR</p>
+      </div>
+    </div>`;
+  return { subject, html, text: `Welcome, ${companyName}! Your employer account on OBA Jobs has been approved.` };
+}
+
+function employerRejectedEmail({ companyName, reason }) {
+  const subject = 'Update on your employer account registration';
+  const html = `
+    <div style="font-family:Inter,Arial,sans-serif;max-width:520px;margin:0 auto;">
+      <div style="background:#0D2B4E;padding:24px;text-align:center;">
+        <span style="color:#C8960C;font-weight:800;font-size:13px;letter-spacing:0.14em;">OPEN BASE AFRICA</span>
+      </div>
+      <div style="padding:28px 24px;color:#0D2B4E;">
+        <h2 style="margin:0 0 12px;">Regarding your registration, ${escapeHtml(companyName)}</h2>
+        <p style="font-size:14px;line-height:1.6;color:#333;">
+          We were unable to approve your employer account registration on OBA Jobs at this time.
+          ${reason ? escapeHtml(reason) : ''}
+        </p>
+        <p style="font-size:13px;line-height:1.6;color:#666;">
+          If you have questions, please get in touch and we will be happy to help.
+        </p>
+        <p style="font-size:13px;color:#999;margin-top:24px;">Open Base Africa HR</p>
+      </div>
+    </div>`;
+  return { subject, html, text: `We were unable to approve your employer account registration on OBA Jobs at this time.` };
+}
+
 function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-module.exports = { sendEmail, applicationConfirmationEmail };
+module.exports = { sendEmail, applicationConfirmationEmail, employerApprovedEmail, employerRejectedEmail };

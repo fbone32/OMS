@@ -34,8 +34,23 @@ function serializeListing(listing) {
     closingDate: listing.closingDate,
     status: effectiveStatus(listing),
     rawStatus: listing.status,
+    employerId: listing.employerId || null,
     createdAt: listing.createdAt,
   };
 }
 
-module.exports = { effectiveStatus, isAcceptingApplications, serializeListing };
+// Prisma `where` clause for listings that are allowed to appear on public
+// pages (homepage, job detail): OBA's own postings (employerId null) PLUS
+// any employer-posted listing whose owning employer's status is APPROVED
+// *right now*. This is evaluated live via a relation filter on every read,
+// never cached/denormalized onto the listing row, so an employer that gets
+// SUSPENDED or REJECTED after posting has their open roles disappear from
+// public view on the very next request, with no extra step required.
+function publiclyVisibleWhere(extra = {}) {
+  return {
+    ...extra,
+    OR: [{ employerId: null }, { employer: { status: 'APPROVED' } }],
+  };
+}
+
+module.exports = { effectiveStatus, isAcceptingApplications, serializeListing, publiclyVisibleWhere };

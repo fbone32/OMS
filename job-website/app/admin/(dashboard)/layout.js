@@ -22,6 +22,7 @@ export default function DashboardLayout({ children }) {
             <a href="/admin" style={{ fontWeight: 700, color: '#0D2B4E' }}>Dashboard</a>
             <a href="/admin/jobs" style={{ fontWeight: 700, color: '#0D2B4E' }}>Job Listings</a>
             <a href="/admin/applicants" style={{ fontWeight: 700, color: '#0D2B4E' }}>Applicants</a>
+            <a href="/admin/employers" style={{ fontWeight: 700, color: '#0D2B4E' }}>Employers</a>
           </div>
           <AdminLogoutButton />
         </div>

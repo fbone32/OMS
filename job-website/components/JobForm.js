@@ -13,7 +13,7 @@ function toDateInputValue(d) {
   return date.toISOString().slice(0, 10);
 }
 
-export default function JobForm({ initial, jobId }) {
+export default function JobForm({ initial, jobId, basePath = '/api/admin/jobs', redirectPath = '/admin/jobs' }) {
   const [values, setValues] = useState(() => (initial ? { ...EMPTY, ...initial, closingDate: toDateInputValue(initial.closingDate) } : EMPTY));
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -27,7 +27,7 @@ export default function JobForm({ initial, jobId }) {
     setError(null);
     setSubmitting(true);
     try {
-      const url = jobId ? `/api/admin/jobs/${jobId}` : '/api/admin/jobs';
+      const url = jobId ? `${basePath}/${jobId}` : basePath;
       const method = jobId ? 'PATCH' : 'POST';
       const res = await fetch(url, {
         method,
@@ -36,7 +36,7 @@ export default function JobForm({ initial, jobId }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Failed to save');
-      window.location.href = '/admin/jobs';
+      window.location.href = redirectPath;
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
