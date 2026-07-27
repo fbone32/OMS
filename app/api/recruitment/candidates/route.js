@@ -24,6 +24,15 @@ function serialize(c) {
     notes: c.notes,
     appliedAt: c.appliedAt,
     convertedEmployeeId: c.convertedEmployeeId,
+    // The full application as submitted externally (job-website applicants
+    // only - internally-added candidates have none of these). cvDataUrl
+    // itself is deliberately left out of this list payload (can be
+    // megabytes) - the UI fetches actual bytes on demand from
+    // GET /api/recruitment/candidates/:id/cv.
+    coverLetter: c.coverLetter,
+    cvFileName: c.cvFileName,
+    hasCv: !!c.cvDataUrl,
+    source: c.source,
   };
 }
 

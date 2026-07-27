@@ -2942,12 +2942,23 @@
                   <div><div style="font-size:10px;font-weight:800;color:#9AA4B0;letter-spacing:0.06em;">EDUCATION</div><div style="font-size:13px;color:#1F2A37;font-weight:600;margin-top:3px;">{{ candDetail.edu }}</div></div>
                   <div><div style="font-size:10px;font-weight:800;color:#9AA4B0;letter-spacing:0.06em;">APPLIED</div><div style="font-size:13px;color:#1F2A37;font-weight:600;margin-top:3px;">{{ candDetail.applied }}</div></div>
                 </div>
+                <sc-if value="{{ candDetail.hasCoverLetter }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:0 22px 16px 22px;">
+                    <div style="font-size:10px;font-weight:800;color:#9AA4B0;letter-spacing:0.06em;margin-bottom:5px;">WHY THEY'RE A GOOD FIT (from their application)</div>
+                    <div style="background:#F5F7FA;border-radius:8px;padding:12px 14px;font-size:12.5px;color:#1F2A37;font-weight:500;line-height:1.5;">{{ candDetail.coverLetter }}</div>
+                  </div>
+                </sc-if>
                 <div style="padding:0 22px 16px 22px;">
                   <div style="font-size:10px;font-weight:800;color:#9AA4B0;letter-spacing:0.06em;margin-bottom:5px;">RECRUITER NOTES</div>
                   <div style="background:#F5F7FA;border-radius:8px;padding:12px 14px;font-size:12.5px;color:#1F2A37;font-weight:500;line-height:1.5;">{{ candDetail.notes }}</div>
                 </div>
                 <div style="padding:14px 22px;border-top:1px solid #EEF1F4;display:flex;justify-content:space-between;align-items:center;gap:10px;">
-                  <button style="background:#FFFFFF;border:1px solid #D8DFE7;color:#0D2B4E;font-size:12px;font-weight:700;padding:9px 15px;border-radius:7px;cursor:pointer;">📄 View CV</button>
+                  <sc-if value="{{ candDetail.hasCv }}" hint-placeholder-val="{{ false }}">
+                    <button onClick="{{ candDetail.viewCv }}" style="background:#FFFFFF;border:1px solid #D8DFE7;color:#0D2B4E;font-size:12px;font-weight:700;padding:9px 15px;border-radius:7px;cursor:pointer;">📄 View CV</button>
+                  </sc-if>
+                  <sc-if value="{{ candDetail.noCv }}" hint-placeholder-val="{{ true }}">
+                    <span style="font-size:11.5px;color:#9AA4B0;font-weight:600;">No CV on file</span>
+                  </sc-if>
                   <button onClick="{{ closeCand }}" style="background:#0D2B4E;color:#FFFFFF;border:none;font-size:12.5px;font-weight:700;padding:9px 18px;border-radius:7px;cursor:pointer;" style-hover="background:#123A69;">Close</button>
                 </div>
               </div>
@@ -5008,6 +5019,7 @@ class Component extends StreamableLogic {
 
   // ---- recruitment (Phase 2 · real data via /api/recruitment) ----
   openCand(id) { this.setState({ candOpen: true, candId: id }); }
+  viewCandCv(id) { window.open('/api/recruitment/candidates/' + id + '/cv', '_blank'); }
   closeCand() { this.setState({ candOpen: false }); }
   candAdvance(id) {
     const candidate = this.state.apiCandidates.find(c => c.id === id);
@@ -6048,8 +6060,10 @@ class Component extends StreamableLogic {
     const candDetail = candDetailSrc ? {
       initials: this.initials(candDetailSrc.name), name: candDetailSrc.name, roleTitle: candDetailSrc.roleTitle, stage: STAGE_LABELS[candDetailSrc.stage],
       email: candDetailSrc.email, phone: candDetailSrc.phone || '—', exp: candDetailSrc.experience || '—', edu: candDetailSrc.education || '—',
-      applied: fmtDateShort3(candDetailSrc.appliedAt), notes: candDetailSrc.notes || '—'
-    } : { initials: '', name: '', roleTitle: '', stage: '', email: '', phone: '', exp: '', edu: '', applied: '', notes: '' };
+      applied: fmtDateShort3(candDetailSrc.appliedAt), notes: candDetailSrc.notes || '—',
+      hasCoverLetter: !!candDetailSrc.coverLetter, coverLetter: candDetailSrc.coverLetter || '',
+      hasCv: !!candDetailSrc.hasCv, noCv: !candDetailSrc.hasCv, viewCv: () => this.viewCandCv(candDetailSrc.id)
+    } : { initials: '', name: '', roleTitle: '', stage: '', email: '', phone: '', exp: '', edu: '', applied: '', notes: '', hasCoverLetter: false, coverLetter: '', hasCv: false, noCv: true, viewCv: () => {} };
 
     // ---- my space (Phase 1 · attendance/leave/payslips/schedule are real) ----
     const myAtt = s.apiMyAttendance;
